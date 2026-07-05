@@ -649,6 +649,7 @@ import {
   discoverReplacementRegions,
   fragmentPort,
   generateWithReplacements,
+  graphTemplateDefinitionToJsonSchema,
   literalPort,
   rawCodePort,
   unionPort,
@@ -667,6 +668,7 @@ scanReplacementRegions(sourceText)
 serializeReplacement(replacement, options?, region?)
 defineTemplate(definition)
 createTemplateRegistry(templates?)
+graphTemplateDefinitionToJsonSchema(template)
 compileGraph(graph, registry, options?)
 code
 ```

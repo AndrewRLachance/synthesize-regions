@@ -1,0 +1,179 @@
+"$schema": https://json-schema.org/draft/2020-12/schema
+"$id": https://schemas.synthesize-regions.dev/template-summary.schema.json
+title: synthesize-regions TemplateSummary
+description: Structural JSON Schema for TemplateSummary values returned by graph template registries. It describes public planner-facing metadata and intentionally excludes template implementation source.
+"$ref": "#/$defs/templateSummary"
+"$defs":
+  templateSummary:
+    type: object
+    additionalProperties: false
+    required:
+      - modelId
+      - inputs
+      - output
+    properties:
+      modelId:
+        type: string
+      version:
+        type: string
+      description:
+        type: string
+      inputs:
+        type: object
+        additionalProperties:
+          "$ref": "#/$defs/inputPortSummary"
+      output:
+        "$ref": "#/$defs/outputPortSummary"
+
+  inputPortSummary:
+    oneOf:
+      - "$ref": "#/$defs/literalInputPortSummary"
+      - "$ref": "#/$defs/fragmentInputPortSummary"
+      - "$ref": "#/$defs/rawCodeInputPortSummary"
+      - "$ref": "#/$defs/unionInputPortSummary"
+
+  literalInputPortSummary:
+    type: object
+    additionalProperties: false
+    required:
+      - kind
+      - regionKind
+      - required
+    properties:
+      kind:
+        const: literal
+      regionKind:
+        "$ref": "#/$defs/regionKind"
+      required:
+        type: boolean
+      description:
+        type: string
+      schema: true
+
+  fragmentInputPortSummary:
+    type: object
+    additionalProperties: false
+    required:
+      - kind
+      - regionKind
+      - required
+      - accepts
+    properties:
+      kind:
+        const: fragment
+      regionKind:
+        "$ref": "#/$defs/regionKind"
+      required:
+        type: boolean
+      description:
+        type: string
+      accepts:
+        type: object
+        additionalProperties: false
+        required:
+          - outputKind
+        properties:
+          outputKind:
+            "$ref": "#/$defs/regionKind"
+          type:
+            "$ref": "#/$defs/typeDescriptor"
+          sourceModelIds:
+            type: array
+            items:
+              type: string
+
+  rawCodeInputPortSummary:
+    type: object
+    additionalProperties: false
+    required:
+      - kind
+      - regionKind
+      - required
+    properties:
+      kind:
+        const: rawCode
+      regionKind:
+        "$ref": "#/$defs/regionKind"
+      required:
+        type: boolean
+      description:
+        type: string
+      policy:
+        "$ref": "#/$defs/rawCodePolicy"
+      type:
+        "$ref": "#/$defs/typeDescriptor"
+
+  unionInputPortSummary:
+    type: object
+    additionalProperties: false
+    required:
+      - kind
+      - required
+      - options
+    properties:
+      kind:
+        const: union
+      required:
+        type: boolean
+      description:
+        type: string
+      options:
+        type: array
+        items:
+          "$ref": "#/$defs/inputPortSummary"
+
+  outputPortSummary:
+    type: object
+    additionalProperties: false
+    required:
+      - kind
+    properties:
+      kind:
+        "$ref": "#/$defs/regionKind"
+      type:
+        "$ref": "#/$defs/typeDescriptor"
+      schema: true
+      description:
+        type: string
+
+  rawCodePolicy:
+    type: object
+    additionalProperties: false
+    properties:
+      description:
+        type: string
+      maxLength:
+        type: number
+        minimum: 0
+      allowNewlines:
+        type: boolean
+      forbiddenSubstrings:
+        type: array
+        items:
+          type: string
+      forbiddenPatterns:
+        type: array
+        items:
+          type: string
+
+  typeDescriptor:
+    type: object
+    additionalProperties: false
+    properties:
+      ts:
+        type: string
+      schema: true
+
+  regionKind:
+    enum:
+      - identifier
+      - expression
+      - expressionSuffix
+      - statement
+      - array
+      - object
+      - string
+      - number
+      - boolean
+      - "null"
+      - objectProperty

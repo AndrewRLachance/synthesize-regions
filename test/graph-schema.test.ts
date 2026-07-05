@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { sampleGraph, sampleRegistry } from "../src/templates/sample.js";
+import { BooleanArrayLiteral, MapBooleanArray, sampleGraph, sampleRegistry } from "../src/templates/sample.js";
+import { defineTemplate, graphTemplateDefinitionToJsonSchema, literalPort, rawCodePort, unionPort } from "../src/index.js";
 import type { InputPortSummary, SynthesisGraph, SynthesisInput, TemplateSummary } from "../src/index.js";
 
 const currentDir = fileURLToPath(new URL(".", import.meta.url));
@@ -192,5 +193,111 @@ describe("graph JSON Schemas", () => {
     expect(isSynthesisGraph({ nodes: [], finalNodeId: 1 })).toBe(false);
     expect(isSynthesisGraph({ nodes: [{ id: "x", templateId: "T", inputs: { value: { kind: "ref" } } }], finalNodeId: "x" })).toBe(false);
     expect(isTemplateSummary({ modelId: "T", inputs: {}, output: { kind: "notARegionKind" } })).toBe(false);
+  });
+
+  it("converts literal-port template definitions into node JSON Schema", () => {
+    const schema = graphTemplateDefinitionToJsonSchema(BooleanArrayLiteral);
+
+    expect(schema).toMatchObject({
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      title: "BooleanArrayLiteral SynthesisNode",
+      description: "Produces a boolean array expression from a literal input.",
+      type: "object",
+      additionalProperties: false,
+      required: ["id", "templateId", "inputs"],
+      properties: {
+        templateId: { const: "BooleanArrayLiteral" },
+        inputs: {
+          type: "object",
+          additionalProperties: false,
+          required: ["values"],
+          properties: {
+            values: {
+              type: "object",
+              additionalProperties: false,
+              required: ["kind", "value"],
+              properties: {
+                kind: { const: "literal" },
+                value: {
+                  type: "array",
+                  items: { type: "boolean" }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+  });
+
+  it("converts fragment-port template definitions into ref-compatible node JSON Schema", () => {
+    const schema = graphTemplateDefinitionToJsonSchema(MapBooleanArray);
+    const properties = schema.properties as Record<string, unknown>;
+    const inputs = (properties.inputs as Record<string, unknown>).properties as Record<string, unknown>;
+    const source = inputs.source as Record<string, unknown>;
+
+    expect((properties.templateId as Record<string, unknown>).const).toBe("MapBooleanArray");
+    expect(source).toHaveProperty("anyOf");
+    expect(source.anyOf).toEqual([
+      expect.objectContaining({ required: ["kind", "nodeId"] }),
+      expect.objectContaining({ required: ["$ref"] }),
+      expect.objectContaining({ required: ["kind", "node"] })
+    ]);
+    expect(schema).toHaveProperty("$defs.synthesisNode");
+    expect(schema).toHaveProperty("$defs.synthesisInput");
+  });
+
+  it("converts raw-code and union ports into node JSON Schema", () => {
+    const template = defineTemplate({
+      modelId: "ScoreOrExpression",
+      inputs: {
+        score: unionPort({
+          required: false,
+          options: [
+            literalPort({
+              regionKind: "expression",
+              schema: { type: "number" }
+            }),
+            rawCodePort({
+              regionKind: "expression",
+              policy: {
+                maxLength: 24,
+                allowNewlines: false
+              }
+            })
+          ]
+        })
+      },
+      output: { kind: "expression" },
+      template: r => `${r("score")} + 1`
+    });
+
+    const schema = graphTemplateDefinitionToJsonSchema(template);
+    const properties = schema.properties as Record<string, unknown>;
+    const inputs = properties.inputs as Record<string, unknown>;
+    const inputProperties = inputs.properties as Record<string, unknown>;
+    const score = inputProperties.score as Record<string, unknown>;
+    const options = score.anyOf as Array<Record<string, unknown>>;
+    const rawCodeOption = options[1] as Record<string, unknown>;
+    const rawCodeProperties = rawCodeOption.properties as Record<string, unknown>;
+    const code = rawCodeProperties.code as Record<string, unknown>;
+
+    expect(inputs.required).toEqual([]);
+    expect(options[0]).toMatchObject({
+      properties: {
+        kind: { const: "literal" },
+        value: { type: "number" }
+      }
+    });
+    expect(rawCodeOption).toMatchObject({
+      properties: {
+        kind: { const: "rawCode" }
+      }
+    });
+    expect(code).toMatchObject({
+      type: "string",
+      maxLength: 24,
+      pattern: "^[^\\r\\n]*$"
+    });
   });
 });
