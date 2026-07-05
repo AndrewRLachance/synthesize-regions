@@ -272,6 +272,120 @@ console.log(result.code);
 Partial templates still receive final validation inside their synthetic wrapper.
 Returned `ReplacementRegion` offsets remain relative to the original fragment.
 
+## Synthesis Graphs
+
+The higher-level template layer can model code generation as a typed graph. Each
+template is a graph operator with explicit input ports and one output port. Graph
+compilation validates node references, input compatibility, basic type metadata,
+and then invokes the existing marker replacement engine for final TypeScript
+generation.
+
+```ts
+import {
+  compileGraph,
+  createTemplateRegistry,
+  defineTemplate,
+  fragmentPort,
+  literalPort,
+  type SynthesisGraph
+} from "synthesize-regions";
+
+const BooleanArrayLiteral = defineTemplate({
+  modelId: "BooleanArrayLiteral",
+  version: "1.0.0",
+  inputs: {
+    values: literalPort({
+      regionKind: "expression",
+      schema: { type: "array", items: { type: "boolean" } }
+    })
+  },
+  output: {
+    kind: "expression",
+    type: { ts: "boolean[]" },
+    schema: { type: "array", items: { type: "boolean" } }
+  },
+  template: region => region("values")
+});
+
+const MapBooleanArray = defineTemplate({
+  modelId: "MapBooleanArray",
+  version: "1.0.0",
+  inputs: {
+    source: fragmentPort({
+      regionKind: "expression",
+      accepts: {
+        outputKind: "expression",
+        type: { ts: "boolean[]" }
+      }
+    })
+  },
+  output: {
+    kind: "expression",
+    type: { ts: "boolean[]" }
+  },
+  template: region => `${region("source")}.map(x => Boolean(x))`
+});
+
+const registry = createTemplateRegistry([BooleanArrayLiteral, MapBooleanArray]);
+
+const graph: SynthesisGraph = {
+  nodes: [
+    {
+      id: "source",
+      templateId: "BooleanArrayLiteral",
+      inputs: {
+        values: { kind: "literal", value: [true, false, true] }
+      }
+    },
+    {
+      id: "mapped",
+      templateId: "MapBooleanArray",
+      inputs: {
+        source: { kind: "ref", nodeId: "source" }
+      }
+    }
+  ],
+  finalNodeId: "mapped",
+  goal: {
+    outputKind: "expression",
+    type: { ts: "boolean[]" }
+  }
+};
+
+const result = compileGraph(graph, registry);
+
+if (result.ok) {
+  console.log(result.finalFragment.code);
+  // [true, false, true].map(x => Boolean(x))
+}
+```
+
+Graph compilation returns structured diagnostics instead of throwing for normal
+planning and validation failures:
+
+```ts
+type SynthesisDiagnostic = {
+  stage: "graph" | "template" | "input" | "port" | "region" | "ast" | "type" | "policy";
+  code: string;
+  severity: "error" | "warning";
+  message: string;
+  nodeId?: string;
+  templateId?: string;
+  inputName?: string;
+  path?: string;
+  expected?: unknown;
+  actual?: unknown;
+};
+```
+
+Current graph validation covers duplicate node IDs, unknown templates, missing
+or unknown inputs, unknown references, cycles, fragment kind/type mismatches,
+source-template mismatches, literal schema validation, raw-code opt-in, and
+final goal validation.
+
+The graph layer is additive. Legacy `defineTemplate({ pattern, outputKind, ... })`
+templates and the low-level `generateWithReplacements` API remain supported.
+
 ## Code Builders
 
 The exported `code` helper builds plain TypeScript code strings and replacement
@@ -453,13 +567,21 @@ FinalValidationError
 ## Public API
 
 The root export includes public types, errors, marker scanning, discovery,
-generation, validation helpers, security-policy helpers, and builders:
+generation, validation helpers, security-policy helpers, builders, and graph
+template helpers:
 
 ```ts
 import {
   code,
+  compileGraph,
+  createTemplateRegistry,
+  defineTemplate,
   discoverReplacementRegions,
+  fragmentPort,
   generateWithReplacements,
+  literalPort,
+  rawCodePort,
+  unionPort,
   type ReplacementMap
 } from "synthesize-regions";
 ```
@@ -473,6 +595,9 @@ discoverReplacementRegions(sourceText, options?)
 discoverFileReplacementRegions(inputFilePath, options?)
 scanReplacementRegions(sourceText)
 serializeReplacement(replacement, options?, region?)
+defineTemplate(definition)
+createTemplateRegistry(templates?)
+compileGraph(graph, registry, options?)
 code
 ```
 

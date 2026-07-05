@@ -1,65 +1,91 @@
-import { P } from 'ts-pattern'
-import { SpecPattern, isGeneratedExpression, isGeneratedCodeFrom } from './converter.js'
+import {
+	type GeneratedFragment,
+	type GraphCompilationResult,
+	type SynthesisGraph
+} from './graphTypes.js'
+import { fragmentPort, literalPort } from './compatibility.js'
+import { compileGraph } from './graph.js'
+import { createTemplateRegistry } from './registry.js'
 import { defineTemplate } from './definition.js'
 
-/**
- * Experimental examples showing how generated template output can feed into a
- * later template through branded `GeneratedCode` values and `ts-pattern` guards.
- */
-function requiredKey<S extends object, K extends string>(key: K): Extract<keyof S, string> {
-	return key as unknown as Extract<keyof S, string>
-}
-
-const defineNewConditionTemplate = <
-	const M extends string,
-	const S extends SpecPattern & {
-		readonly arrowArray: {
-			readonly input: P.Pattern<unknown>
-			readonly output: 'expression'
-		}
-	}
->(definition: {
-	readonly modelId: M
-	readonly pattern: S
-}) =>
-	defineTemplate({
-		modelId: definition.modelId,
-		outputKind: 'expressionSuffix',
-		pattern: definition.pattern,
-		template: (region) =>
-			`.with({ type: "poop", seconds: 10 }, ${region(requiredKey<S, 'arrowArray'>('arrowArray'), 'x => x')})`
-	})
-
-const ArrowArray = defineTemplate({
-	modelId: 'ArrowArray',
-	outputKind: 'expression',
-	pattern: {
-		sourceArray: {
-			input: P.array(P.boolean),
-			output: 'array'
+export const BooleanArrayLiteral = defineTemplate({
+	modelId: 'BooleanArrayLiteral',
+	version: '1.0.0',
+	description: 'Produces a boolean array expression from a literal input.',
+	inputs: {
+		values: literalPort({
+			regionKind: 'expression',
+			schema: {
+				type: 'array',
+				items: { type: 'boolean' }
+			}
+		})
+	},
+	output: {
+		kind: 'expression',
+		type: { ts: 'boolean[]' },
+		schema: {
+			type: 'array',
+			items: { type: 'boolean' }
 		}
 	},
-	template: (region) => `(data: [1, 2, 3]) => ${region('sourceArray', 'someValue')}.map((x, i) => data[i] == Number(x))`
+	template: r => r('values')
 })
 
-const NewCondition = defineNewConditionTemplate({
-	modelId: 'NewCondition',
-	pattern: {
-		arrowArray: {
-			input: P.when(isGeneratedExpression),
-			output: 'expression'
+export const MapBooleanArray = defineTemplate({
+	modelId: 'MapBooleanArray',
+	version: '1.0.0',
+	description: 'Maps an expression fragment to a boolean array expression.',
+	inputs: {
+		source: fragmentPort({
+			regionKind: 'expression',
+			accepts: {
+				outputKind: 'expression',
+				type: { ts: 'boolean[]' }
+			}
+		})
+	},
+	output: {
+		kind: 'expression',
+		type: { ts: 'boolean[]' },
+		schema: {
+			type: 'array',
+			items: { type: 'boolean' }
 		}
-	}
+	},
+	template: r => `${r('source')}.map(x => Boolean(x))`
 })
 
-const NewCondArrowOnly = defineNewConditionTemplate({
-	modelId: 'NewCondArrowOnly',
-	pattern: {
-		arrowArray: {
-			input: P.when(isGeneratedCodeFrom('expression', ArrowArray.modelId)),
-			output: 'expression'
+export const sampleRegistry = createTemplateRegistry([
+	BooleanArrayLiteral,
+	MapBooleanArray
+])
+
+export const sampleGraph: SynthesisGraph = {
+	nodes: [
+		{
+			id: 'source',
+			templateId: BooleanArrayLiteral.modelId,
+			inputs: {
+				values: { kind: 'literal', value: [true, false, true] }
+			}
+		},
+		{
+			id: 'mapped',
+			templateId: MapBooleanArray.modelId,
+			inputs: {
+				source: { kind: 'ref', nodeId: 'source' }
+			}
 		}
+	],
+	finalNodeId: 'mapped',
+	goal: {
+		outputKind: 'expression',
+		type: { ts: 'boolean[]' }
 	}
-})
+}
 
-NewCondArrowOnly.apply({ arrowArray: ArrowArray.apply({ sourceArray: [true, false] }) })
+export const sampleCompilation: GraphCompilationResult = compileGraph(sampleGraph, sampleRegistry)
+
+export const sampleFinalFragment: GeneratedFragment | undefined =
+	sampleCompilation.ok ? sampleCompilation.finalFragment : undefined

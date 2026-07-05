@@ -1,5 +1,7 @@
 import { P } from "ts-pattern"
 import type { ReplacementMap, Replacement, MarkerExpectedKind, ReplacementExpression, ReplacementExpressionSuffix, ReplacementObjectProperty, ReplacementStatement, ReplacementValue } from "../core/types.js"
+import { validateJsonSchemaSubset } from "./compatibility.js"
+import type { ResolvedGraphInput } from "./graphTypes.js"
 
 /**
  * Template input contract: each key describes the accepted runtime input shape
@@ -52,6 +54,74 @@ export function toReplacements<S extends SpecPattern>(
       replacements[key],
       key
     )
+  }
+
+  return result
+}
+
+function replacementFromFragment(input: Extract<ResolvedGraphInput, { kind: 'fragment' }>): ReplacementValue {
+  const code = input.fragment.code
+
+  switch (input.port.regionKind) {
+    case 'identifier':
+      return { kind: 'identifier', name: code }
+    case 'expression':
+      return { kind: 'expression', code }
+    case 'expressionSuffix':
+      return { kind: 'expressionSuffix', code }
+    case 'statement':
+      return { kind: 'statement', code }
+    default:
+      throw new ReplacementSchemaError(
+        `fragment input cannot be converted to ${input.port.regionKind} replacement in v1`
+      )
+  }
+}
+
+function replacementFromRawCode(input: Extract<ResolvedGraphInput, { kind: 'rawCode' }>): ReplacementValue {
+  switch (input.port.regionKind) {
+    case 'identifier':
+      return { kind: 'identifier', name: input.code }
+    case 'expression':
+      return { kind: 'expression', code: input.code }
+    case 'expressionSuffix':
+      return { kind: 'expressionSuffix', code: input.code }
+    case 'statement':
+      return { kind: 'statement', code: input.code }
+    default:
+      throw new ReplacementSchemaError(
+        `raw code input cannot be converted to ${input.port.regionKind} replacement in v1`
+      )
+  }
+}
+
+function replacementFromLiteral(input: Extract<ResolvedGraphInput, { kind: 'literal' }>): ReplacementValue {
+  const schemaResult = validateJsonSchemaSubset(input.value, input.port.schema)
+  if (!schemaResult.ok) {
+    throw new ReplacementSchemaError(schemaResult.message)
+  }
+
+  return markerReplacementSchemas[input.port.regionKind].parse(input.value)
+}
+
+/**
+ * Convert graph-resolved inputs into the existing replacement-map substrate.
+ */
+export function graphInputsToReplacementMap(inputs: Record<string, ResolvedGraphInput>): ReplacementMap {
+  const result: ReplacementMap = {}
+
+  for (const [key, input] of Object.entries(inputs)) {
+    switch (input.kind) {
+      case 'literal':
+        result[key] = replacementFromLiteral(input)
+        break
+      case 'fragment':
+        result[key] = replacementFromFragment(input)
+        break
+      case 'rawCode':
+        result[key] = replacementFromRawCode(input)
+        break
+    }
   }
 
   return result
