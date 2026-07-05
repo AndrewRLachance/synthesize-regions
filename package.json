@@ -1,0 +1,40 @@
+{
+  "name": "synthesize-regions",
+  "version": "0.1.0",
+  "description": "Controlled TypeScript source-template replacement utility using ts-morph.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./schemas/replacement-map.schema.json": "./schemas/replacement-map.schema.json",
+    "./builders": {
+      "types": "./dist/builders.d.ts",
+      "import": "./dist/builders.js"
+    }
+  },
+  "files": [
+    "dist",
+    "schemas",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "ts-morph": "^25.0.1",
+    "ts-pattern": "^5.9.0",
+    "type-fest": "^5.7.0",
+    "typescript": "^5.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "vitest": "^2.1.8"
+  }
+}

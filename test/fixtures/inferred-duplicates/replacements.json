@@ -1,0 +1,10 @@
+{
+  "sharedValue": { "kind": "expression", "code": "input.value" },
+  "label": { "kind": "string", "value": "generated" },
+  "settings": {
+    "kind": "object",
+    "properties": {
+      "enabled": { "kind": "boolean", "value": true }
+    }
+  }
+}

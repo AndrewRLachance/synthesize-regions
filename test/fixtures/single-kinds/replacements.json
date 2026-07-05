@@ -1,0 +1,26 @@
+{
+  "primaryProp": {
+    "kind": "objectProperty",
+    "name": "status",
+    "value": { "kind": "string", "value": "ready" }
+  },
+  "text": { "kind": "string", "value": "hello" },
+  "count": { "kind": "number", "value": 42 },
+  "enabled": { "kind": "boolean", "value": true },
+  "absent": { "kind": "null" },
+  "list": {
+    "kind": "array",
+    "elements": [
+      { "kind": "number", "value": 1 },
+      { "kind": "string", "value": "two" }
+    ]
+  },
+  "nested": {
+    "kind": "object",
+    "properties": {
+      "mode": { "kind": "string", "value": "strict" },
+      "ok": { "kind": "boolean", "value": true }
+    }
+  },
+  "exportedName": { "kind": "identifier", "name": "generatedValue" }
+}

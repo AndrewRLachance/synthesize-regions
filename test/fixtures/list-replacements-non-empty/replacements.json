@@ -1,0 +1,23 @@
+{
+  "items": [
+    { "kind": "string", "value": "a" },
+    { "kind": "number", "value": 1 },
+    { "kind": "identifier", "name": "someValue" }
+  ],
+  "props": [
+    {
+      "kind": "objectProperty",
+      "name": "mode",
+      "value": { "kind": "string", "value": "strict" }
+    },
+    {
+      "kind": "objectProperty",
+      "name": "count",
+      "value": { "kind": "number", "value": 3 }
+    }
+  ],
+  "steps": [
+    { "kind": "statement", "code": "const total = values.length;" },
+    { "kind": "statement", "code": "return { total, options };" }
+  ]
+}

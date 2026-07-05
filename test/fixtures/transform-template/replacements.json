@@ -1,0 +1,22 @@
+{
+  "configProps": [
+    {
+      "kind": "objectProperty",
+      "name": "mode",
+      "value": { "kind": "string", "value": "strict" }
+    },
+    {
+      "kind": "objectProperty",
+      "name": "retries",
+      "value": { "kind": "number", "value": 2 }
+    }
+  ],
+  "args": [
+    { "kind": "identifier", "name": "input" },
+    { "kind": "expression", "code": "input.foo + 1" }
+  ],
+  "body": [
+    { "kind": "statement", "code": "const label = input.bar.toUpperCase();" },
+    { "kind": "statement", "code": "return { value, label, meta: baseConfig };" }
+  ]
+}
