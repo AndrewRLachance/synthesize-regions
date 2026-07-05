@@ -1,8 +1,9 @@
 import type { GenerateOptions, MarkerExpectedKind, TemplateMode } from '../core/types.js'
 import { generateWithReplacements } from '../generation/generate.js'
+import { discoverReplacementRegions } from '../regions/discovery.js'
 import { portRegionKind, summarizeInputPort, summarizeOutputPort } from './compatibility.js'
 
-import { isMatching, P } from 'ts-pattern'
+import { isMatching, match, P } from 'ts-pattern'
 import {
 	SpecPattern,
 	InputPatternMap,
@@ -19,7 +20,9 @@ import type {
 	GraphTemplateInvocation,
 	InputPort,
 	OutputPort,
-	RegionKind
+	RegionKind,
+	StrictInputPortMap,
+	StrictOutputPort
 } from './graphTypes.js'
 
 
@@ -64,7 +67,8 @@ export type RegionBuilder<S extends SpecPattern> = <K extends Extract<keyof S, s
 
 export type GraphTemplateDefinitionInput<
     M extends string,
-    I extends Record<string, InputPort>
+    I extends Record<string, InputPort>,
+    O extends OutputPort = OutputPort
 > = {
     /** Stable template/model identifier used by graph nodes and provenance. */
     readonly modelId: M
@@ -73,9 +77,9 @@ export type GraphTemplateDefinitionInput<
     /** Optional human-readable summary surfaced in template summaries. */
     readonly description?: string
     /** Named graph input ports accepted by the template. */
-    readonly inputs: I
+    readonly inputs: StrictInputPortMap<I>
     /** Output fragment contract advertised by the template. */
-    readonly output: OutputPort
+    readonly output: StrictOutputPort<O>
     /** Source-template factory; call `region` to create marked placeholders. */
     readonly template: (region: GraphRegionBuilder<I>) => string
 }
@@ -96,43 +100,29 @@ export type LegacyTemplateDefinitionInput<
 }
 
 function defaultPlaceholder(kind: RegionKind): string {
-    switch (kind) {
-        case 'identifier':
-            return 'placeholder'
-        case 'expression':
-            return 'undefined'
-        case 'expressionSuffix':
-            return '.value'
-        case 'statement':
-            return 'throw new Error("placeholder");'
-        case 'array':
-            return '[]'
-        case 'object':
-            return '{}'
-        case 'string':
-            return '""'
-        case 'number':
-            return '0'
-        case 'boolean':
-            return 'false'
-        case 'null':
-            return 'null'
-        case 'objectProperty':
-            return 'placeholder: undefined'
-    }
+    return match(kind)
+        .returnType<string>()
+        .with('identifier', () => 'placeholder')
+        .with('expression', () => 'undefined')
+        .with('expressionSuffix', () => '.value')
+        .with('statement', () => 'throw new Error("placeholder");')
+        .with('array', () => '[]')
+        .with('object', () => '{}')
+        .with('string', () => '""')
+        .with('number', () => '0')
+        .with('boolean', () => 'false')
+        .with('null', () => 'null')
+        .with('objectProperty', () => 'placeholder: undefined')
+        .exhaustive()
 }
 
 function templateModeForOutput(kind: RegionKind): TemplateMode {
-    switch (kind) {
-        case 'expressionSuffix':
-            return { kind: 'expressionSuffix' }
-        case 'statement':
-            return { kind: 'statementList' }
-        case 'objectProperty':
-            return { kind: 'objectPropertyList' }
-        default:
-            return { kind: 'expression' }
-    }
+    return match(kind)
+        .returnType<TemplateMode>()
+        .with('expressionSuffix', () => ({ kind: 'expressionSuffix' }))
+        .with('statement', () => ({ kind: 'statementList' }))
+        .with('objectProperty', () => ({ kind: 'objectPropertyList' }))
+        .otherwise(() => ({ kind: 'expression' }))
 }
 
 /**
@@ -141,8 +131,9 @@ function templateModeForOutput(kind: RegionKind): TemplateMode {
  */
 export function defineTemplate<
     const M extends string,
-    const I extends Record<string, InputPort>
->(definition: GraphTemplateDefinitionInput<M, I>): GraphTemplateDefinition<I, M>
+    const I extends Record<string, InputPort>,
+    const O extends OutputPort
+>(definition: GraphTemplateDefinitionInput<M, I, O>): GraphTemplateDefinition<I, M, O>
 
 export function defineTemplate<
     const M extends string,
@@ -171,6 +162,10 @@ export function defineTemplate<
             return `/** @TYPE ${marker} id=${key} **/${body ?? defaultPlaceholder(marker)}/** @END **/`
         }
 
+        const templateMode = templateModeForOutput(definition.output.kind)
+        const templateSource = definition.template(region)
+        discoverReplacementRegions(templateSource, { templateMode })
+
         return {
             modelId: definition.modelId,
             ...(definition.version ? { version: definition.version } : {}),
@@ -187,10 +182,10 @@ export function defineTemplate<
                 const replacements = graphInputsToReplacementMap(invocation.inputs)
                 const generationOptions: GenerateOptions = {
                     ...(invocation.options ?? {}),
-                    templateMode: invocation.options?.templateMode ?? templateModeForOutput(definition.output.kind)
+                    templateMode: invocation.options?.templateMode ?? templateMode
                 }
                 const result = generateWithReplacements(
-                    definition.template(region),
+                    templateSource,
                     replacements,
                     generationOptions
                 )

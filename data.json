@@ -1,0 +1,189 @@
+[
+    {
+        "modelId": "BooleanArrayLiteral",
+        "version": "1.0.0",
+        "description": "Produces a boolean array expression from a literal input.",
+        "inputs": {
+            "values": {
+                "regionKind": "expression",
+                "schema": {
+                    "type": "array",
+                    "items": {
+                        "type": "boolean"
+                    }
+                },
+                "kind": "literal"
+            }
+        },
+        "output": {
+            "kind": "expression",
+            "type": {
+                "ts": "boolean[]"
+            },
+            "schema": {
+                "type": "array",
+                "items": {
+                    "type": "boolean"
+                }
+            }
+        }
+    },
+    {
+        "modelId": "MapBooleanArray",
+        "version": "1.0.0",
+        "description": "Maps an expression fragment to a boolean array expression.",
+        "inputs": {
+            "source": {
+                "regionKind": "expression",
+                "accepts": {
+                    "outputKind": "expression",
+                    "type": {
+                        "ts": "boolean[]"
+                    }
+                },
+                "kind": "fragment"
+            }
+        },
+        "output": {
+            "kind": "expression",
+            "type": {
+                "ts": "boolean[]"
+            },
+            "schema": {
+                "type": "array",
+                "items": {
+                    "type": "boolean"
+                }
+            }
+        }
+    },
+    {
+        "modelId": "TsPatternWithSuffix",
+        "version": "1.0.0",
+        "description": "Produces a .with(...) expression suffix.",
+        "inputs": {
+            "handler": {
+                "regionKind": "expression",
+                "accepts": {
+                    "sourceModelIds": [
+                        "IdArrow",
+                        "NotNumberArrow",
+                        "TruthyArrow",
+                        "IsTrue",
+                        "AllTrueArrow"
+                    ]
+                },
+                "kind": "fragment"
+            },
+            "pattern": {
+                "regionKind": "expression",
+                "accepts": {
+                    "outputKind": "expression"
+                },
+                "kind": "fragment"
+            }
+        },
+        "output": {
+            "kind": "expressionSuffix"
+        }
+    },
+    {
+        "modelId": "ApplyExpressionSuffix",
+        "version": "1.0.0",
+        "description": "Applies an expression suffix to an expression.",
+        "inputs": {
+            "source": {
+                "regionKind": "expression",
+                "accepts": {
+                    "outputKind": "expression"
+                },
+                "kind": "fragment"
+            },
+            "suffix": {
+                "regionKind": "expressionSuffix",
+                "accepts": {
+                    "outputKind": "expressionSuffix"
+                },
+                "kind": "fragment"
+            }
+        },
+        "output": {
+            "kind": "expression"
+        }
+    },
+    {
+        "modelId": "IdArrow",
+        "version": "1.0.0",
+        "inputs": {},
+        "output": {
+            "kind": "expression"
+        }
+    },
+    {
+        "modelId": "NotNumberArrow",
+        "version": "1.0.0",
+        "inputs": {},
+        "output": {
+            "kind": "expression"
+        }
+    },
+    {
+        "modelId": "TruthyArrow",
+        "version": "1.0.0",
+        "inputs": {},
+        "output": {
+            "kind": "expression"
+        }
+    },
+    {
+        "modelId": "IsTrue",
+        "version": "1.0.0",
+        "inputs": {},
+        "output": {
+            "kind": "expression"
+        }
+    },
+    {
+        "modelId": "AllTrueArrow",
+        "version": "1.0.0",
+        "inputs": {
+            "source": {
+                "regionKind": "expression",
+                "accepts": {
+                    "sourceModelIds": [
+                        "IdArrow",
+                        "NotNumberArrow",
+                        "TruthyArrow",
+                        "IsTrue"
+                    ]
+                },
+                "kind": "fragment"
+            }
+        },
+        "output": {
+            "kind": "expression"
+        }
+    },
+    {
+        "modelId": "ConsecutiveExpressions",
+        "inputs": {
+            "first": {
+                "regionKind": "statement",
+                "accepts": {
+                    "outputKind": "statement"
+                },
+                "kind": "fragment"
+            },
+            "second": {
+                "regionKind": "statement",
+                "accepts": {
+                    "outputKind": "statement"
+                },
+                "kind": "fragment"
+            }
+        },
+        "output": {
+            "kind": "statement"
+        }
+    }
+]

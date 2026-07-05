@@ -1,8 +1,11 @@
 import { P } from "ts-pattern";
 import { describe, expect, it } from "vitest";
 import {
+  buildGraphCompiler,
   compileGraph,
   createTemplateRegistry,
+  defineGraph,
+  defineTemplateCatalog,
   defineTemplate,
   fragmentPort,
   isTypeCompatible,
@@ -366,6 +369,134 @@ function createStructuredConversionRegistry() {
 }
 
 describe("schema-driven synthesis graph", () => {
+  it("validates graph template marker placement when defining templates", () => {
+    expect(() => defineTemplate({
+      modelId: "InvalidIdentifierMarkerPlacement",
+      inputs: {
+        param: rawCodePort({ regionKind: "identifier" })
+      },
+      output: { kind: "expression" },
+      template: r => `(${r("param", "x")}) => x`
+    })).toThrow("Expected the marked body to be an identifier.");
+  });
+
+  it("returns authored graphs unchanged from defineGraph", () => {
+    const source = defineTemplate({
+      modelId: "DefineGraphSource",
+      inputs: {
+        value: literalPort({ regionKind: "expression" })
+      },
+      output: { kind: "expression" },
+      template: r => r("value")
+    });
+    const graph = {
+      nodes: [
+        {
+          id: "source",
+          templateId: "DefineGraphSource",
+          inputs: {
+            value: { kind: "literal", value: 1 }
+          }
+        }
+      ],
+      finalNodeId: "source"
+    };
+
+    expect(defineGraph([source] as const, graph)).toBe(graph);
+  });
+
+  it("compiles authored template catalogs the same as registries", () => {
+    const source = defineTemplate({
+      modelId: "CatalogCompileSource",
+      inputs: {
+        value: literalPort({ regionKind: "expression" })
+      },
+      output: { kind: "expression" },
+      template: r => r("value")
+    });
+    const consumer = defineTemplate({
+      modelId: "CatalogCompileConsumer",
+      inputs: {
+        source: fragmentPort({ regionKind: "expression", accepts: {} })
+      },
+      output: { kind: "expression" },
+      template: r => `wrap(${r("source")})`
+    });
+    const templates = defineTemplateCatalog([source, consumer]);
+    const graph = {
+      nodes: [
+        {
+          id: "source",
+          templateId: "CatalogCompileSource",
+          inputs: {
+            value: { kind: "literal", value: 42 }
+          }
+        },
+        {
+          id: "consumer",
+          templateId: "CatalogCompileConsumer",
+          inputs: {
+            source: { "$ref": "source" }
+          }
+        }
+      ],
+      finalNodeId: "consumer"
+    } as const;
+
+    const catalogResult = compileGraph(graph, templates);
+    const registryResult = compileGraph(graph as unknown as SynthesisGraph, createTemplateRegistry(templates));
+
+    expect(catalogResult.ok).toBe(true);
+    expect(registryResult.ok).toBe(true);
+    if (!catalogResult.ok || !registryResult.ok) return;
+    expect(catalogResult.finalFragment).toEqual(registryResult.finalFragment);
+  });
+
+  it("builds typed graph compilers from authored template catalogs", () => {
+    const source = defineTemplate({
+      modelId: "BuiltCompilerSource",
+      inputs: {
+        value: literalPort({ regionKind: "expression" })
+      },
+      output: { kind: "expression" },
+      template: r => r("value")
+    });
+    const consumer = defineTemplate({
+      modelId: "BuiltCompilerConsumer",
+      inputs: {
+        source: fragmentPort({ regionKind: "expression", accepts: {} })
+      },
+      output: { kind: "expression" },
+      template: r => `built(${r("source")})`
+    });
+    const templates = defineTemplateCatalog([source, consumer]);
+    const compiler = buildGraphCompiler(templates);
+
+    const result = compiler({
+      nodes: [
+        {
+          id: "source",
+          templateId: "BuiltCompilerSource",
+          inputs: {
+            value: { kind: "literal", value: 7 }
+          }
+        },
+        {
+          id: "consumer",
+          templateId: "BuiltCompilerConsumer",
+          inputs: {
+            source: { "$ref": "source" }
+          }
+        }
+      ],
+      finalNodeId: "consumer"
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.finalFragment.code).toBe("built(7)");
+  });
+
   it("supports conservative TypeScript type compatibility beyond exact matches", () => {
     expect(isTypeCompatible({ ts: "unknown[]" }, { ts: "boolean[]" })).toBe(true);
     expect(isTypeCompatible({ ts: "Array<unknown>" }, { ts: "Array<boolean>" })).toBe(true);
@@ -393,6 +524,11 @@ describe("schema-driven synthesis graph", () => {
       version: "1.0.0",
       description: "Example for planner summaries.",
       inputs: {
+        fragment: fragmentPort({
+          regionKind: "expression",
+          accepts: {},
+          description: "Expression fragment."
+        }),
         value: unionPort({
           description: "A literal value or raw expression.",
           options: [
@@ -425,6 +561,15 @@ describe("schema-driven synthesis graph", () => {
       version: "1.0.0",
       description: "Example for planner summaries.",
       inputs: {
+        fragment: {
+          kind: "fragment",
+          regionKind: "expression",
+          required: true,
+          description: "Expression fragment.",
+          accepts: {
+            outputKind: "expression"
+          }
+        },
         value: {
           kind: "union",
           required: true,
@@ -454,6 +599,59 @@ describe("schema-driven synthesis graph", () => {
       }
     });
     expect(summary).not.toHaveProperty("template");
+  });
+
+  it("defaults omitted fragment outputKind to the port regionKind", () => {
+    const source = defineTemplate({
+      modelId: "DefaultOutputKindSource",
+      inputs: {
+        value: literalPort({
+          regionKind: "expression",
+          schema: { type: "number" }
+        })
+      },
+      output: { kind: "expression" },
+      template: r => r("value")
+    });
+
+    const consumer = defineTemplate({
+      modelId: "DefaultOutputKindConsumer",
+      inputs: {
+        source: fragmentPort({
+          regionKind: "expression",
+          accepts: {}
+        })
+      },
+      output: { kind: "expression" },
+      template: r => `${r("source")} + 1`
+    });
+
+    const result = compileGraph(
+      {
+        nodes: [
+          {
+            id: "source",
+            templateId: "DefaultOutputKindSource",
+            inputs: {
+              value: { kind: "literal", value: 41 }
+            }
+          },
+          {
+            id: "consumer",
+            templateId: "DefaultOutputKindConsumer",
+            inputs: {
+              source: { kind: "ref", nodeId: "source" }
+            }
+          }
+        ],
+        finalNodeId: "consumer"
+      },
+      createTemplateRegistry([source, consumer])
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.finalFragment.code).toBe("41 + 1");
   });
 
   it("normalizes ref shorthand and inline nodes before validation", () => {

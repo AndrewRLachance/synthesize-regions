@@ -7,9 +7,16 @@ import type {
   OutputPort,
   RawCodeInputPort,
   RegionKind,
+  StrictOutputPort,
+  StrictUnionPortInput,
   TypeDescriptor,
   UnionInputPort
 } from "./graphTypes.js";
+import type { Exact } from "type-fest";
+import { match } from "ts-pattern";
+
+type StrictPortInput<T extends InputPort, P extends Omit<T, "kind">> =
+  P & Exact<Omit<T, "kind">, P>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -170,7 +177,6 @@ export function isTypeCompatible(
 ): boolean {
   if (!expected) return true;
   if (expected.ts !== undefined && !tsTypeCompatible(expected.ts, actual?.ts)) return false;
-
   if (expected.schema !== undefined && !schemasCompatible(expected.schema, actual?.schema)) return false;
 
   return true;
@@ -294,23 +300,35 @@ export function validateJsonSchemaSubset(value: unknown, schema: unknown, path =
   return { ok: false, message: `Unsupported schema type ${type}.`, path, expected: schema, actual: value };
 }
 
-export function literalPort(port: Omit<LiteralInputPort, "kind">): LiteralInputPort {
-  return { ...port, kind: "literal" };
+export function literalPort<const P extends Omit<LiteralInputPort, "kind">>(
+  port: StrictPortInput<LiteralInputPort, P>
+): LiteralInputPort & P & { readonly kind: "literal" } {
+  return { ...port, kind: "literal" } as unknown as LiteralInputPort & P & { readonly kind: "literal" };
 }
 
-export function fragmentPort(port: Omit<FragmentInputPort, "kind">): FragmentInputPort {
-  return { ...port, kind: "fragment" };
+export function fragmentPort<const P extends Omit<FragmentInputPort, "kind">>(
+  port: StrictPortInput<FragmentInputPort, P>
+): FragmentInputPort & P & { readonly kind: "fragment" } {
+  return { ...port, kind: "fragment" } as unknown as FragmentInputPort & P & { readonly kind: "fragment" };
 }
 
-export function rawCodePort(port: Omit<RawCodeInputPort, "kind">): RawCodeInputPort {
-  return { ...port, kind: "rawCode" };
+export function fragmentPortOutputKind(port: FragmentInputPort): RegionKind {
+  return port.accepts.outputKind ?? port.regionKind;
 }
 
-export function unionPort(port: Omit<UnionInputPort, "kind">): UnionInputPort {
-  return { ...port, kind: "union" };
+export function rawCodePort<const P extends Omit<RawCodeInputPort, "kind">>(
+  port: StrictPortInput<RawCodeInputPort, P>
+): RawCodeInputPort & P & { readonly kind: "rawCode" } {
+  return { ...port, kind: "rawCode" } as unknown as RawCodeInputPort & P & { readonly kind: "rawCode" };
 }
 
-export function outputPort(port: OutputPort): OutputPort {
+export function unionPort<const P extends Omit<UnionInputPort, "kind">>(
+  port: StrictUnionPortInput<P>
+): UnionInputPort & P & { readonly kind: "union" } {
+  return { ...port, kind: "union" } as unknown as UnionInputPort & P & { readonly kind: "union" };
+}
+
+export function outputPort<const P extends OutputPort>(port: StrictOutputPort<P>): OutputPort {
   return port;
 }
 
@@ -319,53 +337,50 @@ export function portIsRequired(port: InputPort): boolean {
 }
 
 export function portRegionKind(port: InputPort): RegionKind {
-  if (port.kind === "union") {
-    return port.options[0] ? portRegionKind(port.options[0]) : "expression";
-  }
-  return port.regionKind;
+  return match(port)
+    .returnType<RegionKind>()
+    .with({ kind: "union" }, port => port.options[0] ? portRegionKind(port.options[0]) : "expression")
+    .otherwise(port => port.regionKind);
 }
 
 export function summarizeInputPort(port: InputPort): InputPortSummary {
   const required = portIsRequired(port);
 
-  switch (port.kind) {
-    case "literal":
-      return {
+  return match(port)
+    .returnType<InputPortSummary>()
+    .with({ kind: "literal" }, port => ({
         kind: "literal",
         regionKind: port.regionKind,
         required,
         ...(port.description ? { description: port.description } : {}),
         ...(port.schema === undefined ? {} : { schema: port.schema })
-      };
-    case "fragment":
-      return {
+      }))
+    .with({ kind: "fragment" }, port => ({
         kind: "fragment",
         regionKind: port.regionKind,
         required,
         ...(port.description ? { description: port.description } : {}),
         accepts: {
-          outputKind: port.accepts.outputKind,
+          outputKind: fragmentPortOutputKind(port),
           ...(port.accepts.type ? { type: port.accepts.type } : {}),
           ...(port.accepts.sourceModelIds ? { sourceModelIds: port.accepts.sourceModelIds } : {})
         }
-      };
-    case "rawCode":
-      return {
+      }))
+    .with({ kind: "rawCode" }, port => ({
         kind: "rawCode",
         regionKind: port.regionKind,
         required,
         ...(port.description ? { description: port.description } : {}),
         ...(port.policy ? { policy: port.policy } : {}),
         ...(port.type ? { type: port.type } : {})
-      };
-    case "union":
-      return {
+      }))
+    .with({ kind: "union" }, port => ({
         kind: "union",
         required,
         ...(port.description ? { description: port.description } : {}),
         options: port.options.map(summarizeInputPort)
-      };
-  }
+      }))
+    .exhaustive();
 }
 
 export function summarizeOutputPort(port: OutputPort): OutputPortSummary {

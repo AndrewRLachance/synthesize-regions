@@ -23,15 +23,15 @@ function out(kind: RegionKind, extra: Omit<OutputPort, 'kind'> = {}): OutputPort
   return { kind, ...extra }
 }
 
-const unknownType: TypeDescriptor = { ts: 'unknown', schema: true }
-const stringType: TypeDescriptor = { ts: 'string', schema: { type: 'string' } }
-const numberType: TypeDescriptor = { ts: 'number', schema: { type: 'number' } }
-const dateType: TypeDescriptor = { ts: 'Date' }
-const promiseUnknownType: TypeDescriptor = { ts: 'Promise<unknown>' }
-const zodSchemaType: TypeDescriptor = { ts: 'z.ZodTypeAny' }
-const zodSafeParseResultType: TypeDescriptor = { ts: 'z.SafeParseReturnType<unknown, unknown>' }
+export const unknownType: TypeDescriptor = { ts: 'unknown', schema: true }
+export const stringType: TypeDescriptor = { ts: 'string', schema: { type: 'string' } }
+export const numberType: TypeDescriptor = { ts: 'number', schema: { type: 'number' } }
+export const dateType: TypeDescriptor = { ts: 'Date' }
+export const promiseUnknownType: TypeDescriptor = { ts: 'Promise<unknown>' }
+export const zodSchemaType: TypeDescriptor = { ts: 'z.ZodTypeAny' }
+export const zodSafeParseResultType: TypeDescriptor = { ts: 'z.SafeParseReturnType<unknown, unknown>' }
 
-const safeRawExpressionPolicy: RawCodePolicy = {
+export const safeRawExpressionPolicy: RawCodePolicy = {
   description: 'Single-line expression. Dangerous globals and module-loading constructs are rejected before generation.',
   maxLength: 300,
   allowNewlines: false,
@@ -45,7 +45,7 @@ const safeRawExpressionPolicy: RawCodePolicy = {
   ]
 }
 
-const expressionFragment = (description?: string, type?: TypeDescriptor): FragmentInputPort =>
+export const expressionFragment = (description?: string, type?: TypeDescriptor): FragmentInputPort =>
   fragmentPort({
     regionKind: 'expression',
     accepts: {
@@ -55,21 +55,21 @@ const expressionFragment = (description?: string, type?: TypeDescriptor): Fragme
     ...(description ? { description } : {})
   })
 
-const stringLiteral = (description?: string): LiteralInputPort =>
+export const stringLiteral = (description?: string): LiteralInputPort =>
   literalPort({
     regionKind: 'string',
     schema: { type: 'string' },
     ...(description ? { description } : {})
   })
 
-const numberLiteral = (description?: string): LiteralInputPort =>
+export const numberLiteral = (description?: string): LiteralInputPort =>
   literalPort({
     regionKind: 'number',
     schema: { type: 'number' },
     ...(description ? { description } : {})
   })
 
-const rawExpression = (description?: string, type?: TypeDescriptor): RawCodeInputPort =>
+export const rawExpression = (description?: string, type?: TypeDescriptor): RawCodeInputPort =>
   rawCodePort({
     regionKind: 'expression',
     policy: safeRawExpressionPolicy,

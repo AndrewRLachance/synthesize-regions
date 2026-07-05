@@ -1,4 +1,5 @@
 import type { GraphTemplateDefinition, InputPort, RawCodePolicy, RegionKind, TemplateRegistry } from "./graphTypes.js";
+import { match } from "ts-pattern";
 
 const JSON_SCHEMA_URI = "https://json-schema.org/draft/2020-12/schema";
 
@@ -91,9 +92,9 @@ function rawCodeSchemaFromPolicy(policy: RawCodePolicy | undefined): Record<stri
 }
 
 function inputSchemaForPort(port: InputPort): Record<string, unknown> {
-  switch (port.kind) {
-    case "literal":
-      return {
+  return match(port)
+    .returnType<Record<string, unknown>>()
+    .with({ kind: "literal" }, port => ({
         type: "object",
         additionalProperties: false,
         required: ["kind", "value"],
@@ -101,17 +102,15 @@ function inputSchemaForPort(port: InputPort): Record<string, unknown> {
           kind: { const: "literal" },
           value: port.schema ?? true
         }
-      };
-    case "fragment":
-      return {
+      }))
+    .with({ kind: "fragment" }, () => ({
         anyOf: [
           refInputSchema(),
           refShorthandInputSchema(),
           inlineInputSchema()
         ]
-      };
-    case "rawCode":
-      return {
+      }))
+    .with({ kind: "rawCode" }, port => ({
         type: "object",
         additionalProperties: false,
         required: ["kind", "code"],
@@ -119,12 +118,11 @@ function inputSchemaForPort(port: InputPort): Record<string, unknown> {
           kind: { const: "rawCode" },
           code: rawCodeSchemaFromPolicy(port.policy)
         }
-      };
-    case "union":
-      return {
+      }))
+    .with({ kind: "union" }, port => ({
         anyOf: port.options.map(inputSchemaForPort)
-      };
-  }
+      }))
+    .exhaustive();
 }
 
 function genericSynthesisInputSchema(): Record<string, unknown> {
@@ -311,6 +309,10 @@ export function templateRegistryToSynthesisGraphJsonSchema(
 
 /** Alias with the shorter name used by callers that already work in registry scope. */
 export const registryToGraphJsonSchema = templateRegistryToSynthesisGraphJsonSchema;
+
+export function defineTemplateCatalog<const T extends readonly GraphTemplateDefinition<any, string, any>[]>(templates: T): T {
+  return templates;
+}
 
 export function createTemplateRegistry(initialTemplates: readonly GraphTemplateDefinition<any, string>[] = []): TemplateRegistry {
   const templates = new Map<string, GraphTemplateDefinition<any, string>>();

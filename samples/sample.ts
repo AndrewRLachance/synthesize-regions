@@ -1,12 +1,15 @@
+import { type GeneratedFragment } from '../src/templates/graphTypes.js'
+import { fragmentPort, literalPort } from '../src/templates/compatibility.js'
+import { buildGraphCompiler } from '../src/templates/graph.js'
 import {
-	type GeneratedFragment,
-	type GraphCompilationResult,
-	type SynthesisGraph
-} from '../src/templates/graphTypes.js'
-import { fragmentPort, literalPort, rawCodePort } from '../src/templates/compatibility.js'
-import { compileGraph } from '../src/templates/graph.js'
-import { createTemplateRegistry, templateRegistryToSynthesisGraphJsonSchema } from '../src/templates/registry.js'
+	createTemplateRegistry,
+	defineTemplateCatalog,
+	graphTemplateDefinitionToJsonSchema,
+	templateRegistryToSynthesisGraphJsonSchema
+} from '../src/templates/registry.js'
 import { defineTemplate } from '../src/templates/definition.js'
+import { expressionFragment, expressionSuffixFragment, statementFragment } from './samplesComplicated.js'
+import { statementRaw } from './samplesMore.js'
 
 export const BooleanArrayLiteral = defineTemplate({
 	modelId: 'BooleanArrayLiteral',
@@ -29,7 +32,88 @@ export const BooleanArrayLiteral = defineTemplate({
 			items: { type: 'boolean' }
 		}
 	},
-	template: r => r('values')
+	template: (r) => r('values')
+})
+
+export const IdArrow = defineTemplate({
+	modelId: 'IdArrow',
+	version: '1.0.0',
+	inputs: {},
+	output: {
+		kind: 'expression'
+	},
+	template: () => `x => x`
+})
+
+export const NotNumberArrow = defineTemplate({
+	modelId: 'NotNumberArrow',
+	version: '1.0.0',
+	inputs: {},
+	output: {
+		kind: 'expression'
+	},
+	template: () => `x => !Number.isFinite(x)`
+})
+
+export const TruthyArrow = defineTemplate({
+	modelId: 'TruthyArrow',
+	version: '1.0.0',
+	inputs: {},
+	output: {
+		kind: 'expression'
+	},
+	template: () => `x => !!x`
+})
+
+export const IsTrue = defineTemplate({
+	modelId: 'IsTrue',
+	version: '1.0.0',
+	inputs: {},
+	output: {
+		kind: 'expression'
+	},
+	template: () => `x => x === true`
+})
+
+export const AllTrueArrow = defineTemplate({
+	modelId: 'AllTrueArrow',
+	version: '1.0.0',
+	inputs: {
+		source: fragmentPort({
+			regionKind: 'expression',
+			accepts: {
+				sourceModelIds: ['IdArrow', 'NotNumberArrow', 'TruthyArrow', 'IsTrue']
+			}
+		})
+	},
+	output: {
+		kind: 'expression'
+	},
+	template: (r) => `x => x.every(${r('source', 'item => item')})`
+})
+
+export const TsPatternWithSuffix = defineTemplate({
+	modelId: 'TsPatternWithSuffix',
+	version: '1.0.0',
+	description: 'Produces a .with(...) expression suffix.',
+	inputs: {
+		handler: fragmentPort({
+			regionKind: 'expression',
+			accepts: {
+				sourceModelIds: ['IdArrow', 'NotNumberArrow', 'TruthyArrow', 'IsTrue', 'AllTrueArrow']
+			}
+		}),
+		pattern: fragmentPort({
+			regionKind: 'expression',
+			accepts: {
+				outputKind: 'expression'
+			}
+		})
+	},
+	output: {
+		kind: 'expressionSuffix'
+	},
+	template: (region) => `.with(${region('pattern', '[]')}, ${region('handler', 'x => null')})`
 })
 
 export const MapBooleanArray = defineTemplate({
@@ -53,106 +137,114 @@ export const MapBooleanArray = defineTemplate({
 			items: { type: 'boolean' }
 		}
 	},
-	template: r => `match(${r('source')}.map(x => Boolean(x)))`
-})
-
-
-export const TsPatternWithSuffix = defineTemplate({
-  modelId: 'TsPatternWithSuffix',
-  version: '1.0.0',
-  description: 'Produces a .with(...) expression suffix.',
-  inputs: {
-    'handler': rawCodePort({
-      regionKind: 'expression',
-      policy: {
-        maxLength: 200,
-        allowNewlines: false
-      }
-    })
-  },
-  output: {
-    kind: 'expressionSuffix'
-  },
-  template: region =>
-    `.with([true, false, true], ${region('handler', 'x => x')})`
+	template: (r) => `match(${r('source')}.map(Boolean))`
 })
 
 export const ApplyExpressionSuffix = defineTemplate({
-  modelId: 'ApplyExpressionSuffix',
-  version: '1.0.0',
-  description: 'Applies an expression suffix to an expression.',
-  inputs: {
-    source: fragmentPort({
-      regionKind: 'expression',
-      accepts: {
-        outputKind: 'expression'
-      }
-    }),
-    suffix: fragmentPort({
-      regionKind: 'expressionSuffix',
-      accepts: {
-        outputKind: 'expressionSuffix'
-      }
-    })
-  },
-  output: {
-    kind: 'expression'
-  },
-  template: r => `${r('source')}${r('suffix')}`
+	modelId: 'ApplyExpressionSuffix',
+	version: '1.0.0',
+	description: 'Applies an expression suffix to an expression.',
+	inputs: {
+		source: expressionFragment(),
+		suffix: expressionSuffixFragment()
+	},
+	output: {
+		kind: 'expression'
+	},
+	template: (r) => `${r('source')}${r('suffix')}`
 })
 
-export const sampleRegistry = createTemplateRegistry([
-  BooleanArrayLiteral,
-  MapBooleanArray,
-  TsPatternWithSuffix,
-  ApplyExpressionSuffix
+export const ConsecutiveExpressions = defineTemplate({
+	modelId: 'ConsecutiveExpressions',
+	inputs: {
+		first: statementFragment(),
+		second: statementFragment()
+	},
+	output: { kind: 'statement' },
+	template: (r) => `${r('first')}\n${r('second')}`
+})
+
+export const allTemplate = defineTemplateCatalog([
+	BooleanArrayLiteral,
+	MapBooleanArray,
+	TsPatternWithSuffix,
+	ApplyExpressionSuffix,
+	IdArrow,
+	NotNumberArrow,
+	TruthyArrow,
+	IsTrue,
+	AllTrueArrow,
+	ConsecutiveExpressions
 ])
 
+export const compiler = buildGraphCompiler(allTemplate)
 
+const registry = createTemplateRegistry(allTemplate)
 
-export const sampleGraph: SynthesisGraph = {
-  nodes: [
-    {
-      id: 'source',
-      templateId: BooleanArrayLiteral.modelId,
-      inputs: {
-        values: { kind: 'literal', value: [true, false, true] }
-      }
-    },
-    {
-      id: 'mapped',
-      templateId: MapBooleanArray.modelId,
-      inputs: {
-        source: { kind: 'ref', nodeId: 'source' }
-      }
-    },
-    {
-      id: 'stuffSuffix',
-      templateId: TsPatternWithSuffix.modelId,
-      inputs: {
-        ['handler']: { kind: 'rawCode', code: 'x => x' }
-      }
-    },
-    {
-      id: 'mappedWithStuff',
-      templateId: ApplyExpressionSuffix.modelId,
-      inputs: {
-        source: { kind: 'ref', nodeId: 'mapped' },
-        suffix: { kind: 'ref', nodeId: 'stuffSuffix' }
-      }
-    }
-  ],
-  finalNodeId: 'mappedWithStuff',
-  goal: {
-    outputKind: 'expression'
-  }
-}
+const schema = templateRegistryToSynthesisGraphJsonSchema(registry)
 
-export const sampleCompilation: GraphCompilationResult = compileGraph(sampleGraph, sampleRegistry)
+export const graph = compiler.defineGraph({
+	nodes: [
+		{
+			id: 'source',
+			templateId: BooleanArrayLiteral.modelId,
+			inputs: {
+				values: { kind: 'literal', value: [true, false, true] }
+			}
+		},
+		{
+			id: 'IsTrue',
+			templateId: IsTrue.modelId,
+			// @ts-ignore
+			inputs: {}
+		},
+		{
+			id: 'allTrueArrow',
+			templateId: AllTrueArrow.modelId,
+			inputs: {
+				source: { $ref: 'IsTrue' }
+			}
+		},
+		{
+			id: 'mapped',
+			templateId: MapBooleanArray.modelId,
+			inputs: {
+				source: { $ref: 'source' }
+			}
+		},
+		{
+			id: 'stuffSuffix',
+			templateId: TsPatternWithSuffix.modelId,
+			inputs: {
+				handler: { $ref: 'allTrueArrow' },
+				pattern: { $ref: 'source' }
+			}
+		},
+		{
+			id: 'mappedWithStuff',
+			templateId: ApplyExpressionSuffix.modelId,
+			inputs: {
+				source: { $ref: 'mapped' },
+				suffix: { $ref: 'stuffSuffix' }
+			}
+		},
+		{
+			id: 'methodChain',
+			templateId: ApplyExpressionSuffix.modelId,
+			inputs: {
+				source: { $ref: 'mappedWithStuff' },
+				suffix: { $ref: 'stuffSuffix' }
+			}
+		}
+	],
+	finalNodeId: 'methodChain',
+	goal: { 
+		type: { 
+			ts: 'Partial<ResponseCookie>' 
+		} 
+	}
+})
 
-export const sampleFinalFragment: GeneratedFragment | undefined =
-	sampleCompilation.ok ? 
-		sampleCompilation.finalFragment : 
-		undefined
+export const sampleCompilation = compiler(graph)
 
-console.log(JSON.stringify(templateRegistryToSynthesisGraphJsonSchema(sampleRegistry)))
+console.log(JSON.stringify(allTemplate))

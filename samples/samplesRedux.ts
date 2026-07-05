@@ -21,32 +21,28 @@ function out(kind: RegionKind, extra: Omit<OutputPort, 'kind'> = {}): OutputPort
   return { kind, ...extra }
 }
 
-const unknownType: TypeDescriptor = { ts: 'unknown', schema: true }
-const stringType: TypeDescriptor = { ts: 'string', schema: { type: 'string' } }
-const booleanType: TypeDescriptor = { ts: 'boolean', schema: { type: 'boolean' } }
-const numberType: TypeDescriptor = { ts: 'number', schema: { type: 'number' } }
-const voidType: TypeDescriptor = { ts: 'void' }
-const reactNodeType: TypeDescriptor = { ts: 'React.ReactNode' }
-const reactElementType: TypeDescriptor = { ts: 'React.ReactElement' }
-const reduxActionType: TypeDescriptor = { ts: 'UnknownAction' }
-const reduxPayloadActionType: TypeDescriptor = { ts: 'PayloadAction<unknown>' }
-const reduxReducerType: TypeDescriptor = { ts: 'Reducer' }
-const reduxReducerMapType: TypeDescriptor = { ts: 'ReducersMapObject' }
-const reduxStoreType: TypeDescriptor = { ts: 'EnhancedStore' }
-const reduxMiddlewareType: TypeDescriptor = { ts: 'Middleware' }
-const reduxDispatchType: TypeDescriptor = { ts: 'Dispatch' }
-const reduxSelectorType: TypeDescriptor = { ts: '(state: unknown) => unknown' }
-const reduxSliceType: TypeDescriptor = { ts: 'Slice' }
-const reduxActionCreatorType: TypeDescriptor = { ts: 'ActionCreatorWithPayload<unknown> | ActionCreatorWithoutPayload' }
-const reduxAsyncThunkType: TypeDescriptor = { ts: 'AsyncThunk<unknown, unknown, object>' }
-const reduxEntityAdapterType: TypeDescriptor = { ts: 'EntityAdapter<unknown>' }
-const reduxEntityStateType: TypeDescriptor = { ts: 'EntityState<unknown, unknown>' }
-const rtkQueryApiType: TypeDescriptor = { ts: 'Api<any, any, any, any>' }
-const rtkQueryEndpointPropertyType: TypeDescriptor = { ts: 'endpoint definition object property' }
-const listenerMiddlewareType: TypeDescriptor = { ts: 'ListenerMiddlewareInstance' }
-const sagaEffectType: TypeDescriptor = { ts: 'SagaIterator | Effect' }
+export const stringType: TypeDescriptor = { ts: 'string', schema: { type: 'string' } }
+export const voidType: TypeDescriptor = { ts: 'void' }
+export const reactNodeType: TypeDescriptor = { ts: 'React.ReactNode' }
+export const reactElementType: TypeDescriptor = { ts: 'React.ReactElement' }
+export const reduxActionType: TypeDescriptor = { ts: 'UnknownAction' }
+export const reduxPayloadActionType: TypeDescriptor = { ts: 'PayloadAction<unknown>' }
+export const reduxReducerType: TypeDescriptor = { ts: 'Reducer' }
+export const reduxReducerMapType: TypeDescriptor = { ts: 'ReducersMapObject' }
+export const reduxStoreType: TypeDescriptor = { ts: 'EnhancedStore' }
+export const reduxDispatchType: TypeDescriptor = { ts: 'Dispatch' }
+export const reduxSelectorType: TypeDescriptor = { ts: '(state: unknown) => unknown' }
+export const reduxSliceType: TypeDescriptor = { ts: 'Slice' }
+export const reduxActionCreatorType: TypeDescriptor = { ts: 'ActionCreatorWithPayload<unknown> | ActionCreatorWithoutPayload' }
+export const reduxAsyncThunkType: TypeDescriptor = { ts: 'AsyncThunk<unknown, unknown, object>' }
+export const reduxEntityAdapterType: TypeDescriptor = { ts: 'EntityAdapter<unknown>' }
+export const reduxEntityStateType: TypeDescriptor = { ts: 'EntityState<unknown, unknown>' }
+export const rtkQueryApiType: TypeDescriptor = { ts: 'Api<any, any, any, any>' }
+export const rtkQueryEndpointPropertyType: TypeDescriptor = { ts: 'endpoint definition object property' }
+export const listenerMiddlewareType: TypeDescriptor = { ts: 'ListenerMiddlewareInstance' }
+export const sagaEffectType: TypeDescriptor = { ts: 'SagaIterator | Effect' }
 
-const safeRawExpressionPolicy: RawCodePolicy = {
+export const safeRawExpressionPolicy: RawCodePolicy = {
   description: 'Single-line expression. Dangerous globals and module-loading constructs are rejected before generation.',
   maxLength: 900,
   allowNewlines: false,
@@ -59,7 +55,7 @@ const safeRawExpressionPolicy: RawCodePolicy = {
   ]
 }
 
-const safeRawObjectPolicy: RawCodePolicy = {
+export const safeRawObjectPolicy: RawCodePolicy = {
   description: 'Single-line object or function expression for Redux configuration blocks.',
   maxLength: 1600,
   allowNewlines: false,
@@ -67,7 +63,7 @@ const safeRawObjectPolicy: RawCodePolicy = {
   forbiddenPatterns: ['\\bnew\\s+Function\\b', '\\bwhile\\s*\\(']
 }
 
-const safeRawCallbackPolicy: RawCodePolicy = {
+export const safeRawCallbackPolicy: RawCodePolicy = {
   description: 'Short callback/function expression for Redux Toolkit reducers, thunks, selectors, and endpoint builders.',
   maxLength: 1800,
   allowNewlines: true,
@@ -75,7 +71,7 @@ const safeRawCallbackPolicy: RawCodePolicy = {
   forbiddenPatterns: ['\\bnew\\s+Function\\b']
 }
 
-const safeRawStatementPolicy: RawCodePolicy = {
+export const safeRawStatementPolicy: RawCodePolicy = {
   description: 'Short statement block for generated Redux glue code.',
   maxLength: 2200,
   allowNewlines: true,
@@ -83,22 +79,22 @@ const safeRawStatementPolicy: RawCodePolicy = {
   forbiddenPatterns: ['\\bnew\\s+Function\\b']
 }
 
-const identifierNameSchema = {
+export const identifierNameSchema = {
   type: 'string',
   pattern: '^[$A-Za-z_][$A-Za-z0-9_]*$'
 }
 
-const propertyKeySchema = {
+export const propertyKeySchema = {
   type: 'string',
   minLength: 1
 }
 
-const stringArraySchema = {
+export const stringArraySchema = {
   type: 'array',
   items: { type: 'string' }
 }
 
-const expressionFragment = (description?: string, type?: TypeDescriptor): FragmentInputPort =>
+export const expressionFragment = (description?: string, type?: TypeDescriptor): FragmentInputPort =>
   fragmentPort({
     regionKind: 'expression',
     accepts: {
@@ -108,31 +104,22 @@ const expressionFragment = (description?: string, type?: TypeDescriptor): Fragme
     ...(description ? { description } : {})
   })
 
-const expressionSuffixFragment = (description?: string): FragmentInputPort =>
+export const expressionSuffixFragment = (description?: string): FragmentInputPort =>
   fragmentPort({
     regionKind: 'expressionSuffix',
     accepts: { outputKind: 'expressionSuffix' },
     ...(description ? { description } : {})
   })
 
-const statementFragment = (description?: string): FragmentInputPort =>
+export const statementFragment = (description?: string): FragmentInputPort =>
   fragmentPort({
     regionKind: 'statement',
     accepts: { outputKind: 'statement' },
     ...(description ? { description } : {})
   })
 
-const objectPropertyFragment = (description?: string, type?: TypeDescriptor): FragmentInputPort =>
-  fragmentPort({
-    regionKind: 'objectProperty',
-    accepts: {
-      outputKind: 'objectProperty',
-      ...(type ? { type } : {})
-    },
-    ...(description ? { description } : {})
-  })
 
-const rawExpression = (description?: string, type?: TypeDescriptor): RawCodeInputPort =>
+export const rawExpression = (description?: string, type?: TypeDescriptor): RawCodeInputPort =>
   rawCodePort({
     regionKind: 'expression',
     policy: safeRawExpressionPolicy,
@@ -140,7 +127,7 @@ const rawExpression = (description?: string, type?: TypeDescriptor): RawCodeInpu
     ...(description ? { description } : {})
   })
 
-const rawObjectExpression = (description?: string, type?: TypeDescriptor): RawCodeInputPort =>
+export const rawObjectExpression = (description?: string, type?: TypeDescriptor): RawCodeInputPort =>
   rawCodePort({
     regionKind: 'expression',
     policy: safeRawObjectPolicy,
@@ -148,7 +135,7 @@ const rawObjectExpression = (description?: string, type?: TypeDescriptor): RawCo
     ...(description ? { description } : {})
   })
 
-const rawCallbackExpression = (description?: string, type?: TypeDescriptor): RawCodeInputPort =>
+export const rawCallbackExpression = (description?: string, type?: TypeDescriptor): RawCodeInputPort =>
   rawCodePort({
     regionKind: 'expression',
     policy: safeRawCallbackPolicy,
@@ -156,56 +143,38 @@ const rawCallbackExpression = (description?: string, type?: TypeDescriptor): Raw
     ...(description ? { description } : {})
   })
 
-const rawStatement = (description?: string): RawCodeInputPort =>
-  rawCodePort({
-    regionKind: 'statement',
-    policy: safeRawStatementPolicy,
-    ...(description ? { description } : {})
-  })
 
-const stringLiteral = (description?: string): LiteralInputPort =>
+export const stringLiteral = (description?: string): LiteralInputPort =>
   literalPort({
     regionKind: 'string',
     schema: { type: 'string' },
     ...(description ? { description } : {})
   })
 
-const booleanLiteral = (description?: string): LiteralInputPort =>
-  literalPort({
-    regionKind: 'boolean',
-    schema: { type: 'boolean' },
-    ...(description ? { description } : {})
-  })
 
-const numberLiteral = (description?: string): LiteralInputPort =>
-  literalPort({
-    regionKind: 'number',
-    schema: { type: 'number' },
-    ...(description ? { description } : {})
-  })
 
-const identifierLiteral = (description?: string): LiteralInputPort =>
+export const identifierLiteral = (description?: string): LiteralInputPort =>
   literalPort({
     regionKind: 'identifier',
     schema: identifierNameSchema,
     ...(description ? { description } : {})
   })
 
-const stringArrayLiteral = (description?: string): LiteralInputPort =>
+export const stringArrayLiteral = (description?: string): LiteralInputPort =>
   literalPort({
     regionKind: 'expression',
     schema: stringArraySchema,
     ...(description ? { description } : {})
   })
 
-const keyLiteral = (description?: string): LiteralInputPort =>
+export const keyLiteral = (description?: string): LiteralInputPort =>
   literalPort({
     regionKind: 'string',
     schema: propertyKeySchema,
     ...(description ? { description } : {})
   })
 
-const expressionInput = (description: string = '', type: TypeDescriptor = {}): InputPort =>
+export const expressionInput = (description: string = '', type: TypeDescriptor = {}): InputPort =>
   unionPort({
     description,
     options: [
@@ -214,7 +183,7 @@ const expressionInput = (description: string = '', type: TypeDescriptor = {}): I
     ]
   })
 
-const callbackInput = (description: string = '', type: TypeDescriptor = {}): InputPort =>
+export const callbackInput = (description: string = '', type: TypeDescriptor = {}): InputPort =>
   unionPort({
     description,
     options: [

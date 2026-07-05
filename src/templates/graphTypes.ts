@@ -1,4 +1,5 @@
 import type { GenerateOptions, MarkerExpectedKind, ReplacementMap } from "../core/types.js";
+import type { Exact } from "type-fest";
 
 export type RegionKind = MarkerExpectedKind;
 
@@ -147,8 +148,8 @@ export interface FragmentInputPort {
   regionKind: RegionKind;
   /** Fragment compatibility requirements. */
   accepts: {
-    /** Required output kind of the referenced fragment. */
-    outputKind: RegionKind;
+    /** Required output kind of the referenced fragment; defaults to `regionKind`. */
+    outputKind?: RegionKind;
     /** Optional type metadata the referenced fragment must satisfy. */
     type?: TypeDescriptor;
     /** Optional allowlist of template model IDs that may produce the fragment. */
@@ -205,6 +206,39 @@ export interface OutputPort {
   /** Human-readable output description for planners and summaries. */
   description?: string;
 }
+
+type StrictInputPortList<T extends readonly InputPort[]> =
+  number extends T["length"]
+    ? ReadonlyArray<StrictInputPort<T[number]>>
+    : { readonly [K in keyof T]: T[K] extends InputPort ? StrictInputPort<T[K]> : T[K] };
+
+type StrictUnionInputPort<T extends UnionInputPort> =
+  T &
+  Exact<Omit<UnionInputPort, "options">, Omit<T, "options">> & {
+    readonly options: StrictInputPortList<T["options"]>;
+  };
+
+/** Compile-time exact input-port shape used by template authoring helpers. */
+export type StrictInputPort<T extends InputPort> =
+  T extends LiteralInputPort ? T & Exact<LiteralInputPort, T> :
+  T extends FragmentInputPort ? T & Exact<FragmentInputPort, T> :
+  T extends RawCodeInputPort ? T & Exact<RawCodeInputPort, T> :
+  T extends UnionInputPort ? StrictUnionInputPort<T> :
+  never;
+
+export type StrictUnionPortInput<T extends Omit<UnionInputPort, "kind">> =
+  T &
+  Exact<Omit<UnionInputPort, "kind" | "options">, Omit<T, "options">> & {
+    readonly options: StrictInputPortList<T["options"]>;
+  };
+
+/** Compile-time exact input-port map used by graph template definitions. */
+export type StrictInputPortMap<I extends Record<string, InputPort>> = {
+  readonly [K in keyof I]: StrictInputPort<I[K]>;
+};
+
+/** Compile-time exact output-port shape used by template authoring helpers. */
+export type StrictOutputPort<T extends OutputPort> = T & Exact<OutputPort, T>;
 
 /** Declarative graph of template nodes with one requested final node. */
 export interface SynthesisGraph {
@@ -273,11 +307,11 @@ export interface GraphNormalizationResult {
 
 /** Optional final-fragment constraints checked after graph compilation. */
 export interface SynthesisGoal {
-  /** Required final fragment region kind. */
+  /** Final fragment region kind. */
   outputKind?: RegionKind;
-  /** Required final fragment type metadata. */
+  /** Final fragment type metadata. */
   type?: TypeDescriptor;
-  /** Required final fragment JSON Schema metadata. */
+  /** Final fragment JSON Schema metadata. */
   schema?: unknown;
 }
 
@@ -376,7 +410,8 @@ export type GraphRegionBuilder<I extends Record<string, InputPort>> =
  */
 export interface GraphTemplateDefinition<
   I extends Record<string, InputPort> = Record<string, InputPort>,
-  M extends string = string
+  M extends string = string,
+  O extends OutputPort = OutputPort
 > {
   /** Stable template/model identifier used by graph nodes. */
   readonly modelId: M;
@@ -387,7 +422,7 @@ export interface GraphTemplateDefinition<
   /** Named input ports accepted by this template. */
   readonly inputs: I;
   /** Output fragment contract produced by this template. */
-  readonly output: OutputPort;
+  readonly output: O;
   /** Source-template factory that creates marked regions with `region`. */
   readonly template: (region: GraphRegionBuilder<I>) => string;
   /** Invoke the template with already-resolved graph inputs. */
@@ -397,6 +432,251 @@ export interface GraphTemplateDefinition<
   /** Produce planner-facing metadata without exposing template source. */
   summary(): TemplateSummary;
 }
+
+type AuthoredSynthesisNode = {
+  readonly id: string;
+  readonly templateId: string;
+  readonly inputs: Record<string, unknown>;
+};
+
+type AuthoredSynthesisGraph = {
+  readonly nodes: readonly AuthoredSynthesisNode[];
+  readonly finalNodeId: string;
+  readonly goal?: SynthesisGoal;
+};
+
+type IsTuple<T extends readonly unknown[]> =
+  number extends T["length"] ? false : true;
+
+type IsWidenedString<T> =
+  string extends T ? true : false;
+
+type TemplateIndex<TTemplates extends readonly GraphTemplateDefinition<any, string, any>[]> = {
+  readonly [TTemplate in TTemplates[number] as TTemplate["modelId"]]: TTemplate;
+};
+
+type TemplateModelId<TTemplateIndex> =
+  Extract<keyof TTemplateIndex, string>;
+
+type TemplateByModelId<TTemplateIndex, TModelId extends string> =
+  TModelId extends keyof TTemplateIndex ? TTemplateIndex[TModelId] : never;
+
+type TemplateInputMap<TTemplate> =
+  TTemplate extends GraphTemplateDefinition<infer I, string, OutputPort> ? I : never;
+
+type TemplateOutput<TTemplate> =
+  TTemplate extends GraphTemplateDefinition<any, string, infer O> ? O : never;
+
+type AuthoredNodeId<TGraph extends AuthoredSynthesisGraph> =
+  TGraph["nodes"][number]["id"];
+
+type NodeIndex<TGraph extends AuthoredSynthesisGraph> = {
+  readonly [TNode in TGraph["nodes"][number] as TNode["id"]]: TNode;
+};
+
+type ProducerIndex<
+  TTemplateIndex,
+  TGraph extends AuthoredSynthesisGraph
+> = {
+  readonly [TNode in TGraph["nodes"][number] as TNode["id"]]:
+    TemplateByModelId<TTemplateIndex, TNode["templateId"]> extends infer TTemplate extends GraphTemplateDefinition<any, string, any>
+      ? {
+          readonly modelId: TTemplate["modelId"];
+          readonly output: TemplateOutput<TTemplate>;
+        }
+      : never;
+};
+
+type RequiredInputKeys<TInputs extends Record<string, InputPort>> = {
+  [K in keyof TInputs]-?: TInputs[K] extends { readonly required: false } ? never : K;
+}[keyof TInputs];
+
+type OptionalInputKeys<TInputs extends Record<string, InputPort>> = {
+  [K in keyof TInputs]-?: TInputs[K] extends { readonly required: false } ? K : never;
+}[keyof TInputs];
+
+type RefSynthesisInput<TNodeId extends string> =
+  | {
+      readonly kind: "ref";
+      readonly nodeId: TNodeId;
+    }
+  | {
+      readonly "$ref": TNodeId;
+    }
+  | {
+      readonly kind: "inline";
+      readonly node: SynthesisNode;
+    };
+
+type LiteralSynthesisInput = {
+  readonly kind: "literal";
+  readonly value: unknown;
+};
+
+type RawCodeSynthesisInput = {
+  readonly kind: "rawCode";
+  readonly code: string;
+};
+
+type FragmentExpectedOutputKind<TPort extends FragmentInputPort> =
+  TPort["accepts"] extends { readonly outputKind: infer O extends RegionKind } ? O : TPort["regionKind"];
+
+type FragmentAcceptsSourceModel<
+  TPort extends FragmentInputPort,
+  TModelId extends string
+> =
+  TPort["accepts"] extends { readonly sourceModelIds: readonly string[] }
+    ? TModelId extends TPort["accepts"]["sourceModelIds"][number] ? true : false
+    : true;
+
+type FragmentCompatibleNodeId<
+  TProducerIndex,
+  TPort extends FragmentInputPort,
+  TNodeId extends string
+> =
+  TNodeId extends keyof TProducerIndex
+    ? TProducerIndex[TNodeId] extends { readonly modelId: infer TModelId extends string; readonly output: infer TOutput extends OutputPort }
+      ? TOutput["kind"] extends FragmentExpectedOutputKind<TPort>
+        ? FragmentAcceptsSourceModel<TPort, TModelId> extends true
+          ? TNodeId
+          : never
+        : never
+      : never
+    : never;
+
+type CompatibleFragmentNodeIds<
+  TProducerIndex,
+  TPort extends FragmentInputPort
+> = {
+  [K in Extract<keyof TProducerIndex, string>]: FragmentCompatibleNodeId<TProducerIndex, TPort, K>;
+}[Extract<keyof TProducerIndex, string>];
+
+type SynthesisInputForPort<
+  TPort extends InputPort,
+  TNodeId extends string,
+  TProducerIndex
+> =
+  TPort extends LiteralInputPort ? LiteralSynthesisInput :
+  TPort extends FragmentInputPort ? RefSynthesisInput<CompatibleFragmentNodeIds<TProducerIndex, TPort>> :
+  TPort extends RawCodeInputPort ? RawCodeSynthesisInput :
+  TPort extends UnionInputPort ? SynthesisInputForPort<TPort["options"][number], TNodeId, TProducerIndex> :
+  never;
+
+type SynthesisInputsForPorts<
+  TInputs extends Record<string, InputPort>,
+  TNodeId extends string,
+  TProducerIndex
+> = {
+  readonly [K in RequiredInputKeys<TInputs>]: SynthesisInputForPort<TInputs[K], TNodeId, TProducerIndex>;
+} & {
+  readonly [K in OptionalInputKeys<TInputs>]?: SynthesisInputForPort<TInputs[K], TNodeId, TProducerIndex>;
+};
+
+type NoExtraProperties<TExpected, TActual> = {
+  readonly [K in Exclude<keyof TActual, keyof TExpected>]: never;
+};
+
+type StrictSynthesisInputMap<
+  TInputs extends Record<string, InputPort>,
+  TActualInputs extends Record<string, unknown>,
+  TNodeId extends string,
+  TProducerIndex
+> =
+  SynthesisInputsForPorts<TInputs, TNodeId, TProducerIndex> extends infer TExpected
+    ? TExpected extends Record<string, unknown>
+      ? TActualInputs &
+        TExpected &
+        NoExtraProperties<TExpected, TActualInputs>
+      : never
+    : never;
+
+type StrictSynthesisNode<
+  TTemplateIndex,
+  TProducerIndex,
+  TNode extends AuthoredSynthesisNode,
+> =
+  TNode &
+  {
+    readonly id: TNode["id"];
+    readonly templateId: TemplateModelId<TTemplateIndex>;
+    readonly inputs: StrictSynthesisInputMap<
+      TemplateInputMap<TemplateByModelId<TTemplateIndex, TNode["templateId"]>>,
+      TNode["inputs"],
+      TNode["id"],
+      TProducerIndex
+    >;
+  } &
+  NoExtraProperties<{
+    readonly id: string;
+    readonly templateId: string;
+    readonly inputs: Record<string, unknown>;
+  }, TNode>;
+
+type StrictSynthesisNodeList<
+  TTemplateIndex,
+  TProducerIndex,
+  TNodes extends readonly AuthoredSynthesisNode[],
+> =
+  number extends TNodes["length"]
+    ? ReadonlyArray<StrictSynthesisNode<TTemplateIndex, TProducerIndex, TNodes[number]>>
+    : { readonly [K in keyof TNodes]: TNodes[K] extends AuthoredSynthesisNode
+        ? StrictSynthesisNode<TTemplateIndex, TProducerIndex, TNodes[K]>
+        : TNodes[K]
+      };
+
+type LooseAuthoredSynthesisGraph<TGraph extends AuthoredSynthesisGraph> =
+  TGraph &
+  NoExtraProperties<{
+    readonly nodes: readonly AuthoredSynthesisNode[];
+    readonly finalNodeId: string;
+    readonly goal?: SynthesisGoal;
+  }, TGraph>;
+
+type StrictFiniteSynthesisGraph<
+  TTemplates extends readonly GraphTemplateDefinition<any, string, any>[],
+  TGraph extends AuthoredSynthesisGraph,
+  TTemplateIndex = TemplateIndex<TTemplates>,
+  TNodeIndex = NodeIndex<TGraph>,
+  TProducerIndex = ProducerIndex<TTemplateIndex, TGraph>
+> =
+  TGraph &
+  {
+    readonly nodes: StrictSynthesisNodeList<TTemplateIndex, TProducerIndex, TGraph["nodes"]>;
+    readonly finalNodeId: Extract<keyof TNodeIndex, string>;
+    readonly goal?: SynthesisGoal;
+  } &
+  NoExtraProperties<{
+    readonly nodes: readonly AuthoredSynthesisNode[];
+    readonly finalNodeId: string;
+    readonly goal?: SynthesisGoal;
+  }, TGraph>;
+
+/** Compile-time checked graph shape used by authored graph helpers. */
+export type StrictSynthesisGraph<
+  TTemplates extends readonly GraphTemplateDefinition<any, string, any>[],
+  TGraph extends AuthoredSynthesisGraph
+> =
+  IsTuple<TTemplates> extends true
+    ? IsTuple<TGraph["nodes"]> extends true
+      ? IsWidenedString<AuthoredNodeId<TGraph>> extends true
+        ? LooseAuthoredSynthesisGraph<TGraph>
+        : StrictFiniteSynthesisGraph<TTemplates, TGraph>
+      : LooseAuthoredSynthesisGraph<TGraph>
+    : LooseAuthoredSynthesisGraph<TGraph>;
+
+declare const definedSynthesisGraphBrand: unique symbol;
+
+/**
+ * Type-only marker attached to graphs returned by `defineGraph`.
+ *
+ * This lets APIs accept an already-checked graph with its template catalog
+ * without re-instantiating the full strict graph constraint.
+ */
+export type DefinedSynthesisGraph<
+  TTemplates extends readonly GraphTemplateDefinition<any, string, any>[]
+> = SynthesisGraph & {
+  readonly [definedSynthesisGraphBrand]: TTemplates;
+};
 
 /** Graph compilation options are the normal generation options. */
 export interface GraphCompileOptions extends GenerateOptions {}
@@ -433,7 +713,7 @@ export interface FragmentInputPortSummary extends BasePortSummary {
   regionKind: RegionKind;
   /** Fragment compatibility requirements. */
   accepts: {
-    /** Required output kind of referenced fragments. */
+    /** Required output kind of referenced fragments, resolved from the port default. */
     outputKind: RegionKind;
     /** Type metadata referenced fragments must satisfy, when provided. */
     type?: TypeDescriptor;

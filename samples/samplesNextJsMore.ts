@@ -25,13 +25,13 @@ function out(kind: RegionKind, extra: Omit<OutputPort, 'kind'> = {}): OutputPort
   return { kind, ...extra }
 }
 
-const stringType: TypeDescriptor = { ts: 'string', schema: { type: 'string' } }
-const stringOrUrlType: TypeDescriptor = { ts: 'string | URL' }
-const requestType: TypeDescriptor = { ts: 'Request | NextRequest' }
-const userAgentType: TypeDescriptor = { ts: 'ReturnType<typeof userAgent>' }
-const booleanType: TypeDescriptor = { ts: 'boolean', schema: { type: 'boolean' } }
+export const stringType: TypeDescriptor = { ts: 'string', schema: { type: 'string' } }
+export const stringOrUrlType: TypeDescriptor = { ts: 'string | URL' }
+export const requestType: TypeDescriptor = { ts: 'Request | NextRequest' }
+export const userAgentType: TypeDescriptor = { ts: 'ReturnType<typeof userAgent>' }
+export const booleanType: TypeDescriptor = { ts: 'boolean', schema: { type: 'boolean' } }
 
-const safeRawExpressionPolicy: RawCodePolicy = {
+export const safeRawExpressionPolicy: RawCodePolicy = {
   description: 'Single-line expression. Dangerous globals and module-loading constructs are rejected before generation.',
   maxLength: 600,
   allowNewlines: false,
@@ -44,7 +44,7 @@ const safeRawExpressionPolicy: RawCodePolicy = {
   ]
 }
 
-const safeRawCallbackPolicy: RawCodePolicy = {
+export const safeRawCallbackPolicy: RawCodePolicy = {
   description: 'Single-line callback expression, such as `() => log()` or `async () => sendMetric()`.',
   maxLength: 800,
   allowNewlines: false,
@@ -57,7 +57,7 @@ const safeRawCallbackPolicy: RawCodePolicy = {
   ]
 }
 
-const expressionFragment = (description?: string, type?: TypeDescriptor): FragmentInputPort =>
+export const expressionFragment = (description?: string, type?: TypeDescriptor): FragmentInputPort =>
   fragmentPort({
     regionKind: 'expression',
     accepts: {
@@ -67,10 +67,10 @@ const expressionFragment = (description?: string, type?: TypeDescriptor): Fragme
     ...(description ? { description } : {})
   })
 
-const stringExpressionFragment = (description?: string): FragmentInputPort =>
+export const stringExpressionFragment = (description?: string): FragmentInputPort =>
   expressionFragment(description, stringType)
 
-const rawExpression = (description?: string, type?: TypeDescriptor): RawCodeInputPort =>
+export const rawExpression = (description?: string, type?: TypeDescriptor): RawCodeInputPort =>
   rawCodePort({
     regionKind: 'expression',
     policy: safeRawExpressionPolicy,
@@ -78,7 +78,7 @@ const rawExpression = (description?: string, type?: TypeDescriptor): RawCodeInpu
     ...(description ? { description } : {})
   })
 
-const rawCallbackExpression = (description?: string): RawCodeInputPort =>
+export const rawCallbackExpression = (description?: string): RawCodeInputPort =>
   rawCodePort({
     regionKind: 'expression',
     policy: safeRawCallbackPolicy,
@@ -86,7 +86,7 @@ const rawCallbackExpression = (description?: string): RawCodeInputPort =>
     ...(description ? { description } : {})
   })
 
-const cacheLifeProfileLiteral = (description?: string): LiteralInputPort =>
+export const cacheLifeProfileLiteral = (description?: string): LiteralInputPort =>
   literalPort({
     regionKind: 'string',
     schema: {

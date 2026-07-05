@@ -24,13 +24,13 @@ function out(kind: RegionKind, extra: Omit<OutputPort, 'kind'> = {}): OutputPort
   return { kind, ...extra }
 }
 
-const stringType: TypeDescriptor = { ts: 'string', schema: { type: 'string' } }
-const stringOrUrlType: TypeDescriptor = { ts: 'string | URL' }
-const nextResponseType: TypeDescriptor = { ts: 'NextResponse' }
-const cookieValueType: TypeDescriptor = { ts: 'string | undefined' }
-const headerValueType: TypeDescriptor = { ts: 'string | null' }
+export const stringType: TypeDescriptor = { ts: 'string', schema: { type: 'string' } }
+export const stringOrUrlType: TypeDescriptor = { ts: 'string | URL' }
+export const nextResponseType: TypeDescriptor = { ts: 'NextResponse' }
+export const cookieValueType: TypeDescriptor = { ts: 'string | undefined' }
+export const headerValueType: TypeDescriptor = { ts: 'string | null' }
 
-const safeRawExpressionPolicy: RawCodePolicy = {
+export const safeRawExpressionPolicy: RawCodePolicy = {
   description: 'Single-line expression. Dangerous globals and module-loading constructs are rejected before generation.',
   maxLength: 500,
   allowNewlines: false,
@@ -43,7 +43,7 @@ const safeRawExpressionPolicy: RawCodePolicy = {
   ]
 }
 
-const expressionFragment = (description?: string, type?: TypeDescriptor): FragmentInputPort =>
+export const expressionFragment = (description?: string, type?: TypeDescriptor): FragmentInputPort =>
   fragmentPort({
     regionKind: 'expression',
     accepts: {
@@ -53,17 +53,17 @@ const expressionFragment = (description?: string, type?: TypeDescriptor): Fragme
     ...(description ? { description } : {})
   })
 
-const stringExpressionFragment = (description?: string): FragmentInputPort =>
+export const stringExpressionFragment = (description?: string): FragmentInputPort =>
   expressionFragment(description, stringType)
 
-const stringLiteral = (description?: string): LiteralInputPort =>
+export const stringLiteral = (description?: string): LiteralInputPort =>
   literalPort({
     regionKind: 'string',
     schema: { type: 'string' },
     ...(description ? { description } : {})
   })
 
-const rawExpression = (description?: string, type?: TypeDescriptor): RawCodeInputPort =>
+export const rawExpression = (description?: string, type?: TypeDescriptor): RawCodeInputPort =>
   rawCodePort({
     regionKind: 'expression',
     policy: safeRawExpressionPolicy,

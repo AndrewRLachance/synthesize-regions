@@ -25,13 +25,13 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.typecheck.json --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
     "ts-morph": "^25.0.1",
     "ts-pattern": "^5.9.0",
-    "type-fest": "^5.7.0",
+    "type-fest": "^5.8.0",
     "typescript": "^5.7.2"
   },
   "devDependencies": {

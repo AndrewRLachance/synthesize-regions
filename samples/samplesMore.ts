@@ -1,4 +1,4 @@
-import type { GraphTemplateDefinitionInput } from '../src/templates/definition.js'
+import { defineTemplate, type GraphTemplateDefinitionInput } from '../src/templates/definition.js'
 import type {
   FragmentInputPort,
   InputPort,
@@ -38,15 +38,15 @@ function out(kind: RegionKind, extra: Omit<OutputPort, 'kind'> = {}): OutputPort
   return { kind, ...extra }
 }
 
-const unknownType: TypeDescriptor = { ts: 'unknown', schema: true }
-const unknownArrayType: TypeDescriptor = { ts: 'unknown[]', schema: { type: 'array' } }
-const recordType: TypeDescriptor = { ts: 'Record<string, unknown>', schema: { type: 'object' } }
-const stringType: TypeDescriptor = { ts: 'string', schema: { type: 'string' } }
-const numberType: TypeDescriptor = { ts: 'number', schema: { type: 'number' } }
-const booleanType: TypeDescriptor = { ts: 'boolean', schema: { type: 'boolean' } }
-const nullType: TypeDescriptor = { ts: 'null', schema: { type: 'null' } }
+export const unknownType: TypeDescriptor = { ts: 'unknown', schema: true }
+export const unknownArrayType: TypeDescriptor = { ts: 'unknown[]', schema: { type: 'array' } }
+export const recordType: TypeDescriptor = { ts: 'Record<string, unknown>', schema: { type: 'object' } }
+export const stringType: TypeDescriptor = { ts: 'string', schema: { type: 'string' } }
+export const numberType: TypeDescriptor = { ts: 'number', schema: { type: 'number' } }
+export const booleanType: TypeDescriptor = { ts: 'boolean', schema: { type: 'boolean' } }
+export const nullType: TypeDescriptor = { ts: 'null', schema: { type: 'null' } }
 
-const safeRawExpressionPolicy: RawCodePolicy = {
+export const safeRawExpressionPolicy: RawCodePolicy = {
   description: 'Single-line expression. Dangerous globals and module-loading constructs are rejected before generation.',
   maxLength: 300,
   allowNewlines: false,
@@ -60,7 +60,7 @@ const safeRawExpressionPolicy: RawCodePolicy = {
   ]
 }
 
-const safeRawStatementPolicy: RawCodePolicy = {
+export const safeRawStatementPolicy: RawCodePolicy = {
   description: 'Short statement block. Dangerous globals and module-loading constructs are rejected before generation.',
   maxLength: 600,
   allowNewlines: true,
@@ -68,17 +68,17 @@ const safeRawStatementPolicy: RawCodePolicy = {
   forbiddenPatterns: ['\\bnew\\s+Function\\b', '\\bwhile\\s*\\(']
 }
 
-const identifierNameSchema = {
+export const identifierNameSchema = {
   type: 'string',
   pattern: '^[$A-Za-z_][$A-Za-z0-9_]*$'
 }
 
-const propertyKeySchema = {
+export const propertyKeySchema = {
   type: 'string',
   minLength: 1
 }
 
-const expressionFragment = (description?: string, type?: TypeDescriptor): FragmentInputPort =>
+export const expressionFragment = (description?: string, type?: TypeDescriptor): FragmentInputPort =>
   fragmentPort({
     regionKind: 'expression',
     accepts: {
@@ -88,63 +88,63 @@ const expressionFragment = (description?: string, type?: TypeDescriptor): Fragme
     ...(description ? { description } : {})
   })
 
-const expressionSuffixFragment = (description?: string): FragmentInputPort =>
+export const expressionSuffixFragment = (description?: string): FragmentInputPort =>
   fragmentPort({
     regionKind: 'expressionSuffix',
     accepts: { outputKind: 'expressionSuffix' },
     ...(description ? { description } : {})
   })
 
-const objectPropertyFragment = (description?: string): FragmentInputPort =>
+export const objectPropertyFragment = (description?: string): FragmentInputPort =>
   fragmentPort({
     regionKind: 'objectProperty',
     accepts: { outputKind: 'objectProperty' },
     ...(description ? { description } : {})
   })
 
-const identifierLiteral = (description?: string): LiteralInputPort =>
+export const identifierLiteral = (description?: string): LiteralInputPort =>
   literalPort({
     regionKind: 'identifier',
     schema: identifierNameSchema,
     ...(description ? { description } : {})
   })
 
-const stringLiteral = (description?: string): LiteralInputPort =>
+export const stringLiteral = (description?: string): LiteralInputPort =>
   literalPort({
     regionKind: 'string',
     schema: { type: 'string' },
     ...(description ? { description } : {})
   })
 
-const numberLiteral = (description?: string): LiteralInputPort =>
+export const numberLiteral = (description?: string): LiteralInputPort =>
   literalPort({
     regionKind: 'number',
     schema: { type: 'number' },
     ...(description ? { description } : {})
   })
 
-const booleanLiteral = (description?: string): LiteralInputPort =>
+export const booleanLiteral = (description?: string): LiteralInputPort =>
   literalPort({
     regionKind: 'boolean',
     schema: { type: 'boolean' },
     ...(description ? { description } : {})
   })
 
-const expressionRaw = (description?: string): RawCodeInputPort =>
+export const expressionRaw = (description?: string): RawCodeInputPort =>
   rawCodePort({
     regionKind: 'expression',
     policy: safeRawExpressionPolicy,
     ...(description ? { description } : {})
   })
 
-const statementRaw = (description?: string): RawCodeInputPort =>
+export const statementRaw = (description?: string): RawCodeInputPort =>
   rawCodePort({
     regionKind: 'statement',
     policy: safeRawStatementPolicy,
     ...(description ? { description } : {})
   })
 
-const literalExpression = (description?: string): LiteralInputPort =>
+export const literalExpression = (description?: string): LiteralInputPort =>
   literalPort({
     regionKind: 'expression',
     schema: true,

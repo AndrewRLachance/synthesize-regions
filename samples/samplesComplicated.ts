@@ -23,22 +23,22 @@ function out(kind: RegionKind, extra: Omit<OutputPort, 'kind'> = {}): OutputPort
   return { kind, ...extra }
 }
 
-const unknownType: TypeDescriptor = {}
-const booleanType: TypeDescriptor = { ts: 'boolean', schema: { type: 'boolean' } }
-const stringType: TypeDescriptor = { ts: 'string', schema: { type: 'string' } }
-const stringArrayType: TypeDescriptor = {
+export const unknownType: TypeDescriptor = {}
+export const booleanType: TypeDescriptor = { ts: 'boolean', schema: { type: 'boolean' } }
+export const stringType: TypeDescriptor = { ts: 'string', schema: { type: 'string' } }
+export const stringArrayType: TypeDescriptor = {
   ts: 'string[]',
   schema: { type: 'array', items: { type: 'string' } }
 }
-const stringOrUrlType: TypeDescriptor = { ts: 'string | URL' }
-const requestType: TypeDescriptor = { ts: 'Request | NextRequest' }
-const nextResponseType: TypeDescriptor = { ts: 'NextResponse' }
-const responseInitType: TypeDescriptor = { ts: 'ResponseInit' }
-const cookieOptionsType: TypeDescriptor = { ts: 'Partial<ResponseCookie>' }
-const fetchInitType: TypeDescriptor = { ts: 'RequestInit & { next?: { tags?: string[]; revalidate?: number | false } }' }
-const revalidateValueType: TypeDescriptor = { ts: 'number | false | undefined' }
+export const stringOrUrlType: TypeDescriptor = { ts: 'string | URL' }
+export const requestType: TypeDescriptor = { ts: 'Request | NextRequest' }
+export const nextResponseType: TypeDescriptor = { ts: 'NextResponse' }
+export const responseInitType: TypeDescriptor = { ts: 'ResponseInit' }
+export const cookieOptionsType: TypeDescriptor = { ts: 'Partial<ResponseCookie>' }
+export const fetchInitType: TypeDescriptor = { ts: 'RequestInit & { next?: { tags?: string[]; revalidate?: number | false } }' }
+export const revalidateValueType: TypeDescriptor = { ts: 'number | false | undefined' }
 
-const safeRawExpressionPolicy: RawCodePolicy = {
+export const safeRawExpressionPolicy: RawCodePolicy = {
   description: 'Single-line expression. Dangerous globals and module-loading constructs are rejected before generation.',
   maxLength: 800,
   allowNewlines: false,
@@ -51,7 +51,27 @@ const safeRawExpressionPolicy: RawCodePolicy = {
   ]
 }
 
-const expressionFragment = (description?: string, type?: TypeDescriptor): FragmentInputPort =>
+export const statementFragment = (description?: string, type?: TypeDescriptor): FragmentInputPort =>
+  fragmentPort({
+    regionKind: 'statement',
+    accepts: {
+      outputKind: 'statement',
+      ...(type ? { type } : {})
+    },
+    ...(description ? { description } : {})
+  })
+
+export const expressionSuffixFragment = (description?: string, type?: TypeDescriptor): FragmentInputPort =>
+  fragmentPort({
+    regionKind: 'expressionSuffix',
+    accepts: {
+      outputKind: 'expressionSuffix',
+      ...(type ? { type } : {})
+    },
+    ...(description ? { description } : {})
+  })
+
+export const expressionFragment = (description?: string, type?: TypeDescriptor): FragmentInputPort =>
   fragmentPort({
     regionKind: 'expression',
     accepts: {
@@ -61,13 +81,13 @@ const expressionFragment = (description?: string, type?: TypeDescriptor): Fragme
     ...(description ? { description } : {})
   })
 
-const stringExpressionFragment = (description?: string): FragmentInputPort =>
+export const stringExpressionFragment = (description?: string): FragmentInputPort =>
   expressionFragment(description, stringType)
 
-const booleanExpressionFragment = (description?: string): FragmentInputPort =>
+export const booleanExpressionFragment = (description?: string): FragmentInputPort =>
   expressionFragment(description, booleanType)
 
-const rawExpression = (description?: string, type?: TypeDescriptor): RawCodeInputPort =>
+export const rawExpression = (description?: string, type?: TypeDescriptor): RawCodeInputPort =>
   rawCodePort({
     regionKind: 'expression',
     policy: safeRawExpressionPolicy,

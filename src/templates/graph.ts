@@ -1,4 +1,5 @@
 import type {
+  DefinedSynthesisGraph,
   FragmentInputPort,
   GeneratedFragment,
   GraphCompilationResult,
@@ -9,13 +10,26 @@ import type {
   NormalizedSynthesisInput,
   RawCodeInputPort,
   ResolvedGraphInput,
+  StrictSynthesisGraph,
   SynthesisDiagnostic,
   SynthesisGraph,
+  SynthesisGoal,
   SynthesisInput,
   SynthesisNode,
   TemplateRegistry
 } from "./graphTypes.js";
-import { isTypeCompatible, portIsRequired, validateJsonSchemaSubset } from "./compatibility.js";
+import { fragmentPortOutputKind, isTypeCompatible, portIsRequired, validateJsonSchemaSubset } from "./compatibility.js";
+import { createTemplateRegistry } from "./registry.js";
+
+export type AuthoredGraphInput = {
+  readonly nodes: readonly {
+    readonly id: string;
+    readonly templateId: string;
+    readonly inputs: Record<string, unknown>;
+  }[];
+  readonly finalNodeId: string;
+  readonly goal?: SynthesisGoal;
+};
 
 function errorDiagnostic(diagnostic: Omit<SynthesisDiagnostic, "severity">): SynthesisDiagnostic {
   return { ...diagnostic, severity: "error" };
@@ -27,6 +41,50 @@ function isRefShorthand(input: SynthesisInput): input is { "$ref": string } {
 
 export function normalizeSynthesisInput(input: SynthesisInput): Exclude<SynthesisInput, { "$ref": string }> {
   return isRefShorthand(input) ? { kind: "ref", nodeId: input.$ref } : input;
+}
+
+export function defineGraph<
+  const TTemplates extends readonly GraphTemplateDefinition<any, string>[],
+  const TGraph extends AuthoredGraphInput
+>(
+  templates: TTemplates,
+  graph: StrictSynthesisGraph<TTemplates, TGraph>
+): DefinedSynthesisGraph<TTemplates> {
+  void templates;
+  return graph as unknown as DefinedSynthesisGraph<TTemplates>;
+}
+
+export type GraphCompiler<TTemplates extends readonly GraphTemplateDefinition<any, string>[]> = {
+	(graph: DefinedSynthesisGraph<TTemplates>): GraphCompilationResult
+	<const TGraph extends AuthoredGraphInput>(graph: StrictSynthesisGraph<TTemplates, TGraph>): GraphCompilationResult
+	defineGraph<const TGraph extends AuthoredGraphInput>(
+		graph: StrictSynthesisGraph<TTemplates, TGraph>
+	): DefinedSynthesisGraph<TTemplates>
+}
+
+export function buildGraphCompiler<
+  const TTemplates extends readonly GraphTemplateDefinition<any, string>[]
+>(
+  templates: TTemplates,
+  options?: GraphCompileOptions
+): GraphCompiler<TTemplates> {
+  const compiler = (graph: SynthesisGraph) => compileGraph(graph, templates, options);
+  compiler.defineGraph = (graph: AuthoredGraphInput) => defineGraph(templates, graph as never);
+  return compiler as GraphCompiler<TTemplates>;
+}
+
+function isTemplateCatalog(
+  value: TemplateRegistry | readonly GraphTemplateDefinition<any, string>[]
+): value is readonly GraphTemplateDefinition<any, string>[] {
+  return Array.isArray(value);
+}
+
+function templateRegistryFromInput(
+  registryOrTemplates: TemplateRegistry | readonly GraphTemplateDefinition<any, string>[]
+): TemplateRegistry {
+  return isTemplateCatalog(registryOrTemplates)
+    ? createTemplateRegistry(registryOrTemplates)
+    : registryOrTemplates;
 }
 
 export function normalizeSynthesisGraph(graph: SynthesisGraph): GraphNormalizationResult {
@@ -221,15 +279,17 @@ function fragmentCompatible(
   node: SynthesisNode,
   inputName: string
 ): SynthesisDiagnostic | undefined {
-  if (port.accepts.outputKind !== fragment.kind) {
+  const expectedOutputKind = fragmentPortOutputKind(port);
+
+  if (expectedOutputKind !== fragment.kind) {
     return errorDiagnostic({
       stage: "port",
       code: "IncompatibleFragmentKind",
-      message: `Input ${inputName} expected ${port.accepts.outputKind} but received ${fragment.kind}.`,
+      message: `Input ${inputName} expected ${expectedOutputKind} but received ${fragment.kind}.`,
       nodeId: node.id,
       templateId: node.templateId,
       inputName,
-      expected: port.accepts.outputKind,
+      expected: expectedOutputKind,
       actual: fragment.kind
     });
   }
@@ -417,10 +477,32 @@ function validateFinalGoal(graph: SynthesisGraph, finalFragment: GeneratedFragme
 }
 
 export function compileGraph(
+  graph: DefinedSynthesisGraph<any>,
+  templates: readonly GraphTemplateDefinition<any, string>[],
+  options?: GraphCompileOptions
+): GraphCompilationResult;
+
+export function compileGraph(
   graph: SynthesisGraph,
   registry: TemplateRegistry,
+  options?: GraphCompileOptions
+): GraphCompilationResult;
+
+export function compileGraph<
+  const TTemplates extends readonly GraphTemplateDefinition<any, string>[],
+  const TGraph extends AuthoredGraphInput
+>(
+  graph: StrictSynthesisGraph<TTemplates, TGraph>,
+  templates: TTemplates,
+  options?: GraphCompileOptions
+): GraphCompilationResult;
+
+export function compileGraph(
+  graph: SynthesisGraph,
+  registryOrTemplates: TemplateRegistry | readonly GraphTemplateDefinition<any, string>[],
   options: GraphCompileOptions = {}
 ): GraphCompilationResult {
+  const registry = templateRegistryFromInput(registryOrTemplates);
   const normalized = normalizeSynthesisGraph(graph).graph;
   const { diagnostics, nodesById } = validateStaticGraph(normalized, registry);
   if (diagnostics.some(diagnostic => diagnostic.severity === "error")) {
