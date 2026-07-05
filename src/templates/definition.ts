@@ -1,6 +1,6 @@
 import type { GenerateOptions, MarkerExpectedKind, TemplateMode } from '../core/types.js'
 import { generateWithReplacements } from '../generation/generate.js'
-import { portRegionKind } from './compatibility.js'
+import { portRegionKind, summarizeInputPort, summarizeOutputPort } from './compatibility.js'
 
 import { isMatching, P } from 'ts-pattern'
 import {
@@ -43,10 +43,14 @@ export const isMatchingInputPatternMap = isMatching as unknown as <S extends Spe
  * A reusable source template plus its input pattern and output marker kind.
  */
 export type LegacyTemplateDefinition<S extends SpecPattern, O extends MarkerExpectedKind, M extends string> = {
+    /** Stable template/model identifier preserved on generated output. */
     readonly modelId: M
+    /** Marker kind produced by this legacy template. */
     readonly outputKind: O
+    /** Runtime input matchers and output marker kinds for each region key. */
     readonly pattern: S
 
+    /** Generate branded code by applying replacement inputs to the template. */
     apply(replacements: ReplacementFor<S>, options?: GenerateOptions): GeneratedCode<O, M>
 }
 
@@ -62,11 +66,17 @@ export type GraphTemplateDefinitionInput<
     M extends string,
     I extends Record<string, InputPort>
 > = {
+    /** Stable template/model identifier used by graph nodes and provenance. */
     readonly modelId: M
+    /** Optional template version copied into generated fragment provenance. */
     readonly version?: string
+    /** Optional human-readable summary surfaced in template summaries. */
     readonly description?: string
+    /** Named graph input ports accepted by the template. */
     readonly inputs: I
+    /** Output fragment contract advertised by the template. */
     readonly output: OutputPort
+    /** Source-template factory; call `region` to create marked placeholders. */
     readonly template: (region: GraphRegionBuilder<I>) => string
 }
 
@@ -75,9 +85,13 @@ export type LegacyTemplateDefinitionInput<
     O extends MarkerExpectedKind,
     S extends SpecPattern
 > = {
+    /** Stable template/model identifier preserved on generated output. */
     readonly modelId: M
+    /** Marker kind produced by this legacy template. */
     readonly outputKind: O
+    /** Runtime input matchers and output marker kinds for each region key. */
     readonly pattern: S
+    /** Source-template factory; call `region` to create marked placeholders. */
     readonly template: (region: RegionBuilder<S>) => string
 }
 
@@ -216,8 +230,10 @@ export function defineTemplate<
                     modelId: definition.modelId,
                     ...(definition.version ? { version: definition.version } : {}),
                     ...(definition.description ? { description: definition.description } : {}),
-                    inputs: definition.inputs,
-                    output: definition.output
+                    inputs: Object.fromEntries(
+                        Object.entries(definition.inputs).map(([key, port]) => [key, summarizeInputPort(port)])
+                    ),
+                    output: summarizeOutputPort(definition.output)
                 }
             }
         }

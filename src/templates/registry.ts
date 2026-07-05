@@ -18,6 +18,10 @@ export function createTemplateRegistry(initialTemplates: readonly GraphTemplateD
 
     list() {
       return [...templates.values()];
+    },
+
+    summaries() {
+      return [...templates.values()].map(template => template.summary());
     }
   };
 }

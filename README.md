@@ -287,6 +287,8 @@ import {
   defineTemplate,
   fragmentPort,
   literalPort,
+  rawCodePort,
+  unionPort,
   type SynthesisGraph
 } from "synthesize-regions";
 
@@ -358,6 +360,62 @@ if (result.ok) {
   console.log(result.finalFragment.code);
   // [true, false, true].map(x => Boolean(x))
 }
+```
+
+Raw-code ports are opt-in and can carry a small policy for planner-provided
+snippets:
+
+```ts
+const RawScoreExpression = defineTemplate({
+  modelId: "RawScoreExpression",
+  inputs: {
+    score: rawCodePort({
+      regionKind: "expression",
+      policy: {
+        maxLength: 80,
+        allowNewlines: false,
+        forbiddenSubstrings: ["process"],
+        forbiddenPatterns: ["\\beval\\s*\\("]
+      },
+      type: { ts: "number" }
+    })
+  },
+  output: {
+    kind: "expression",
+    type: { ts: "number" }
+  },
+  template: region => `Math.max(0, ${region("score")})`
+});
+```
+
+Use union ports when one template input can be satisfied by more than one input
+shape. Keep options on the same `regionKind` when they share one template
+marker:
+
+```ts
+const ScoreOrExpression = defineTemplate({
+  modelId: "ScoreOrExpression",
+  inputs: {
+    score: unionPort({
+      options: [
+        literalPort({
+          regionKind: "expression",
+          schema: { type: "number" }
+        }),
+        rawCodePort({
+          regionKind: "expression",
+          policy: { allowNewlines: false },
+          type: { ts: "number" }
+        })
+      ]
+    })
+  },
+  output: {
+    kind: "expression",
+    type: { ts: "number" }
+  },
+  template: region => `${region("score")} + 1`
+});
 ```
 
 Graph compilation returns structured diagnostics instead of throwing for normal
@@ -488,28 +546,40 @@ comments and returns raw ranges; most callers should prefer discovery.
 
 ## JSON Schema
 
-The package includes a draft 2020-12 JSON Schema for replacement-map files:
+The package includes draft 2020-12 JSON Schemas for JSON-shaped public data:
 
 ```txt
 schemas/replacement-map.schema.json
+schemas/synthesis-graph.schema.json
+schemas/template-summary.schema.json
 ```
 
-Package export path:
+Package export paths:
 
 ```txt
 synthesize-regions/schemas/replacement-map.schema.json
+synthesize-regions/schemas/synthesis-graph.schema.json
+synthesize-regions/schemas/template-summary.schema.json
 ```
 
 Example import:
 
 ```ts
 import replacementMapSchema from "synthesize-regions/schemas/replacement-map.schema.json" with { type: "json" };
+import synthesisGraphSchema from "synthesize-regions/schemas/synthesis-graph.schema.json" with { type: "json" };
+import templateSummarySchema from "synthesize-regions/schemas/template-summary.schema.json" with { type: "json" };
 ```
 
-The schema validates the structural model: replacement IDs, replacement `kind`
+The replacement-map schema validates replacement IDs, replacement `kind`
 discriminators, nested expression replacements, and non-empty arrays for list
-replacement values. Marker-specific compatibility, raw TypeScript syntax, and
-security policy rules are still enforced by the API.
+replacement values. The synthesis-graph schema validates graph structure,
+node/input discriminators, inline nodes, ref shorthand, and final-goal shape. The
+template-summary schema validates the planner-facing metadata returned by
+template registries.
+
+These schemas are structural. Marker-specific compatibility, template existence,
+graph cycles, literal schema checks, raw TypeScript syntax, and security policy
+rules are still enforced by the API.
 
 ## Security Policy
 

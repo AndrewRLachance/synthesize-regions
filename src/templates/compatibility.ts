@@ -1,7 +1,9 @@
 import type {
   FragmentInputPort,
   InputPort,
+  InputPortSummary,
   LiteralInputPort,
+  OutputPortSummary,
   OutputPort,
   RawCodeInputPort,
   RegionKind,
@@ -17,23 +19,67 @@ function schemaType(schema: unknown): string | undefined {
   return isRecord(schema) && typeof schema.type === "string" ? schema.type : undefined;
 }
 
+function schemaTypes(schema: unknown): string[] {
+  if (!isRecord(schema)) return [];
+  if (typeof schema.type === "string") return [schema.type];
+  if (Array.isArray(schema.type)) return schema.type.filter((item): item is string => typeof item === "string");
+  return [];
+}
+
+function valuesEqual(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function schemaConstCompatible(expected: unknown, actual: unknown): boolean {
+  if (!isRecord(expected) || !Object.prototype.hasOwnProperty.call(expected, "const")) return true;
+  if (!isRecord(actual) || !Object.prototype.hasOwnProperty.call(actual, "const")) return false;
+  return valuesEqual(expected.const, actual.const);
+}
+
+function schemaEnumCompatible(expected: unknown, actual: unknown): boolean {
+  if (!isRecord(expected) || !Array.isArray(expected.enum)) return true;
+  if (!isRecord(actual) || !Array.isArray(actual.enum)) return false;
+  const expectedValues = expected.enum as unknown[];
+  const actualValues = actual.enum as unknown[];
+  return actualValues.every(actualValue => expectedValues.some(expectedValue => valuesEqual(expectedValue, actualValue)));
+}
+
 function schemasCompatible(expected: unknown, actual: unknown): boolean {
   if (expected === undefined) return true;
   if (actual === undefined) return false;
 
-  const expectedType = schemaType(expected);
-  const actualType = schemaType(actual);
+  if (isRecord(expected) && Array.isArray(expected.anyOf)) {
+    return expected.anyOf.some(option => schemasCompatible(option, actual));
+  }
 
-  if (!expectedType) return false;
-  if (expectedType !== actualType) return false;
+  if (isRecord(expected) && Array.isArray(expected.oneOf)) {
+    return expected.oneOf.some(option => schemasCompatible(option, actual));
+  }
 
-  if (expectedType === "array") {
+  if (isRecord(actual) && Array.isArray(actual.anyOf)) {
+    return actual.anyOf.every(option => schemasCompatible(expected, option));
+  }
+
+  if (isRecord(actual) && Array.isArray(actual.oneOf)) {
+    return actual.oneOf.every(option => schemasCompatible(expected, option));
+  }
+
+  if (!schemaConstCompatible(expected, actual) || !schemaEnumCompatible(expected, actual)) return false;
+
+  const expectedTypes = schemaTypes(expected);
+  const actualTypes = schemaTypes(actual);
+
+  if (expectedTypes.length === 0) return false;
+  if (actualTypes.length === 0) return false;
+  if (!actualTypes.every(actualType => expectedTypes.includes(actualType))) return false;
+
+  if (expectedTypes.includes("array")) {
     const expectedItems = isRecord(expected) ? expected.items : undefined;
     const actualItems = isRecord(actual) ? actual.items : undefined;
     return expectedItems === undefined || schemasCompatible(expectedItems, actualItems);
   }
 
-  if (expectedType === "object") {
+  if (expectedTypes.includes("object")) {
     const expectedProperties = isRecord(expected) && isRecord(expected.properties) ? expected.properties : undefined;
     const actualProperties = isRecord(actual) && isRecord(actual.properties) ? actual.properties : undefined;
     if (!expectedProperties) return true;
@@ -45,7 +91,77 @@ function schemasCompatible(expected: unknown, actual: unknown): boolean {
     return true;
   }
 
-  return ["string", "number", "boolean", "null"].includes(expectedType);
+  return actualTypes.every(actualType => ["string", "number", "integer", "boolean", "null"].includes(actualType));
+}
+
+function splitTopLevelUnion(value: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let current = "";
+
+  for (const char of value) {
+    if (char === "<" || char === "(") depth += 1;
+    if (char === ">" || char === ")") depth -= 1;
+
+    if (char === "|" && depth === 0) {
+      parts.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  if (current.trim()) parts.push(current.trim());
+  return parts;
+}
+
+function normalizeTsType(value: string): string {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+function stripOuterParens(value: string): string {
+  let current = normalizeTsType(value);
+  while (current.startsWith("(") && current.endsWith(")")) {
+    current = normalizeTsType(current.slice(1, -1));
+  }
+  return current;
+}
+
+function arrayElementType(value: string): string | undefined {
+  const normalized = stripOuterParens(value).replace(/^readonly\s+/u, "");
+  if (normalized.endsWith("[]")) return normalized.slice(0, -2).trim();
+
+  const arrayMatch = normalized.match(/^(?:ReadonlyArray|Array)<(.+)>$/u);
+  return arrayMatch?.[1]?.trim();
+}
+
+function tsTypeCompatible(expected: string | undefined, actual: string | undefined): boolean {
+  if (!expected) return true;
+  const normalizedExpected = stripOuterParens(expected);
+  if (normalizedExpected === "unknown" || normalizedExpected === "any") return true;
+  if (!actual) return false;
+
+  const normalizedActual = stripOuterParens(actual);
+  if (normalizedExpected === normalizedActual) return true;
+
+  const expectedUnion = splitTopLevelUnion(normalizedExpected);
+  if (expectedUnion.length > 1) {
+    return expectedUnion.some(option => tsTypeCompatible(option, normalizedActual));
+  }
+
+  const actualUnion = splitTopLevelUnion(normalizedActual);
+  if (actualUnion.length > 1) {
+    return actualUnion.every(option => tsTypeCompatible(normalizedExpected, option));
+  }
+
+  const expectedElement = arrayElementType(normalizedExpected);
+  const actualElement = arrayElementType(normalizedActual);
+  if (expectedElement !== undefined) {
+    return actualElement !== undefined && tsTypeCompatible(expectedElement, actualElement);
+  }
+
+  return false;
 }
 
 export function isTypeCompatible(
@@ -53,22 +169,30 @@ export function isTypeCompatible(
   actual: TypeDescriptor | undefined
 ): boolean {
   if (!expected) return true;
-  if (expected.ts === "unknown") return true;
+  if (expected.ts !== undefined && !tsTypeCompatible(expected.ts, actual?.ts)) return false;
 
-  if (expected.ts !== undefined) {
-    return actual?.ts === expected.ts;
-  }
-
-  if (expected.schema !== undefined) {
-    return schemasCompatible(expected.schema, actual?.schema);
-  }
+  if (expected.schema !== undefined && !schemasCompatible(expected.schema, actual?.schema)) return false;
 
   return true;
 }
 
 export type SchemaValidationResult =
-  | { ok: true }
-  | { ok: false; message: string; path: string; expected?: unknown; actual?: unknown };
+  | {
+      /** Success discriminator. */
+      ok: true;
+    }
+  | {
+      /** Failure discriminator. */
+      ok: false;
+      /** Human-readable validation failure message. */
+      message: string;
+      /** JSON-path-like location of the invalid value. */
+      path: string;
+      /** Expected schema or value metadata. */
+      expected?: unknown;
+      /** Actual value or metadata that failed validation. */
+      actual?: unknown;
+    };
 
 export function validateJsonSchemaSubset(value: unknown, schema: unknown, path = "$"): SchemaValidationResult {
   if (schema === undefined) return { ok: true };
@@ -76,10 +200,43 @@ export function validateJsonSchemaSubset(value: unknown, schema: unknown, path =
     return { ok: false, message: "Unsupported schema shape.", path, expected: schema, actual: value };
   }
 
-  const type = schemaType(schema);
-  if (type === undefined) {
+  if (isRecord(schema) && Object.prototype.hasOwnProperty.call(schema, "const")) {
+    return valuesEqual(value, schema.const)
+      ? { ok: true }
+      : { ok: false, message: "Value does not match const.", path, expected: schema, actual: value };
+  }
+
+  if (isRecord(schema) && Array.isArray(schema.enum)) {
+    return schema.enum.some(item => valuesEqual(item, value))
+      ? { ok: true }
+      : { ok: false, message: "Value is not one of the allowed enum values.", path, expected: schema, actual: value };
+  }
+
+  if (isRecord(schema) && Array.isArray(schema.anyOf)) {
+    return schema.anyOf.some(option => validateJsonSchemaSubset(value, option, path).ok)
+      ? { ok: true }
+      : { ok: false, message: "Value does not match any allowed schema.", path, expected: schema, actual: value };
+  }
+
+  if (isRecord(schema) && Array.isArray(schema.oneOf)) {
+    const matches = schema.oneOf.filter(option => validateJsonSchemaSubset(value, option, path).ok);
+    return matches.length === 1
+      ? { ok: true }
+      : { ok: false, message: "Value must match exactly one allowed schema.", path, expected: schema, actual: value };
+  }
+
+  const types = schemaTypes(schema);
+  if (types.length === 0) {
     return { ok: false, message: "Schema must include a string type.", path, expected: schema, actual: value };
   }
+
+  if (types.length > 1) {
+    return types.some(type => validateJsonSchemaSubset(value, { ...schema, type }, path).ok)
+      ? { ok: true }
+      : { ok: false, message: "Value does not match any allowed schema type.", path, expected: schema, actual: value };
+  }
+
+  const type = types[0]!;
 
   if (type === "null") {
     return value === null
@@ -122,6 +279,12 @@ export function validateJsonSchemaSubset(value: unknown, schema: unknown, path =
     return { ok: true };
   }
 
+  if (type === "integer") {
+    return Number.isInteger(value)
+      ? { ok: true }
+      : { ok: false, message: "Expected integer.", path, expected: schema, actual: value };
+  }
+
   if (["string", "number", "boolean"].includes(type)) {
     return typeof value === type
       ? { ok: true }
@@ -160,4 +323,56 @@ export function portRegionKind(port: InputPort): RegionKind {
     return port.options[0] ? portRegionKind(port.options[0]) : "expression";
   }
   return port.regionKind;
+}
+
+export function summarizeInputPort(port: InputPort): InputPortSummary {
+  const required = portIsRequired(port);
+
+  switch (port.kind) {
+    case "literal":
+      return {
+        kind: "literal",
+        regionKind: port.regionKind,
+        required,
+        ...(port.description ? { description: port.description } : {}),
+        ...(port.schema === undefined ? {} : { schema: port.schema })
+      };
+    case "fragment":
+      return {
+        kind: "fragment",
+        regionKind: port.regionKind,
+        required,
+        ...(port.description ? { description: port.description } : {}),
+        accepts: {
+          outputKind: port.accepts.outputKind,
+          ...(port.accepts.type ? { type: port.accepts.type } : {}),
+          ...(port.accepts.sourceModelIds ? { sourceModelIds: port.accepts.sourceModelIds } : {})
+        }
+      };
+    case "rawCode":
+      return {
+        kind: "rawCode",
+        regionKind: port.regionKind,
+        required,
+        ...(port.description ? { description: port.description } : {}),
+        ...(port.policy ? { policy: port.policy } : {}),
+        ...(port.type ? { type: port.type } : {})
+      };
+    case "union":
+      return {
+        kind: "union",
+        required,
+        ...(port.description ? { description: port.description } : {}),
+        options: port.options.map(summarizeInputPort)
+      };
+  }
+}
+
+export function summarizeOutputPort(port: OutputPort): OutputPortSummary {
+  return {
+    kind: port.kind,
+    ...(port.type ? { type: port.type } : {}),
+    ...(port.schema === undefined ? {} : { schema: port.schema }),
+    ...(port.description ? { description: port.description } : {})
+  };
 }

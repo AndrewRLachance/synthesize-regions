@@ -1,5 +1,7 @@
 import { P } from "ts-pattern"
+import { Node, SyntaxKind, ts } from "ts-morph"
 import type { ReplacementMap, Replacement, MarkerExpectedKind, ReplacementExpression, ReplacementExpressionSuffix, ReplacementObjectProperty, ReplacementStatement, ReplacementValue } from "../core/types.js"
+import { createProject, createSourceFile } from "../validation/ast.js"
 import { validateJsonSchemaSubset } from "./compatibility.js"
 import type { ResolvedGraphInput } from "./graphTypes.js"
 
@@ -10,7 +12,9 @@ import type { ResolvedGraphInput } from "./graphTypes.js"
 export type SpecPattern = Record<
     string,
     {
+        /** Runtime matcher for the user-provided replacement input. */
         input: P.Pattern<unknown>
+        /** Marker kind produced after the input is converted. */
         output: MarkerExpectedKind
     }
 >
@@ -19,6 +23,7 @@ export type SpecPattern = Record<
  * The `ts-pattern` input-only view of a template spec.
  */
 export type InputPatternMap<S extends SpecPattern> = {
+    /** Runtime matcher for the corresponding template input key. */
     readonly [K in keyof S]: S[K]['input']
 }
 
@@ -26,6 +31,7 @@ export type InputPatternMap<S extends SpecPattern> = {
  * Concrete replacement input expected by a template spec.
  */
 export type ReplacementFor<S extends SpecPattern> = {
+  /** Input value accepted by the corresponding spec pattern key. */
   readonly [K in keyof S]: P.infer<S[K]['input']>
 }
 
@@ -34,7 +40,9 @@ export type ReplacementFor<S extends SpecPattern> = {
  * structured `ReplacementMap` accepted by generation.
  */
 export type Schema<T> = {
+  /** Human-readable schema name used in validation diagnostics. */
   readonly label: string
+  /** Parse and coerce an unknown value, throwing when validation fails. */
   parse(value: unknown, path?: string): T
 }
 
@@ -59,6 +67,192 @@ export function toReplacements<S extends SpecPattern>(
   return result
 }
 
+function unwrapParentheses(node: Node): Node {
+  let current = node
+  while (Node.isParenthesizedExpression(current)) {
+    current = current.getExpression()
+  }
+
+  return current
+}
+
+/**
+ * Rehydrate graph fragment/raw-code snippets into structured replacements only
+ * when the TypeScript syntax maps directly to the public replacement model.
+ */
+function parseExpression(code: string): Node {
+  const project = createProject()
+  const sourceFile = createSourceFile(project, `const __value = (${code});`, '__graph_input_expression__.ts')
+  const syntacticDiagnostics = project.getProgram().getSyntacticDiagnostics(sourceFile)
+  if (syntacticDiagnostics.length > 0) {
+    throw new ReplacementSchemaError('graph input code is not valid expression syntax')
+  }
+
+  const initializer = sourceFile.getVariableDeclaration('__value')?.getInitializer()
+  if (!initializer) {
+    throw new ReplacementSchemaError('graph input code did not produce an expression')
+  }
+
+  return unwrapParentheses(initializer)
+}
+
+function parseObjectProperty(code: string): Node {
+  const project = createProject()
+  const sourceFile = createSourceFile(project, `const __value = ({ ${code} });`, '__graph_input_property__.ts')
+  const syntacticDiagnostics = project.getProgram().getSyntacticDiagnostics(sourceFile)
+  if (syntacticDiagnostics.length > 0) {
+    throw new ReplacementSchemaError('graph input code is not valid object property syntax')
+  }
+
+  const initializer = sourceFile.getVariableDeclaration('__value')?.getInitializer()
+  const expression = initializer ? unwrapParentheses(initializer) : undefined
+  if (!expression || !ts.isObjectLiteralExpression(expression.compilerNode)) {
+    throw new ReplacementSchemaError('graph input code did not produce an object property')
+  }
+
+  const properties = expression.asKindOrThrow(SyntaxKind.ObjectLiteralExpression).getProperties()
+  if (properties.length !== 1) {
+    throw new ReplacementSchemaError('objectProperty graph input must contain exactly one property')
+  }
+
+  return properties[0]!
+}
+
+function propertyNameToString(name: Node): string {
+  const compilerNode = name.compilerNode
+  if (
+    ts.isIdentifier(compilerNode) ||
+    ts.isStringLiteral(compilerNode) ||
+    ts.isNumericLiteral(compilerNode)
+  ) {
+    return compilerNode.text
+  }
+
+  throw new ReplacementSchemaError(
+    'object property graph input must use an identifier, string, or numeric property name'
+  )
+}
+
+function numberFromNode(node: Node): number | undefined {
+  const compilerNode = node.compilerNode
+  if (ts.isNumericLiteral(compilerNode)) {
+    return Number(compilerNode.text)
+  }
+
+  if (
+    ts.isPrefixUnaryExpression(compilerNode) &&
+    (compilerNode.operator === SyntaxKind.PlusToken || compilerNode.operator === SyntaxKind.MinusToken) &&
+    ts.isNumericLiteral(compilerNode.operand)
+  ) {
+    const value = Number(compilerNode.operand.text)
+    return compilerNode.operator === SyntaxKind.MinusToken ? -value : value
+  }
+
+  return undefined
+}
+
+function expressionFromNode(node: Node): ReplacementExpression {
+  const compilerNode = node.compilerNode
+  const kind = node.getKind()
+
+  if (ts.isIdentifier(compilerNode)) {
+    return { kind: 'identifier', name: compilerNode.text }
+  }
+
+  const numericValue = numberFromNode(node)
+  if (numericValue !== undefined) {
+    if (!Number.isFinite(numericValue)) {
+      throw new ReplacementSchemaError('number graph input must be finite')
+    }
+
+    return { kind: 'number', value: numericValue }
+  }
+
+  if (ts.isStringLiteral(compilerNode)) {
+    return { kind: 'string', value: compilerNode.text }
+  }
+
+  if (kind === SyntaxKind.TrueKeyword) {
+    return { kind: 'boolean', value: true }
+  }
+
+  if (kind === SyntaxKind.FalseKeyword) {
+    return { kind: 'boolean', value: false }
+  }
+
+  if (kind === SyntaxKind.NullKeyword) {
+    return { kind: 'null' }
+  }
+
+  if (ts.isArrayLiteralExpression(compilerNode)) {
+    const elements = node.asKindOrThrow(SyntaxKind.ArrayLiteralExpression).getElements()
+    return {
+      kind: 'array',
+      elements: elements.map(element => {
+        if (Node.isSpreadElement(element)) {
+          throw new ReplacementSchemaError('array graph input cannot contain spread elements')
+        }
+
+        return expressionFromNode(element)
+      })
+    }
+  }
+
+  if (ts.isObjectLiteralExpression(compilerNode)) {
+    const properties: Record<string, ReplacementExpression> = {}
+
+    for (const property of node.asKindOrThrow(SyntaxKind.ObjectLiteralExpression).getProperties()) {
+      if (!Node.isPropertyAssignment(property)) {
+        throw new ReplacementSchemaError(
+          'object graph input can only contain plain property assignments'
+        )
+      }
+
+      properties[propertyNameToString(property.getNameNode())] = expressionFromNode(
+        property.getInitializerOrThrow()
+      )
+    }
+
+    return { kind: 'object', properties }
+  }
+
+  throw new ReplacementSchemaError(
+    `graph input expression cannot be converted from ${node.getKindName()} syntax`
+  )
+}
+
+function objectPropertyFromNode(node: Node): ReplacementObjectProperty {
+  if (!Node.isPropertyAssignment(node)) {
+    throw new ReplacementSchemaError(
+      'objectProperty graph input can only contain a plain property assignment'
+    )
+  }
+
+  return {
+    kind: 'objectProperty',
+    name: propertyNameToString(node.getNameNode()),
+    value: expressionFromNode(node.getInitializerOrThrow())
+  }
+}
+
+function structuredReplacementFromCode(
+  code: string,
+  regionKind: MarkerExpectedKind
+): ReplacementValue {
+  if (regionKind === 'objectProperty') {
+    return objectPropertyFromNode(parseObjectProperty(code))
+  }
+
+  const replacement = expressionFromNode(parseExpression(code))
+  if (replacement.kind !== regionKind) {
+    throw new ReplacementSchemaError(
+      `graph input ${replacement.kind} cannot be converted to ${regionKind} replacement`
+    )
+  }
+
+  return replacement
+}
+
 function replacementFromFragment(input: Extract<ResolvedGraphInput, { kind: 'fragment' }>): ReplacementValue {
   const code = input.fragment.code
 
@@ -71,6 +265,14 @@ function replacementFromFragment(input: Extract<ResolvedGraphInput, { kind: 'fra
       return { kind: 'expressionSuffix', code }
     case 'statement':
       return { kind: 'statement', code }
+    case 'array':
+    case 'object':
+    case 'string':
+    case 'number':
+    case 'boolean':
+    case 'null':
+    case 'objectProperty':
+      return structuredReplacementFromCode(code, input.port.regionKind)
     default:
       throw new ReplacementSchemaError(
         `fragment input cannot be converted to ${input.port.regionKind} replacement in v1`
@@ -88,6 +290,14 @@ function replacementFromRawCode(input: Extract<ResolvedGraphInput, { kind: 'rawC
       return { kind: 'expressionSuffix', code: input.code }
     case 'statement':
       return { kind: 'statement', code: input.code }
+    case 'array':
+    case 'object':
+    case 'string':
+    case 'number':
+    case 'boolean':
+    case 'null':
+    case 'objectProperty':
+      return structuredReplacementFromCode(input.code, input.port.regionKind)
     default:
       throw new ReplacementSchemaError(
         `raw code input cannot be converted to ${input.port.regionKind} replacement in v1`
@@ -795,9 +1005,13 @@ export type GeneratedCode<
   K extends MarkerExpectedKind,
   Source extends string = string
 > = {
+  /** Marker kind represented by the generated code. */
   readonly kind: K
+  /** Template model ID that produced this generated code. */
   readonly source: Source
+  /** Generated TypeScript source fragment. */
   readonly code: string
+  /** Runtime brand used to distinguish generated code from plain objects. */
   readonly [generatedCodeBrand]: true
 }
 

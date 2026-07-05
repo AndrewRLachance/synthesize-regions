@@ -11,6 +11,8 @@
       "import": "./dist/index.js"
     },
     "./schemas/replacement-map.schema.json": "./schemas/replacement-map.schema.json",
+    "./schemas/synthesis-graph.schema.json": "./schemas/synthesis-graph.schema.json",
+    "./schemas/template-summary.schema.json": "./schemas/template-summary.schema.json",
     "./builders": {
       "types": "./dist/builders.d.ts",
       "import": "./dist/builders.js"

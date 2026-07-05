@@ -4,10 +4,15 @@ import type { ReplacementRegion, TemplateMode } from "../core/types.js";
  * Source text plus the synthetic wrapper used to make partial templates parse.
  */
 export interface WrappedTemplateSource {
+  /** Template mode used to choose the wrapper shape. */
   mode: TemplateMode;
+  /** Caller-provided source text before wrapping. */
   originalText: string;
+  /** Source text after adding any synthetic wrapper. */
   wrappedText: string;
+  /** Text prepended before the original fragment. */
   prefix: string;
+  /** Text appended after the original fragment. */
   suffix: string;
 }
 

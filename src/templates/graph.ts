@@ -4,7 +4,9 @@ import type {
   GraphCompilationResult,
   GraphCompileOptions,
   GraphTemplateDefinition,
+  GraphNormalizationResult,
   InputPort,
+  NormalizedSynthesisInput,
   RawCodeInputPort,
   ResolvedGraphInput,
   SynthesisDiagnostic,
@@ -23,12 +25,49 @@ function isRefShorthand(input: SynthesisInput): input is { "$ref": string } {
   return typeof input === "object" && input !== null && "$ref" in input && typeof input.$ref === "string";
 }
 
-function normalizeInput(input: SynthesisInput): Exclude<SynthesisInput, { "$ref": string }> {
+export function normalizeSynthesisInput(input: SynthesisInput): Exclude<SynthesisInput, { "$ref": string }> {
   return isRefShorthand(input) ? { kind: "ref", nodeId: input.$ref } : input;
 }
 
+export function normalizeSynthesisGraph(graph: SynthesisGraph): GraphNormalizationResult {
+  const nodes: SynthesisNode[] = [];
+
+  function normalizeNode(node: SynthesisNode): SynthesisNode {
+    const inputs: Record<string, NormalizedSynthesisInput> = {};
+
+    for (const [inputName, input] of Object.entries(node.inputs)) {
+      const normalized = normalizeSynthesisInput(input);
+      if (normalized.kind === "inline") {
+        const inlineNode = normalizeNode(normalized.node);
+        nodes.push(inlineNode);
+        inputs[inputName] = { kind: "ref", nodeId: inlineNode.id };
+      } else {
+        inputs[inputName] = normalized;
+      }
+    }
+
+    return {
+      id: node.id,
+      templateId: node.templateId,
+      inputs
+    };
+  }
+
+  for (const node of graph.nodes) {
+    nodes.push(normalizeNode(node));
+  }
+
+  return {
+    graph: {
+      nodes,
+      finalNodeId: graph.finalNodeId,
+      ...(graph.goal ? { goal: graph.goal } : {})
+    }
+  };
+}
+
 function inputDependencies(input: SynthesisInput): string[] {
-  const normalized = normalizeInput(input);
+  const normalized = normalizeSynthesisInput(input);
   if (normalized.kind === "ref") return [normalized.nodeId];
   if (normalized.kind === "inline") return Object.values(normalized.node.inputs).flatMap(inputDependencies);
   return [];
@@ -235,7 +274,86 @@ function rawCodeCompatible(port: RawCodeInputPort, code: string, node: Synthesis
       inputName
     });
   }
-  void port;
+
+  const policy = port.policy;
+  if (!policy) return undefined;
+
+  if (policy.maxLength !== undefined && code.length > policy.maxLength) {
+    return errorDiagnostic({
+      stage: "policy",
+      code: "RawCodeRejected",
+      message: `Raw code input ${inputName} exceeds the maximum length of ${policy.maxLength}.`,
+      nodeId: node.id,
+      templateId: node.templateId,
+      inputName,
+      expected: { maxLength: policy.maxLength },
+      actual: { length: code.length },
+      repairHints: [{ kind: "shortenRawCode", message: "Use a shorter raw-code expression or a structured template input." }]
+    });
+  }
+
+  if (policy.allowNewlines === false && /\r|\n/u.test(code)) {
+    return errorDiagnostic({
+      stage: "policy",
+      code: "RawCodeRejected",
+      message: `Raw code input ${inputName} must not contain newlines.`,
+      nodeId: node.id,
+      templateId: node.templateId,
+      inputName,
+      expected: { allowNewlines: false },
+      actual: code,
+      repairHints: [{ kind: "removeNewlines", message: "Submit the raw code as a single-line fragment." }]
+    });
+  }
+
+  for (const forbidden of policy.forbiddenSubstrings ?? []) {
+    if (forbidden.length > 0 && code.includes(forbidden)) {
+      return errorDiagnostic({
+        stage: "policy",
+        code: "RawCodeRejected",
+        message: `Raw code input ${inputName} contains a forbidden substring.`,
+        nodeId: node.id,
+        templateId: node.templateId,
+        inputName,
+        expected: { forbiddenSubstrings: policy.forbiddenSubstrings },
+        actual: forbidden,
+        repairHints: [{ kind: "removeForbiddenSubstring", message: `Remove ${forbidden} from the raw-code input.` }]
+      });
+    }
+  }
+
+  for (const pattern of policy.forbiddenPatterns ?? []) {
+    let regexp: RegExp;
+    try {
+      regexp = new RegExp(pattern, "u");
+    } catch (error) {
+      return errorDiagnostic({
+        stage: "policy",
+        code: "InvalidRawCodePolicy",
+        message: `Raw code policy contains an invalid forbidden pattern: ${pattern}.`,
+        nodeId: node.id,
+        templateId: node.templateId,
+        inputName,
+        expected: "valid regular expression pattern",
+        actual: error
+      });
+    }
+
+    if (regexp.test(code)) {
+      return errorDiagnostic({
+        stage: "policy",
+        code: "RawCodeRejected",
+        message: `Raw code input ${inputName} matches a forbidden pattern.`,
+        nodeId: node.id,
+        templateId: node.templateId,
+        inputName,
+        expected: { forbiddenPatterns: policy.forbiddenPatterns },
+        actual: pattern,
+        repairHints: [{ kind: "avoidForbiddenPattern", message: `Avoid code matching /${pattern}/u.` }]
+      });
+    }
+  }
+
   return undefined;
 }
 
@@ -303,7 +421,8 @@ export function compileGraph(
   registry: TemplateRegistry,
   options: GraphCompileOptions = {}
 ): GraphCompilationResult {
-  const { diagnostics, nodesById } = validateStaticGraph(graph, registry);
+  const normalized = normalizeSynthesisGraph(graph).graph;
+  const { diagnostics, nodesById } = validateStaticGraph(normalized, registry);
   if (diagnostics.some(diagnostic => diagnostic.severity === "error")) {
     return { ok: false, diagnostics };
   }
@@ -327,7 +446,7 @@ export function compileGraph(
     for (const [inputName, rawInput] of Object.entries(node.inputs)) {
       const port = template.inputs[inputName];
       if (!port) continue;
-      const input = normalizeInput(rawInput);
+      const input = normalizeSynthesisInput(rawInput);
 
       let resolved: ResolvedGraphInput | undefined;
       let lastDiagnostic: SynthesisDiagnostic | undefined;
@@ -349,10 +468,8 @@ export function compileGraph(
           }
         }
 
-        if (option.kind === "fragment" && (input.kind === "ref" || input.kind === "inline")) {
-          const fragment = input.kind === "ref"
-            ? executeNode(input.nodeId)
-            : executeInlineNode(input.node, node, inputName);
+        if (option.kind === "fragment" && input.kind === "ref") {
+          const fragment = executeNode(input.nodeId);
 
           if (!fragment) continue;
           lastDiagnostic = fragmentCompatible(option, fragment, node, inputName);
@@ -404,27 +521,9 @@ export function compileGraph(
     }
   }
 
-  function executeInlineNode(inlineNode: SynthesisNode, parent: SynthesisNode, inputName: string): GeneratedFragment | undefined {
-    if (!nodesById.has(inlineNode.id)) {
-      nodesById.set(inlineNode.id, inlineNode);
-    }
-    const fragment = executeNode(inlineNode.id);
-    if (!fragment) {
-      diagnostics.push(errorDiagnostic({
-        stage: "input",
-        code: "InlineNodeFailed",
-        message: `Inline node for input ${inputName} failed to compile.`,
-        nodeId: parent.id,
-        templateId: parent.templateId,
-        inputName
-      }));
-    }
-    return fragment;
-  }
-
-  const finalFragment = executeNode(graph.finalNodeId);
+  const finalFragment = executeNode(normalized.finalNodeId);
   if (finalFragment) {
-    diagnostics.push(...validateFinalGoal(graph, finalFragment));
+    diagnostics.push(...validateFinalGoal(normalized, finalFragment));
   }
 
   if (!finalFragment || diagnostics.some(diagnostic => diagnostic.severity === "error")) {
@@ -438,4 +537,3 @@ export function compileGraph(
     diagnostics
   };
 }
-
