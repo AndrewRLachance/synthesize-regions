@@ -137,7 +137,7 @@ export const MapBooleanArray = defineTemplate({
 			items: { type: 'boolean' }
 		}
 	},
-	template: (r) => `match(${r('source')}.map(Boolean))`
+	template: (r) => `${r('source')}.map(Boolean)`
 })
 
 export const ApplyExpressionSuffix = defineTemplate({
@@ -177,13 +177,7 @@ export const allTemplate = defineTemplateCatalog([
 	ConsecutiveExpressions
 ])
 
-export const compiler = buildGraphCompiler(allTemplate)
-
-const registry = createTemplateRegistry(allTemplate)
-
-const schema = templateRegistryToSynthesisGraphJsonSchema(registry)
-
-export const graph = compiler.defineGraph({
+const data = {
 	nodes: [
 		{
 			id: 'source',
@@ -195,7 +189,6 @@ export const graph = compiler.defineGraph({
 		{
 			id: 'IsTrue',
 			templateId: IsTrue.modelId,
-			// @ts-ignore
 			inputs: {}
 		},
 		{
@@ -238,13 +231,17 @@ export const graph = compiler.defineGraph({
 		}
 	],
 	finalNodeId: 'methodChain',
-	goal: { 
-		type: { 
-			ts: 'Partial<ResponseCookie>' 
-		} 
+	goal: {
+		outputKind: 'expression'
 	}
-})
+} as const
+
+export const compiler = buildGraphCompiler(allTemplate)
+
+const registry = createTemplateRegistry(allTemplate)
+const graph = compiler.defineGraph(data)
 
 export const sampleCompilation = compiler(graph)
 
-console.log(JSON.stringify(allTemplate))
+console.log(JSON.stringify(sampleCompilation))
+

@@ -1,9 +1,10 @@
 import type { GenerateOptions, MarkerExpectedKind, TemplateMode } from '../core/types.js'
 import { generateWithReplacements } from '../generation/generate.js'
+import { buildReplacementEdits, type PlannedReplacementEdit } from '../replacements/serialize.js'
 import { discoverReplacementRegions } from '../regions/discovery.js'
 import { portRegionKind, summarizeInputPort, summarizeOutputPort } from './compatibility.js'
 
-import { isMatching, match, P } from 'ts-pattern'
+import { isMatching } from 'ts-pattern'
 import {
 	SpecPattern,
 	InputPatternMap,
@@ -18,11 +19,15 @@ import type {
 	GraphRegionBuilder,
 	GraphTemplateDefinition,
 	GraphTemplateInvocation,
+	GraphTemplatePartialInvocation,
 	InputPort,
 	OutputPort,
+	PartialTemplateArtifact,
 	RegionKind,
 	StrictInputPortMap,
-	StrictOutputPort
+	StrictOutputPort,
+	TemplateArtifact,
+	UnresolvedTemplateInput
 } from './graphTypes.js'
 
 
@@ -65,6 +70,7 @@ export type TemplateDefinition<S extends SpecPattern, O extends MarkerExpectedKi
  */
 export type RegionBuilder<S extends SpecPattern> = <K extends Extract<keyof S, string>>(key: K, body: string) => string
 
+/** Declarative input shape accepted by the graph-template overload. */
 export type GraphTemplateDefinitionInput<
     M extends string,
     I extends Record<string, InputPort>,
@@ -99,30 +105,112 @@ export type LegacyTemplateDefinitionInput<
     readonly template: (region: RegionBuilder<S>) => string
 }
 
+/** Default placeholder body used when a graph template marks an input without a fallback. */
 function defaultPlaceholder(kind: RegionKind): string {
-    return match(kind)
-        .returnType<string>()
-        .with('identifier', () => 'placeholder')
-        .with('expression', () => 'undefined')
-        .with('expressionSuffix', () => '.value')
-        .with('statement', () => 'throw new Error("placeholder");')
-        .with('array', () => '[]')
-        .with('object', () => '{}')
-        .with('string', () => '""')
-        .with('number', () => '0')
-        .with('boolean', () => 'false')
-        .with('null', () => 'null')
-        .with('objectProperty', () => 'placeholder: undefined')
-        .exhaustive()
+    switch (kind) {
+        case 'identifier':
+            return 'placeholder'
+        case 'expression':
+            return 'undefined'
+        case 'expressionSuffix':
+            return '.value'
+        case 'statement':
+            return 'throw new Error("placeholder");'
+        case 'array':
+            return '[]'
+        case 'object':
+            return '{}'
+        case 'string':
+            return '""'
+        case 'number':
+            return '0'
+        case 'boolean':
+            return 'false'
+        case 'null':
+            return 'null'
+        case 'objectProperty':
+            return 'placeholder: undefined'
+    }
 }
 
+/** Pick the partial-template parser wrapper needed for a graph output kind. */
 function templateModeForOutput(kind: RegionKind): TemplateMode {
-    return match(kind)
-        .returnType<TemplateMode>()
-        .with('expressionSuffix', () => ({ kind: 'expressionSuffix' }))
-        .with('statement', () => ({ kind: 'statementList' }))
-        .with('objectProperty', () => ({ kind: 'objectPropertyList' }))
-        .otherwise(() => ({ kind: 'expression' }))
+    switch (kind) {
+        case 'expressionSuffix':
+            return { kind: 'expressionSuffix' }
+        case 'statement':
+            return { kind: 'statementList' }
+        case 'objectProperty':
+            return { kind: 'objectPropertyList' }
+        default:
+            return { kind: 'expression' }
+    }
+}
+
+/** Apply already validated replacement edits to a template source string. */
+function applyReplacementEdits(sourceText: string, edits: PlannedReplacementEdit[]): string {
+    let output = sourceText
+    const sorted = [...edits].sort((a, b) => b.start - a.start)
+
+    for (const edit of sorted) {
+        output = `${output.slice(0, edit.start)}${edit.text}${output.slice(edit.end)}`
+    }
+
+    return output
+}
+
+/** Render a replacement marker opening comment with the scoped artifact ID. */
+function markerComment(kind: RegionKind, arity: 'one' | 'many', id: string): string {
+    const markerKind = arity === 'many' ? `${kind}[]` : kind
+    return `/** @TYPE ${markerKind} id=${id} **/`
+}
+
+/** Build the fragment source metadata shared by strict and partial outputs. */
+function fragmentSource<M extends string>(
+    modelId: M,
+    version: string | undefined
+): GeneratedFragment['source'] {
+    return {
+        templateId: modelId,
+        ...(version ? { templateVersion: version } : {})
+    }
+}
+
+/** Build lineage metadata from resolved graph inputs. */
+function fragmentProvenance(
+    invocation: GraphTemplateInvocation | GraphTemplatePartialInvocation
+): NonNullable<GeneratedFragment['provenance']> {
+    const inputRefs = Object.values(invocation.inputs)
+        .filter(input => input.kind === 'fragment')
+        .map(input => input.fragment.id)
+        .filter((id): id is string => typeof id === 'string')
+
+    const literalInputs: Record<string, unknown> = {}
+    for (const [key, input] of Object.entries(invocation.inputs)) {
+        if (input.kind === 'literal') {
+            literalInputs[key] = input.value
+        }
+    }
+
+    return {
+        ...(invocation.nodeId ? { nodeId: invocation.nodeId } : {}),
+        ...(inputRefs.length > 0 ? { inputRefs } : {}),
+        ...(Object.keys(literalInputs).length > 0 ? { literalInputs } : {})
+    }
+}
+
+/** Collect unresolved inputs carried by partial child artifacts. */
+function partialChildInputs(inputs: Record<string, { kind: string; fragment?: TemplateArtifact }>): UnresolvedTemplateInput[] {
+    const unresolved = new Map<string, UnresolvedTemplateInput>()
+
+    for (const input of Object.values(inputs)) {
+        if (input.kind !== 'fragment' || input.fragment?.complete !== false) continue
+        for (const unresolvedInput of input.fragment.unresolvedInputs) {
+            unresolved.set(unresolvedInput.id, unresolvedInput)
+        }
+    }
+
+    return [...unresolved.values()]
 }
 
 /**
@@ -190,34 +278,81 @@ export function defineTemplate<
                     generationOptions
                 )
 
-                const inputRefs = Object.values(invocation.inputs)
-                    .filter(input => input.kind === 'fragment')
-                    .map(input => input.fragment.id)
-                    .filter((id): id is string => typeof id === 'string')
-
-                const literalInputs: Record<string, unknown> = {}
-                for (const [key, input] of Object.entries(invocation.inputs)) {
-                    if (input.kind === 'literal') {
-                        literalInputs[key] = input.value
-                    }
-                }
-
                 return {
                     ...(invocation.nodeId ? { id: invocation.nodeId } : {}),
                     code: result.code,
                     kind: definition.output.kind,
-                    source: {
-                        templateId: definition.modelId,
-                        ...(definition.version ? { templateVersion: definition.version } : {})
-                    },
+                    source: fragmentSource(definition.modelId, definition.version),
                     ...(definition.output.type ? { type: definition.output.type } : {}),
                     ...(definition.output.schema === undefined ? {} : { schema: definition.output.schema }),
-                    provenance: {
-                        ...(invocation.nodeId ? { nodeId: invocation.nodeId } : {}),
-                        ...(inputRefs.length > 0 ? { inputRefs } : {}),
-                        ...(Object.keys(literalInputs).length > 0 ? { literalInputs } : {})
-                    }
+                    provenance: fragmentProvenance(invocation)
                 }
+            },
+
+            invokePartial(invocation: GraphTemplatePartialInvocation): TemplateArtifact {
+                const replacements = graphInputsToReplacementMap(invocation.inputs)
+                const generationOptions: GenerateOptions = {
+                    ...(invocation.options ?? {}),
+                    templateMode: invocation.options?.templateMode ?? templateMode
+                }
+                const regions = discoverReplacementRegions(templateSource, { templateMode })
+                const resolvedRegions = regions.filter(region => Object.prototype.hasOwnProperty.call(replacements, region.id))
+                const edits = buildReplacementEdits(
+                    resolvedRegions,
+                    replacements,
+                    { ...generationOptions, allowUnusedReplacements: true },
+                    templateSource
+                )
+
+                for (const region of regions) {
+                    if (Object.prototype.hasOwnProperty.call(replacements, region.id)) continue
+
+                    const unresolved = invocation.unresolvedInputs[region.id]
+                    if (unresolved) {
+                        edits.push({
+                            start: region.startCommentStart,
+                            end: region.startCommentEnd,
+                            text: markerComment(region.effectiveType, region.arity, unresolved.id),
+                            region
+                        })
+                        continue
+                    }
+
+                    edits.push({
+                        start: region.startCommentStart,
+                        end: region.endCommentEnd,
+                        text: region.bodyText,
+                        region
+                    })
+                }
+
+                const code = applyReplacementEdits(templateSource, edits)
+                discoverReplacementRegions(code, { ...generationOptions, filePath: '__partial_template_artifact__.ts' })
+
+                const allUnresolved = new Map<string, UnresolvedTemplateInput>()
+                for (const unresolved of [...partialChildInputs(invocation.inputs), ...Object.values(invocation.unresolvedInputs)]) {
+                    allUnresolved.set(unresolved.id, unresolved)
+                }
+                const unresolvedInputs = [...allUnresolved.values()]
+                const base = {
+                    ...(invocation.nodeId ? { id: invocation.nodeId } : {}),
+                    code,
+                    kind: definition.output.kind,
+                    source: fragmentSource(definition.modelId, definition.version),
+                    ...(definition.output.type ? { type: definition.output.type } : {}),
+                    ...(definition.output.schema === undefined ? {} : { schema: definition.output.schema }),
+                    provenance: fragmentProvenance(invocation)
+                }
+
+                if (unresolvedInputs.length === 0) {
+                    return { ...base, complete: true }
+                }
+
+                return {
+                    ...base,
+                    complete: false,
+                    unresolvedInputs
+                } satisfies PartialTemplateArtifact
             },
 
             summary() {

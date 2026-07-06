@@ -3,11 +3,14 @@ import { describe, expect, it } from "vitest";
 import {
   buildGraphCompiler,
   compileGraph,
+  compilePartialGraph,
   createTemplateRegistry,
   defineGraph,
   defineTemplateCatalog,
   defineTemplate,
+  fillTemplateArtifact,
   fragmentPort,
+  finalizeTemplateArtifact,
   isTypeCompatible,
   literalPort,
   normalizeSynthesisGraph,
@@ -1091,6 +1094,229 @@ describe("schema-driven synthesis graph", () => {
     if (rawResult.ok) {
       expect(rawResult.finalFragment.code).toBe("input.count + 1");
     }
+  });
+
+  it("partial-compiles missing required inputs into fillable marker artifacts", () => {
+    const wrapper = defineTemplate({
+      modelId: "PartialWrapper",
+      inputs: {
+        source: fragmentPort({ regionKind: "expression", accepts: {} })
+      },
+      output: { kind: "expression" },
+      template: r => `wrap(${r("source", "fallback")})`
+    });
+
+    const result = compilePartialGraph(
+      {
+        nodes: [
+          {
+            id: "wrap",
+            templateId: "PartialWrapper",
+            inputs: {}
+          }
+        ],
+        finalNodeId: "wrap"
+      },
+      createTemplateRegistry([wrapper])
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.finalArtifact.complete).toBe(false);
+    if (result.finalArtifact.complete !== false) return;
+    expect(result.finalArtifact.code).toContain("@TYPE expression id=");
+    expect(result.finalArtifact.unresolvedInputs).toHaveLength(1);
+    expect(result.finalArtifact.unresolvedInputs[0]).toMatchObject({
+      inputName: "source",
+      nodeId: "wrap",
+      templateId: "PartialWrapper"
+    });
+
+    const filled = fillTemplateArtifact(result.finalArtifact, {
+      source: {
+        kind: "fragment",
+        fragment: {
+          code: "value",
+          kind: "expression",
+          source: { templateId: "ManualExpression" }
+        }
+      }
+    });
+
+    expect(filled.ok).toBe(true);
+    if (!filled.ok) return;
+    expect(filled.artifact.complete).toBe(true);
+    expect(filled.artifact.code).toBe("wrap(value)");
+  });
+
+  it("applies partial suffix artifacts repeatedly while preserving shared unresolved IDs", () => {
+    const source = defineTemplate({
+      modelId: "PartialSource",
+      inputs: {
+        value: literalPort({ regionKind: "expression" })
+      },
+      output: { kind: "expression" },
+      template: r => r("value")
+    });
+    const suffix = defineTemplate({
+      modelId: "PartialSuffix",
+      inputs: {
+        handler: fragmentPort({ regionKind: "expression", accepts: {} })
+      },
+      output: { kind: "expressionSuffix" },
+      template: r => `.with(${r("handler", "x => x")})`
+    });
+    const applySuffix = defineTemplate({
+      modelId: "PartialApplySuffix",
+      inputs: {
+        source: fragmentPort({ regionKind: "expression", accepts: {} }),
+        suffix: fragmentPort({
+          regionKind: "expressionSuffix",
+          accepts: { outputKind: "expressionSuffix" }
+        })
+      },
+      output: { kind: "expression" },
+      template: r => `${r("source")}${r("suffix")}`
+    });
+
+    const result = compilePartialGraph(
+      {
+        nodes: [
+          {
+            id: "source",
+            templateId: "PartialSource",
+            inputs: { value: { kind: "literal", value: "items" } }
+          },
+          {
+            id: "suffix",
+            templateId: "PartialSuffix",
+            inputs: {}
+          },
+          {
+            id: "once",
+            templateId: "PartialApplySuffix",
+            inputs: {
+              source: { "$ref": "source" },
+              suffix: { "$ref": "suffix" }
+            }
+          },
+          {
+            id: "twice",
+            templateId: "PartialApplySuffix",
+            inputs: {
+              source: { "$ref": "once" },
+              suffix: { "$ref": "suffix" }
+            }
+          }
+        ],
+        finalNodeId: "twice"
+      },
+      createTemplateRegistry([source, suffix, applySuffix])
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.finalArtifact.complete).toBe(false);
+    if (result.finalArtifact.complete !== false) return;
+    expect(result.finalArtifact.unresolvedInputs).toHaveLength(1);
+
+    const unresolvedId = result.finalArtifact.unresolvedInputs[0]!.id;
+    const occurrences = result.finalArtifact.code.match(new RegExp(`id=${unresolvedId}`, "g")) ?? [];
+    expect(occurrences).toHaveLength(2);
+
+    const finalized = finalizeTemplateArtifact(result.finalArtifact, {
+      [unresolvedId]: {
+        kind: "fragment",
+        fragment: {
+          code: "x => x.ok",
+          kind: "expression",
+          source: { templateId: "ManualHandler" }
+        }
+      }
+    });
+
+    expect(finalized.ok).toBe(true);
+    if (!finalized.ok) return;
+    expect(finalized.artifact.complete).toBe(true);
+    expect(finalized.artifact.code).toBe("items.with(x => x.ok).with(x => x.ok)");
+  });
+
+  it("gives independently created partial artifacts distinct scopes", () => {
+    const template = defineTemplate({
+      modelId: "ScopedPartial",
+      inputs: {
+        value: fragmentPort({ regionKind: "expression", accepts: {} })
+      },
+      output: { kind: "expression" },
+      template: r => r("value", "fallback")
+    });
+    const graph: SynthesisGraph = {
+      nodes: [
+        {
+          id: "sameNode",
+          templateId: "ScopedPartial",
+          inputs: {}
+        }
+      ],
+      finalNodeId: "sameNode"
+    };
+    const registry = createTemplateRegistry([template]);
+
+    const first = compilePartialGraph(graph, registry);
+    const second = compilePartialGraph(graph, registry);
+
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+    if (!first.ok || !second.ok) return;
+    expect(first.finalArtifact.complete).toBe(false);
+    expect(second.finalArtifact.complete).toBe(false);
+    if (first.finalArtifact.complete !== false || second.finalArtifact.complete !== false) return;
+    expect(first.finalArtifact.unresolvedInputs[0]!.id).not.toBe(second.finalArtifact.unresolvedInputs[0]!.id);
+  });
+
+  it("uses optional input fallback bodies without leaving partial holes", () => {
+    const optional = defineTemplate({
+      modelId: "OptionalFallback",
+      inputs: {
+        value: rawCodePort({
+          regionKind: "expression",
+          required: false
+        })
+      },
+      output: { kind: "expression" },
+      template: r => `maybe(${r("value", "fallback")})`
+    });
+
+    const result = compilePartialGraph(
+      {
+        nodes: [
+          {
+            id: "optional",
+            templateId: "OptionalFallback",
+            inputs: {}
+          }
+        ],
+        finalNodeId: "optional"
+      },
+      createTemplateRegistry([optional])
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.finalArtifact.complete).toBe(true);
+    expect(result.finalArtifact.code).toBe("maybe(fallback)");
+    expect(result.finalArtifact.code).not.toContain("@TYPE");
+  });
+
+  it("keeps provided invalid inputs as partial-mode diagnostics", () => {
+    const result = compilePartialGraph(rawPolicyGraph("process.env.X"), createRawPolicyRegistry());
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics).toContainEqual(expect.objectContaining({
+      code: "RawCodeRejected",
+      stage: "policy",
+      inputName: "value"
+    }));
   });
 
   it("compiles a valid two-node graph", () => {

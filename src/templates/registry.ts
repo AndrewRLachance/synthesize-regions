@@ -1,25 +1,8 @@
-import type { GraphTemplateDefinition, InputPort, RawCodePolicy, RegionKind, TemplateRegistry } from "./graphTypes.js";
-import { match } from "ts-pattern";
+import type { GraphTemplateDefinition, InputPort, RawCodePolicy, TemplateRegistry } from "./graphTypes.js";
+import { REGION_KIND_VALUES } from "./graphTypes.js";
+import { portIsRequired } from "./compatibility.js";
 
 const JSON_SCHEMA_URI = "https://json-schema.org/draft/2020-12/schema";
-
-const REGION_KIND_VALUES = [
-  "identifier",
-  "expression",
-  "expressionSuffix",
-  "statement",
-  "array",
-  "object",
-  "string",
-  "number",
-  "boolean",
-  "null",
-  "objectProperty"
-] as const satisfies readonly RegionKind[];
-
-function isRequiredInput(port: InputPort): boolean {
-  return port.required !== false;
-}
 
 function escapeRegExpLiteral(value: string): string {
   return value.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
@@ -92,9 +75,9 @@ function rawCodeSchemaFromPolicy(policy: RawCodePolicy | undefined): Record<stri
 }
 
 function inputSchemaForPort(port: InputPort): Record<string, unknown> {
-  return match(port)
-    .returnType<Record<string, unknown>>()
-    .with({ kind: "literal" }, port => ({
+  switch (port.kind) {
+    case "literal":
+      return {
         type: "object",
         additionalProperties: false,
         required: ["kind", "value"],
@@ -102,15 +85,17 @@ function inputSchemaForPort(port: InputPort): Record<string, unknown> {
           kind: { const: "literal" },
           value: port.schema ?? true
         }
-      }))
-    .with({ kind: "fragment" }, () => ({
+      };
+    case "fragment":
+      return {
         anyOf: [
           refInputSchema(),
           refShorthandInputSchema(),
           inlineInputSchema()
         ]
-      }))
-    .with({ kind: "rawCode" }, port => ({
+      };
+    case "rawCode":
+      return {
         type: "object",
         additionalProperties: false,
         required: ["kind", "code"],
@@ -118,11 +103,12 @@ function inputSchemaForPort(port: InputPort): Record<string, unknown> {
           kind: { const: "rawCode" },
           code: rawCodeSchemaFromPolicy(port.policy)
         }
-      }))
-    .with({ kind: "union" }, port => ({
+      };
+    case "union":
+      return {
         anyOf: port.options.map(inputSchemaForPort)
-      }))
-    .exhaustive();
+      };
+  }
 }
 
 function genericSynthesisInputSchema(): Record<string, unknown> {
@@ -221,7 +207,7 @@ export function graphTemplateDefinitionToNodeSchema(
     inputEntries.map(([key, port]) => [key, inputSchemaForPort(port)])
   );
   const requiredInputs = inputEntries
-    .filter(([, port]) => isRequiredInput(port))
+    .filter(([, port]) => portIsRequired(port))
     .map(([key]) => key);
 
   return {
