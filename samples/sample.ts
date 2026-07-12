@@ -1,15 +1,10 @@
-import { type GeneratedFragment } from '../src/templates/graphTypes.js'
+import { SynthesisNode, TemplateArtifactInputMap, type SynthesisGraph } from '../src/templates/graphTypes.js'
 import { fragmentPort, literalPort } from '../src/templates/compatibility.js'
 import { buildGraphCompiler } from '../src/templates/graph.js'
-import {
-	createTemplateRegistry,
-	defineTemplateCatalog,
-	graphTemplateDefinitionToJsonSchema,
-	templateRegistryToSynthesisGraphJsonSchema
-} from '../src/templates/registry.js'
+import { defineTemplateCatalog } from '../src/templates/registry.js'
 import { defineTemplate } from '../src/templates/definition.js'
+import { createGraphRunner } from '../src/templates/runner.js'
 import { expressionFragment, expressionSuffixFragment, statementFragment } from './samplesComplicated.js'
-import { statementRaw } from './samplesMore.js'
 
 export const BooleanArrayLiteral = defineTemplate({
 	modelId: 'BooleanArrayLiteral',
@@ -164,27 +159,52 @@ export const ConsecutiveExpressions = defineTemplate({
 	template: (r) => `${r('first')}\n${r('second')}`
 })
 
-export const allTemplate = defineTemplateCatalog([
-	BooleanArrayLiteral,
-	MapBooleanArray,
-	TsPatternWithSuffix,
-	ApplyExpressionSuffix,
-	IdArrow,
-	NotNumberArrow,
-	TruthyArrow,
-	IsTrue,
-	AllTrueArrow,
-	ConsecutiveExpressions
-])
+function main() {
+	const allTemplate = defineTemplateCatalog([
+		BooleanArrayLiteral,
+		MapBooleanArray,
+		TsPatternWithSuffix,
+		ApplyExpressionSuffix,
+		IdArrow,
+		NotNumberArrow,
+		TruthyArrow,
+		IsTrue,
+		AllTrueArrow,
+		ConsecutiveExpressions
+	])
 
-const data = {
-	nodes: [
+	const nodes: SynthesisNode[] = [
+		{
+			id: 'mappedWithStuff',
+			templateId: ApplyExpressionSuffix.modelId,
+			inputs: {
+				source: { $ref: 'mapped' },
+				suffix: { $ref: 'stuffSuffix' }
+			}
+		},
+		{
+			id: 'methodChain',
+			templateId: ApplyExpressionSuffix.modelId,
+			inputs: {
+				source: { $ref: 'mappedWithStuff' },
+				suffix: { $ref: 'stuffSuffix' }
+			}
+		}
+	]
+
+	const data = {
+		nodes,
+		finalNodeId: 'methodChain',
+		goal: {
+			outputKind: 'expression'
+		}
+	} satisfies SynthesisGraph
+
+	const possibleNewNodes: SynthesisNode[] = [
 		{
 			id: 'source',
 			templateId: BooleanArrayLiteral.modelId,
-			inputs: {
-				values: { kind: 'literal', value: [true, false, true] }
-			}
+			inputs: {}
 		},
 		{
 			id: 'IsTrue',
@@ -212,36 +232,58 @@ const data = {
 				handler: { $ref: 'allTrueArrow' },
 				pattern: { $ref: 'source' }
 			}
-		},
+		}
+	]
+
+	const possibleInputs: TemplateArtifactInputMap[] = [
 		{
-			id: 'mappedWithStuff',
-			templateId: ApplyExpressionSuffix.modelId,
-			inputs: {
-				source: { $ref: 'mapped' },
-				suffix: { $ref: 'stuffSuffix' }
-			}
-		},
-		{
-			id: 'methodChain',
-			templateId: ApplyExpressionSuffix.modelId,
-			inputs: {
-				source: { $ref: 'mappedWithStuff' },
-				suffix: { $ref: 'stuffSuffix' }
+			values: {
+				kind: 'literal',
+				value: [true, false, true]
 			}
 		}
-	],
-	finalNodeId: 'methodChain',
-	goal: {
-		outputKind: 'expression'
+	]
+
+	const runner = createGraphRunner(buildGraphCompiler(allTemplate), data)
+	let state = runner.advance()
+
+	for (;;) {
+		if (state.kind === 'complete') {
+
+			console.log('Final:', state.artifact)
+
+			return
+
+		} else if (state.kind === 'failed') {
+
+			console.error('Runner failed:', state.diagnostics)
+
+			return
+
+		} else if (state.kind === 'needsGraphRepair') {
+
+			console.error('Repairing:', state.diagnostics)
+
+			const node = possibleNewNodes.pop()
+
+			if (!node) return console.error('No graph repair is available.')
+
+			data.nodes.push(node)
+
+			state = runner.advance({ kind: 'replaceGraph', graph: data })
+			
+		} else if (state.kind === 'needsArtifactInputs') {
+
+			console.log('Adding artifact inputs:\n', JSON.stringify(state, null, 4))
+
+			const inputs = possibleInputs.shift()
+
+			if (!inputs) return console.error('No artifact inputs are available.')
+
+			state = runner.advance({ kind: 'fill', inputs })
+
+		} else state = runner.advance()
 	}
-} as const
+}
 
-export const compiler = buildGraphCompiler(allTemplate)
-
-const registry = createTemplateRegistry(allTemplate)
-const graph = compiler.defineGraph(data)
-
-export const sampleCompilation = compiler(graph)
-
-console.log(JSON.stringify(sampleCompilation))
-
+main()

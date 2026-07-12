@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   buildGraphCompiler,
   compileGraph,
-  compilePartialGraph,
   createTemplateRegistry,
   defineGraph,
   defineTemplateCatalog,
@@ -452,7 +451,7 @@ describe("schema-driven synthesis graph", () => {
     expect(catalogResult.ok).toBe(true);
     expect(registryResult.ok).toBe(true);
     if (!catalogResult.ok || !registryResult.ok) return;
-    expect(catalogResult.finalFragment).toEqual(registryResult.finalFragment);
+    expect(catalogResult.finalArtifact).toEqual(registryResult.finalArtifact);
   });
 
   it("builds typed graph compilers from authored template catalogs", () => {
@@ -497,7 +496,7 @@ describe("schema-driven synthesis graph", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.finalFragment.code).toBe("built(7)");
+    expect(result.finalArtifact.code).toBe("built(7)");
   });
 
   it("supports conservative TypeScript type compatibility beyond exact matches", () => {
@@ -654,7 +653,7 @@ describe("schema-driven synthesis graph", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.finalFragment.code).toBe("41 + 1");
+    expect(result.finalArtifact.code).toBe("41 + 1");
   });
 
   it("normalizes ref shorthand and inline nodes before validation", () => {
@@ -746,8 +745,8 @@ describe("schema-driven synthesis graph", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.finalFragment.code).toBe("[true, false].map(x => Boolean(x)).map(x => Boolean(x))");
-    expect(result.fragments.get("inlineSource")?.code).toBe("[true, false]");
+    expect(result.finalArtifact.code).toBe("[true, false].map(x => Boolean(x)).map(x => Boolean(x))");
+    expect(result.artifacts.inlineSource?.code).toBe("[true, false]");
   });
 
   it("accepts raw code that satisfies the port policy", () => {
@@ -755,7 +754,7 @@ describe("schema-driven synthesis graph", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.finalFragment.code).toBe("input.count + 1");
+    expect(result.finalArtifact.code).toBe("input.count + 1");
   });
 
   it("rejects raw code that violates max length policy", () => {
@@ -865,7 +864,7 @@ describe("schema-driven synthesis graph", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.finalFragment.code).toBe("[1, \"two\", true, null].length");
+    expect(result.finalArtifact.code).toBe("[1, \"two\", true, null].length");
   });
 
   it("converts object fragments into structured object ports", () => {
@@ -894,7 +893,7 @@ describe("schema-driven synthesis graph", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.finalFragment.code).toBe("Object.keys({ mode: \"strict\", count: 3 })");
+    expect(result.finalArtifact.code).toBe("Object.keys({ mode: \"strict\", count: 3 })");
   });
 
   it("converts scalar fragments into matching structured scalar ports", () => {
@@ -947,7 +946,7 @@ describe("schema-driven synthesis graph", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.finalFragment.code).toBe("({ label: \"ready\", count: -2, enabled: true, empty: null })");
+    expect(result.finalArtifact.code).toBe("({ label: \"ready\", count: -2, enabled: true, empty: null })");
   });
 
   it("converts object-property fragments into structured object-property ports", () => {
@@ -976,7 +975,7 @@ describe("schema-driven synthesis graph", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.finalFragment.code).toBe("({ mode: \"strict\" })");
+    expect(result.finalArtifact.code).toBe("({ mode: \"strict\" })");
   });
 
   it("converts raw code into structured array and object-property ports", () => {
@@ -1000,7 +999,7 @@ describe("schema-driven synthesis graph", () => {
 
     expect(arrayResult.ok).toBe(true);
     if (arrayResult.ok) {
-      expect(arrayResult.finalFragment.code).toBe("[id, 2, { ok: true }].length");
+      expect(arrayResult.finalArtifact.code).toBe("[id, 2, { ok: true }].length");
     }
 
     const propertyResult = compileGraph(
@@ -1021,7 +1020,7 @@ describe("schema-driven synthesis graph", () => {
 
     expect(propertyResult.ok).toBe(true);
     if (propertyResult.ok) {
-      expect(propertyResult.finalFragment.code).toBe("({ \"with-dash\": -1 })");
+      expect(propertyResult.finalArtifact.code).toBe("({ \"with-dash\": -1 })");
     }
   });
 
@@ -1071,7 +1070,7 @@ describe("schema-driven synthesis graph", () => {
 
     expect(literalResult.ok).toBe(true);
     if (literalResult.ok) {
-      expect(literalResult.finalFragment.code).toBe("2 + 1");
+      expect(literalResult.finalArtifact.code).toBe("2 + 1");
     }
 
     const rawResult = compileGraph(
@@ -1092,7 +1091,7 @@ describe("schema-driven synthesis graph", () => {
 
     expect(rawResult.ok).toBe(true);
     if (rawResult.ok) {
-      expect(rawResult.finalFragment.code).toBe("input.count + 1");
+      expect(rawResult.finalArtifact.code).toBe("input.count + 1");
     }
   });
 
@@ -1106,7 +1105,7 @@ describe("schema-driven synthesis graph", () => {
       template: r => `wrap(${r("source", "fallback")})`
     });
 
-    const result = compilePartialGraph(
+    const result = compileGraph(
       {
         nodes: [
           {
@@ -1117,7 +1116,8 @@ describe("schema-driven synthesis graph", () => {
         ],
         finalNodeId: "wrap"
       },
-      createTemplateRegistry([wrapper])
+      createTemplateRegistry([wrapper]),
+      { mode: "partial" }
     );
 
     expect(result.ok).toBe(true);
@@ -1138,7 +1138,8 @@ describe("schema-driven synthesis graph", () => {
         fragment: {
           code: "value",
           kind: "expression",
-          source: { templateId: "ManualExpression" }
+          source: { templateId: "ManualExpression" },
+          complete: true
         }
       }
     });
@@ -1179,7 +1180,7 @@ describe("schema-driven synthesis graph", () => {
       template: r => `${r("source")}${r("suffix")}`
     });
 
-    const result = compilePartialGraph(
+    const result = compileGraph(
       {
         nodes: [
           {
@@ -1211,7 +1212,8 @@ describe("schema-driven synthesis graph", () => {
         ],
         finalNodeId: "twice"
       },
-      createTemplateRegistry([source, suffix, applySuffix])
+      createTemplateRegistry([source, suffix, applySuffix]),
+      { mode: "partial" }
     );
 
     expect(result.ok).toBe(true);
@@ -1230,7 +1232,8 @@ describe("schema-driven synthesis graph", () => {
         fragment: {
           code: "x => x.ok",
           kind: "expression",
-          source: { templateId: "ManualHandler" }
+          source: { templateId: "ManualHandler" },
+          complete: true
         }
       }
     });
@@ -1262,8 +1265,8 @@ describe("schema-driven synthesis graph", () => {
     };
     const registry = createTemplateRegistry([template]);
 
-    const first = compilePartialGraph(graph, registry);
-    const second = compilePartialGraph(graph, registry);
+    const first = compileGraph(graph, registry, { mode: "partial" });
+    const second = compileGraph(graph, registry, { mode: "partial" });
 
     expect(first.ok).toBe(true);
     expect(second.ok).toBe(true);
@@ -1287,7 +1290,7 @@ describe("schema-driven synthesis graph", () => {
       template: r => `maybe(${r("value", "fallback")})`
     });
 
-    const result = compilePartialGraph(
+    const result = compileGraph(
       {
         nodes: [
           {
@@ -1298,7 +1301,8 @@ describe("schema-driven synthesis graph", () => {
         ],
         finalNodeId: "optional"
       },
-      createTemplateRegistry([optional])
+      createTemplateRegistry([optional]),
+      { mode: "partial" }
     );
 
     expect(result.ok).toBe(true);
@@ -1309,7 +1313,7 @@ describe("schema-driven synthesis graph", () => {
   });
 
   it("keeps provided invalid inputs as partial-mode diagnostics", () => {
-    const result = compilePartialGraph(rawPolicyGraph("process.env.X"), createRawPolicyRegistry());
+    const result = compileGraph(rawPolicyGraph("process.env.X"), createRawPolicyRegistry(), { mode: "partial" });
 
     expect(result.ok).toBe(false);
     expect(result.diagnostics).toContainEqual(expect.objectContaining({
@@ -1324,14 +1328,14 @@ describe("schema-driven synthesis graph", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.finalFragment).toMatchObject({
+    expect(result.finalArtifact).toMatchObject({
       id: "mapped",
       code: "[true, false, true].map(x => Boolean(x))",
       kind: "expression",
       source: { templateId: "MapBooleanArray" },
       type: { ts: "boolean[]" }
     });
-    expect(result.fragments.get("source")?.code).toBe("[true, false, true]");
+    expect(result.artifacts.source?.code).toBe("[true, false, true]");
   });
 
   it("rejects duplicate node IDs", () => {

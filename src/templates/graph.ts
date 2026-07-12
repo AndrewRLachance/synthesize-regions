@@ -2,11 +2,12 @@ import type {
 	GenerateOptions,
 	TemplateMode
 } from '../core/types.js'
-import { buildReplacementEdits, type PlannedReplacementEdit } from '../replacements/serialize.js'
+import { buildReplacementEdits } from '../replacements/serialize.js'
 import { discoverReplacementRegions } from '../regions/discovery.js'
 import { graphInputsToReplacementMap } from './converter.js'
 import type {
 	AuthoredGraphInput,
+	CompleteTemplateArtifact,
 	DefinedSynthesisGraph,
 	FragmentInputPort,
 	GeneratedFragment,
@@ -33,6 +34,7 @@ import type {
 } from './graphTypes.js'
 import { fragmentPortOutputKind, isTypeCompatible, portIsRequired, validateJsonSchemaSubset } from './compatibility.js'
 import { createTemplateRegistry } from './registry.js'
+import { applyReplacementEdits, templateModeForRegionKind } from './rendering.js'
 
 /** Create a graph diagnostic with error severity. */
 function errorDiagnostic(diagnostic: Omit<SynthesisDiagnostic, 'severity'>): SynthesisDiagnostic {
@@ -64,10 +66,8 @@ export type GraphCompiler<TTemplates extends readonly GraphTemplateDefinition<an
 	(graph: DefinedSynthesisGraph<TTemplates>): GraphCompilationResult
 	/** Compile an inline typed graph with strict required-input behavior. */
 	<const TGraph extends AuthoredGraphInput>(graph: StrictSynthesisGraph<TTemplates, TGraph>): GraphCompilationResult
-	/** Compile a previously defined graph while preserving missing required inputs. */
-	partial(graph: DefinedSynthesisGraph<TTemplates>): GraphPartialCompilationResult
-	/** Compile an inline typed graph while preserving missing required inputs. */
-	partial<const TGraph extends AuthoredGraphInput>(graph: StrictSynthesisGraph<TTemplates, TGraph>): GraphPartialCompilationResult
+	/** Compile while preserving unresolved required inputs. */
+	(graph: SynthesisGraph, options: GraphCompileOptions & { mode: 'partial' }): GraphPartialCompilationResult
 	/** Type-check a graph against this compiler's template catalog. */
 	defineGraph<const TGraph extends AuthoredGraphInput>(
 		graph: StrictSynthesisGraph<TTemplates, TGraph>
@@ -79,8 +79,8 @@ export function buildGraphCompiler<const TTemplates extends readonly GraphTempla
 	templates: TTemplates,
 	options?: GraphCompileOptions
 ): GraphCompiler<TTemplates> {
-	const compiler = (graph: SynthesisGraph) => compileGraph(graph, templates, options)
-	compiler.partial = (graph: SynthesisGraph) => compilePartialGraph(graph, templates, options)
+	const compiler = (graph: SynthesisGraph, callOptions?: GraphCompileOptions & { mode?: 'strict' | 'partial' }) =>
+		compileGraph(graph as never, templates, { ...options, ...callOptions } as never)
 	compiler.defineGraph = (graph: AuthoredGraphInput) => defineGraph(templates, graph as never)
 	return compiler as GraphCompiler<TTemplates>
 }
@@ -563,28 +563,7 @@ function scopedInputId(scope: string, nodeId: string, inputName: string): string
 
 /** Pick the partial-template parser wrapper needed for an artifact kind. */
 function templateModeForArtifact(artifact: TemplateArtifact): TemplateMode {
-	switch (artifact.kind) {
-		case 'expressionSuffix':
-			return { kind: 'expressionSuffix' }
-		case 'statement':
-			return { kind: 'statementList' }
-		case 'objectProperty':
-			return { kind: 'objectPropertyList' }
-		default:
-			return { kind: 'expression' }
-	}
-}
-
-/** Apply already validated replacement edits to artifact code. */
-function applyReplacementEdits(sourceText: string, edits: PlannedReplacementEdit[]): string {
-	let output = sourceText
-	const sorted = [...edits].sort((a, b) => b.start - a.start)
-
-	for (const edit of sorted) {
-		output = `${output.slice(0, edit.start)}${edit.text}${output.slice(edit.end)}`
-	}
-
-	return output
+	return templateModeForRegionKind(artifact.kind)
 }
 
 /** Return a complete artifact shape for complete fragments/artifacts. */
@@ -660,7 +639,7 @@ export function fillTemplateArtifact(
 	options: GenerateOptions = {}
 ): TemplateArtifactResult {
 	if (artifact.complete !== false) {
-		return { ok: true, artifact: completeArtifact(artifact), diagnostics: [] }
+		return { kind: 'templateArtifact', ok: true, artifact: completeArtifact(artifact), diagnostics: [] }
 	}
 
 	const diagnostics: SynthesisDiagnostic[] = []
@@ -695,7 +674,7 @@ export function fillTemplateArtifact(
 	}
 
 	if (diagnostics.some((diagnostic) => diagnostic.severity === 'error')) {
-		return { ok: false, diagnostics, artifact }
+		return { kind: 'templateArtifact', ok: false, diagnostics, artifact }
 	}
 
 	try {
@@ -723,10 +702,11 @@ export function fillTemplateArtifact(
 		}
 
 		if (remaining.length === 0) {
-			return { ok: true, artifact: { ...base, complete: true }, diagnostics }
+			return { kind: 'templateArtifact', ok: true, artifact: { ...base, complete: true }, diagnostics }
 		}
 
 		return {
+			kind: 'templateArtifact',
 			ok: true,
 			artifact: {
 				...base,
@@ -744,7 +724,7 @@ export function fillTemplateArtifact(
 				actual: error
 			})
 		)
-		return { ok: false, diagnostics, artifact }
+		return { kind: 'templateArtifact', ok: false, diagnostics, artifact }
 	}
 }
 
@@ -759,11 +739,15 @@ export function finalizeTemplateArtifact(
 	inputs: TemplateArtifactInputMap = {},
 	options?: GenerateOptions
 ): TemplateArtifactResult {
-	const filled = Object.keys(inputs).length > 0 ? fillTemplateArtifact(artifact, inputs, options) : { ok: true as const, artifact, diagnostics: [] }
-	if (!filled.ok) return filled
 
+	const filled = Object.keys(inputs).length > 0 ? 
+		fillTemplateArtifact(artifact, inputs, options) : 
+		{ kind: 'templateArtifact' as const, ok: true as const, artifact, diagnostics: [] }
+
+	if (!filled.ok) return filled
 	if (filled.artifact.complete === false) {
 		return {
+			kind: 'templateArtifact',
 			ok: false,
 			artifact: filled.artifact,
 			diagnostics: [
@@ -778,25 +762,25 @@ export function finalizeTemplateArtifact(
 		}
 	}
 
-	return { ok: true, artifact: completeArtifact(filled.artifact), diagnostics: filled.diagnostics }
+	return { kind: 'templateArtifact', ok: true, artifact: completeArtifact(filled.artifact), diagnostics: filled.diagnostics }
 }
 
 /** Partially compile a defined graph against an authored template catalog. */
-export function compilePartialGraph(
+function compileGraphPartial(
 	graph: DefinedSynthesisGraph<any>,
 	templates: readonly GraphTemplateDefinition<any, string>[],
 	options?: GraphCompileOptions
 ): GraphPartialCompilationResult
 
 /** Partially compile a graph against a runtime template registry. */
-export function compilePartialGraph(
+function compileGraphPartial(
 	graph: SynthesisGraph,
 	registry: TemplateRegistry,
 	options?: GraphCompileOptions
 ): GraphPartialCompilationResult
 
 /** Partially compile an inline typed graph against an authored template catalog. */
-export function compilePartialGraph<
+function compileGraphPartial<
 	const TTemplates extends readonly GraphTemplateDefinition<any, string>[],
 	const TGraph extends AuthoredGraphInput
 >(
@@ -806,7 +790,7 @@ export function compilePartialGraph<
 ): GraphPartialCompilationResult
 
 /** Implementation for partial graph compilation. */
-export function compilePartialGraph(
+function compileGraphPartial(
 	graph: SynthesisGraph,
 	registryOrTemplates: TemplateRegistry | readonly GraphTemplateDefinition<any, string>[],
 	options: GraphCompileOptions = {}
@@ -815,7 +799,7 @@ export function compilePartialGraph(
 	const normalized = normalizeSynthesisGraph(graph).graph
 	const { diagnostics, nodesById } = validateStaticGraph(normalized, registry, { allowMissingRequiredInputs: true })
 	if (diagnostics.some((diagnostic) => diagnostic.severity === 'error')) {
-		return { ok: false, diagnostics }
+		return { kind: 'graphCompilation', mode: 'partial', ok: false, diagnostics }
 	}
 
 	const scope = nextPartialScope()
@@ -939,13 +923,15 @@ export function compilePartialGraph(
 	}
 
 	if (!finalArtifact || diagnostics.some((diagnostic) => diagnostic.severity === 'error')) {
-		return { ok: false, diagnostics, partialArtifacts: artifacts }
+		return { kind: 'graphCompilation', mode: 'partial', ok: false, diagnostics, partialArtifacts: Object.fromEntries(artifacts) }
 	}
 
 	return {
+		kind: 'graphCompilation',
+		mode: 'partial',
 		ok: true,
 		finalArtifact,
-		artifacts,
+		artifacts: Object.fromEntries(artifacts),
 		diagnostics
 	}
 }
@@ -964,6 +950,20 @@ export function compileGraph(
 	options?: GraphCompileOptions
 ): GraphCompilationResult
 
+/** Compile a graph while preserving unresolved required inputs. */
+export function compileGraph(
+	graph: SynthesisGraph,
+	registry: TemplateRegistry,
+	options: GraphCompileOptions & { mode: 'partial' }
+): GraphPartialCompilationResult
+
+/** Compile a graph against an authored catalog while preserving unresolved required inputs. */
+export function compileGraph(
+	graph: DefinedSynthesisGraph<any>,
+	templates: readonly GraphTemplateDefinition<any, string>[],
+	options: GraphCompileOptions & { mode: 'partial' }
+): GraphPartialCompilationResult
+
 /** Strictly compile an inline typed graph against an authored template catalog. */
 export function compileGraph<
 	const TTemplates extends readonly GraphTemplateDefinition<any, string>[],
@@ -978,128 +978,57 @@ export function compileGraph<
 export function compileGraph(
 	graph: SynthesisGraph,
 	registryOrTemplates: TemplateRegistry | readonly GraphTemplateDefinition<any, string>[],
-	options: GraphCompileOptions = {}
-): GraphCompilationResult {
+	options: GraphCompileOptions & { mode?: 'strict' | 'partial' } = {}
+): GraphCompilationResult | GraphPartialCompilationResult {
 	const registry = templateRegistryFromInput(registryOrTemplates)
+	if (options.mode === 'partial') {
+		const { mode: _mode, ...generateOptions } = options
+		return compileGraphPartial(graph, registry, generateOptions)
+	}
 	const normalized = normalizeSynthesisGraph(graph).graph
-	const { diagnostics, nodesById } = validateStaticGraph(normalized, registry)
+	const { diagnostics } = validateStaticGraph(normalized, registry)
 	if (diagnostics.some((diagnostic) => diagnostic.severity === 'error')) {
-		return { ok: false, diagnostics }
+		return { kind: 'graphCompilation', mode: 'strict', ok: false, diagnostics }
 	}
 
-	const fragments = new Map<string, GeneratedFragment>()
-	const executing = new Set<string>()
-
-	/** Execute one node into a complete generated fragment. */
-	function executeNode(nodeId: string): GeneratedFragment | undefined {
-		const existing = fragments.get(nodeId)
-		if (existing) return existing
-
-		const node = nodesById.get(nodeId)
-		if (!node) return undefined
-		const template = registry.get(node.templateId)
-		if (!template) return undefined
-		if (executing.has(nodeId)) return undefined
-		executing.add(nodeId)
-
-		const resolvedInputs: Record<string, ResolvedGraphInput> = {}
-
-		for (const [inputName, rawInput] of Object.entries(node.inputs)) {
-			const port = template.inputs[inputName]
-			if (!port) continue
-			const input = normalizeSynthesisInput(rawInput)
-
-			let resolved: ResolvedGraphInput | undefined
-			let lastDiagnostic: SynthesisDiagnostic | undefined
-
-			for (const option of inputPortOptions(port)) {
-				if (option.kind === 'literal' && input.kind === 'literal') {
-					lastDiagnostic = literalCompatible(option, input.value, node, inputName)
-					if (!lastDiagnostic) {
-						resolved = { kind: 'literal', value: input.value, port: option }
-						break
-					}
-				}
-
-				if (option.kind === 'rawCode' && input.kind === 'rawCode') {
-					lastDiagnostic = rawCodeCompatible(option, input.code, node, inputName)
-					if (!lastDiagnostic) {
-						resolved = { kind: 'rawCode', code: input.code, port: option }
-						break
-					}
-				}
-
-				if (option.kind === 'fragment' && input.kind === 'ref') {
-					const fragment = executeNode(input.nodeId)
-
-					if (!fragment) continue
-					lastDiagnostic = fragmentCompatible(option, fragment, node, inputName)
-					if (!lastDiagnostic) {
-						resolved = { kind: 'fragment', fragment, port: option }
-						break
-					}
-				}
-			}
-
-			if (!resolved) {
-				diagnostics.push(
-					lastDiagnostic ??
-						errorDiagnostic({
-							stage: 'port',
-							code: 'IncompatibleInputKind',
-							message: `Input ${inputName} is not compatible with its port.`,
-							nodeId: node.id,
-							templateId: node.templateId,
-							inputName,
-							expected: port,
-							actual: input
-						})
-				)
-				continue
-			}
-
-			resolvedInputs[inputName] = resolved
+	const { mode: _mode, ...generateOptions } = options
+	const result = compileGraphPartial(normalized, registry, generateOptions)
+	if (!result.ok) {
+		return {
+			kind: 'graphCompilation',
+			mode: 'strict',
+			ok: false,
+			diagnostics: result.diagnostics
 		}
+	}
 
-		if (diagnostics.some((diagnostic) => diagnostic.severity === 'error')) {
-			executing.delete(nodeId)
-			return undefined
-		}
-
-		try {
-			const fragment = template.invoke({ nodeId: node.id, inputs: resolvedInputs, options })
-			fragments.set(node.id, fragment)
-			executing.delete(nodeId)
-			return fragment
-		} catch (error) {
-			diagnostics.push(
+	if (result.finalArtifact.complete === false) {
+		return {
+			kind: 'graphCompilation',
+			mode: 'strict',
+			ok: false,
+			diagnostics: [
+				...result.diagnostics,
 				errorDiagnostic({
-					stage: 'ast',
-					code: 'GeneratedTypeScriptInvalid',
-					message: error instanceof Error ? error.message : String(error),
-					nodeId: node.id,
-					templateId: node.templateId,
-					actual: error
+					stage: 'input',
+					code: 'UnresolvedTemplateInputs',
+					message: 'Strict graph compilation produced unresolved template inputs.',
+					actual: result.finalArtifact.unresolvedInputs.map(input => input.id)
 				})
-			)
-			executing.delete(nodeId)
-			return undefined
+			]
 		}
 	}
 
-	const finalFragment = executeNode(normalized.finalNodeId)
-	if (finalFragment) {
-		diagnostics.push(...validateFinalGoal(normalized, finalFragment))
-	}
-
-	if (!finalFragment || diagnostics.some((diagnostic) => diagnostic.severity === 'error')) {
-		return { ok: false, diagnostics, partialFragments: fragments }
-	}
+	const artifacts = Object.fromEntries(
+		Object.entries(result.artifacts).filter((entry): entry is [string, CompleteTemplateArtifact] => entry[1].complete === true)
+	)
 
 	return {
+		kind: 'graphCompilation',
+		mode: 'strict',
 		ok: true,
-		finalFragment,
-		fragments,
-		diagnostics
+		finalArtifact: result.finalArtifact,
+		artifacts,
+		diagnostics: result.diagnostics
 	}
 }

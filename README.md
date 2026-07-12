@@ -283,6 +283,7 @@ generation.
 ```ts
 import {
   compileGraph,
+  createGraphRunner,
   createTemplateRegistry,
   defineTemplate,
   fragmentPort,
@@ -354,10 +355,10 @@ const graph: SynthesisGraph = {
   }
 };
 
-const result = compileGraph(graph, registry);
+const result = compileGraph(graph, registry, { mode: "strict" });
 
 if (result.ok) {
-  console.log(result.finalFragment.code);
+  console.log(result.finalArtifact.code);
   // [true, false, true].map(x => Boolean(x))
 }
 ```
@@ -669,7 +670,8 @@ serializeReplacement(replacement, options?, region?)
 defineTemplate(definition)
 createTemplateRegistry(templates?)
 graphTemplateDefinitionToJsonSchema(template)
-compileGraph(graph, registry, options?)
+compileGraph(graph, registryOrTemplates, { mode: "strict" | "partial", ...options })
+createGraphRunner(registryOrTemplates, graph, options?)
 code
 ```
 

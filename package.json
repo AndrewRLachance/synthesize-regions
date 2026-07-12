@@ -29,6 +29,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@sinclair/typebox": "^0.34.51",
     "ts-morph": "^25.0.1",
     "ts-pattern": "^5.9.0",
     "type-fest": "^5.8.0",

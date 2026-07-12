@@ -1,8 +1,9 @@
-import type { GenerateOptions, MarkerExpectedKind, TemplateMode } from '../core/types.js'
+import type { GenerateOptions, MarkerExpectedKind } from '../core/types.js'
 import { generateWithReplacements } from '../generation/generate.js'
-import { buildReplacementEdits, type PlannedReplacementEdit } from '../replacements/serialize.js'
+import { buildReplacementEdits } from '../replacements/serialize.js'
 import { discoverReplacementRegions } from '../regions/discovery.js'
 import { portRegionKind, summarizeInputPort, summarizeOutputPort } from './compatibility.js'
+import { applyReplacementEdits, templateModeForRegionKind } from './rendering.js'
 
 import { isMatching } from 'ts-pattern'
 import {
@@ -133,32 +134,6 @@ function defaultPlaceholder(kind: RegionKind): string {
     }
 }
 
-/** Pick the partial-template parser wrapper needed for a graph output kind. */
-function templateModeForOutput(kind: RegionKind): TemplateMode {
-    switch (kind) {
-        case 'expressionSuffix':
-            return { kind: 'expressionSuffix' }
-        case 'statement':
-            return { kind: 'statementList' }
-        case 'objectProperty':
-            return { kind: 'objectPropertyList' }
-        default:
-            return { kind: 'expression' }
-    }
-}
-
-/** Apply already validated replacement edits to a template source string. */
-function applyReplacementEdits(sourceText: string, edits: PlannedReplacementEdit[]): string {
-    let output = sourceText
-    const sorted = [...edits].sort((a, b) => b.start - a.start)
-
-    for (const edit of sorted) {
-        output = `${output.slice(0, edit.start)}${edit.text}${output.slice(edit.end)}`
-    }
-
-    return output
-}
-
 /** Render a replacement marker opening comment with the scoped artifact ID. */
 function markerComment(kind: RegionKind, arity: 'one' | 'many', id: string): string {
     const markerKind = arity === 'many' ? `${kind}[]` : kind
@@ -250,7 +225,7 @@ export function defineTemplate<
             return `/** @TYPE ${marker} id=${key} **/${body ?? defaultPlaceholder(marker)}/** @END **/`
         }
 
-        const templateMode = templateModeForOutput(definition.output.kind)
+                const templateMode = templateModeForRegionKind(definition.output.kind)
         const templateSource = definition.template(region)
         discoverReplacementRegions(templateSource, { templateMode })
 

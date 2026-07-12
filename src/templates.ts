@@ -4,3 +4,6 @@ export * from "./templates/graphTypes.js";
 export * from "./templates/compatibility.js";
 export * from "./templates/registry.js";
 export * from "./templates/graph.js";
+export * from "./templates/graphPatterns.js";
+export * from "./templates/graphContracts.js";
+export * from "./templates/runner.js";

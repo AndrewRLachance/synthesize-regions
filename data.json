@@ -1,189 +1,112 @@
-[
-    {
-        "modelId": "BooleanArrayLiteral",
-        "version": "1.0.0",
-        "description": "Produces a boolean array expression from a literal input.",
-        "inputs": {
-            "values": {
-                "regionKind": "expression",
-                "schema": {
-                    "type": "array",
-                    "items": {
-                        "type": "boolean"
+{
+    "kind": "needsArtifactInputs",
+    "graph": {
+        "nodes": [
+            {
+                "id": "mappedWithStuff",
+                "templateId": "ApplyExpressionSuffix",
+                "inputs": {
+                    "source": {
+                        "$ref": "mapped"
+                    },
+                    "suffix": {
+                        "$ref": "stuffSuffix"
                     }
-                },
-                "kind": "literal"
-            }
-        },
-        "output": {
-            "kind": "expression",
-            "type": {
-                "ts": "boolean[]"
-            },
-            "schema": {
-                "type": "array",
-                "items": {
-                    "type": "boolean"
                 }
-            }
-        }
-    },
-    {
-        "modelId": "MapBooleanArray",
-        "version": "1.0.0",
-        "description": "Maps an expression fragment to a boolean array expression.",
-        "inputs": {
-            "source": {
-                "regionKind": "expression",
-                "accepts": {
-                    "outputKind": "expression",
-                    "type": {
-                        "ts": "boolean[]"
+            },
+            {
+                "id": "methodChain",
+                "templateId": "ApplyExpressionSuffix",
+                "inputs": {
+                    "source": {
+                        "$ref": "mappedWithStuff"
+                    },
+                    "suffix": {
+                        "$ref": "stuffSuffix"
                     }
-                },
-                "kind": "fragment"
-            }
-        },
-        "output": {
-            "kind": "expression",
-            "type": {
-                "ts": "boolean[]"
-            },
-            "schema": {
-                "type": "array",
-                "items": {
-                    "type": "boolean"
                 }
-            }
-        }
-    },
-    {
-        "modelId": "TsPatternWithSuffix",
-        "version": "1.0.0",
-        "description": "Produces a .with(...) expression suffix.",
-        "inputs": {
-            "handler": {
-                "regionKind": "expression",
-                "accepts": {
-                    "sourceModelIds": [
-                        "IdArrow",
-                        "NotNumberArrow",
-                        "TruthyArrow",
-                        "IsTrue",
-                        "AllTrueArrow"
-                    ]
-                },
-                "kind": "fragment"
             },
-            "pattern": {
-                "regionKind": "expression",
-                "accepts": {
-                    "outputKind": "expression"
-                },
-                "kind": "fragment"
-            }
-        },
-        "output": {
-            "kind": "expressionSuffix"
-        }
-    },
-    {
-        "modelId": "ApplyExpressionSuffix",
-        "version": "1.0.0",
-        "description": "Applies an expression suffix to an expression.",
-        "inputs": {
-            "source": {
-                "regionKind": "expression",
-                "accepts": {
-                    "outputKind": "expression"
-                },
-                "kind": "fragment"
+            {
+                "id": "stuffSuffix",
+                "templateId": "TsPatternWithSuffix",
+                "inputs": {
+                    "handler": {
+                        "$ref": "allTrueArrow"
+                    },
+                    "pattern": {
+                        "$ref": "source"
+                    }
+                }
             },
-            "suffix": {
-                "regionKind": "expressionSuffix",
-                "accepts": {
-                    "outputKind": "expressionSuffix"
-                },
-                "kind": "fragment"
-            }
-        },
-        "output": {
-            "kind": "expression"
-        }
-    },
-    {
-        "modelId": "IdArrow",
-        "version": "1.0.0",
-        "inputs": {},
-        "output": {
-            "kind": "expression"
-        }
-    },
-    {
-        "modelId": "NotNumberArrow",
-        "version": "1.0.0",
-        "inputs": {},
-        "output": {
-            "kind": "expression"
-        }
-    },
-    {
-        "modelId": "TruthyArrow",
-        "version": "1.0.0",
-        "inputs": {},
-        "output": {
-            "kind": "expression"
-        }
-    },
-    {
-        "modelId": "IsTrue",
-        "version": "1.0.0",
-        "inputs": {},
-        "output": {
-            "kind": "expression"
-        }
-    },
-    {
-        "modelId": "AllTrueArrow",
-        "version": "1.0.0",
-        "inputs": {
-            "source": {
-                "regionKind": "expression",
-                "accepts": {
-                    "sourceModelIds": [
-                        "IdArrow",
-                        "NotNumberArrow",
-                        "TruthyArrow",
-                        "IsTrue"
-                    ]
-                },
-                "kind": "fragment"
-            }
-        },
-        "output": {
-            "kind": "expression"
-        }
-    },
-    {
-        "modelId": "ConsecutiveExpressions",
-        "inputs": {
-            "first": {
-                "regionKind": "statement",
-                "accepts": {
-                    "outputKind": "statement"
-                },
-                "kind": "fragment"
+            {
+                "id": "mapped",
+                "templateId": "MapBooleanArray",
+                "inputs": {
+                    "source": {
+                        "$ref": "source"
+                    }
+                }
             },
-            "second": {
-                "regionKind": "statement",
-                "accepts": {
-                    "outputKind": "statement"
-                },
-                "kind": "fragment"
+            {
+                "id": "allTrueArrow",
+                "templateId": "AllTrueArrow",
+                "inputs": {
+                    "source": {
+                        "$ref": "IsTrue"
+                    }
+                }
+            },
+            {
+                "id": "IsTrue",
+                "templateId": "IsTrue",
+                "inputs": {}
+            },
+            {
+                "id": "source",
+                "templateId": "BooleanArrayLiteral",
+                "inputs": {}
             }
-        },
-        "output": {
-            "kind": "statement"
+        ],
+        "finalNodeId": "methodChain",
+        "goal": {
+            "outputKind": "expression"
         }
-    }
-]
+    },
+    "artifact": {
+        "id": "methodChain",
+        "code": "/** @TYPE expression id=partial1__source__values **/undefined/** @END **/.map(Boolean).with(/** @TYPE expression id=partial1__source__values **/undefined/** @END **/, x => x.every(x => x === true)).with(/** @TYPE expression id=partial1__source__values **/undefined/** @END **/, x => x.every(x => x === true))",
+        "kind": "expression",
+        "source": {
+            "templateId": "ApplyExpressionSuffix",
+            "templateVersion": "1.0.0"
+        },
+        "provenance": {
+            "nodeId": "methodChain",
+            "inputRefs": [
+                "mappedWithStuff",
+                "stuffSuffix"
+            ]
+        },
+        "complete": false,
+        "unresolvedInputs": [
+            {
+                "id": "partial1__source__values",
+                "inputName": "values",
+                "nodeId": "source",
+                "templateId": "BooleanArrayLiteral",
+                "port": {
+                    "regionKind": "expression",
+                    "schema": {
+                        "type": "array",
+                        "items": {
+                            "type": "boolean"
+                        }
+                    },
+                    "kind": "literal"
+                },
+                "path": "nodes.source.inputs.values"
+            }
+        ]
+    },
+    "diagnostics": []
+}
