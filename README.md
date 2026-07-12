@@ -363,6 +363,28 @@ if (result.ok) {
 }
 ```
 
+Graph compilation can opt into project-aware TypeScript semantic validation of
+the complete final artifact:
+
+```ts
+const checked = compileGraph(graph, registry, {
+  checkSemanticDiagnostics: true,
+  tsConfigFilePath: "./tsconfig.json",
+  filePath: "./src/generated/route.ts",
+  semanticContext: {
+    prelude: "declare const requestId: string;"
+  }
+});
+```
+
+Semantic validation is disabled by default and never runs while a partial
+artifact still has unresolved inputs. Compiler failures are returned as
+structured `TypeScriptSemanticError` graph diagnostics with compiler codes,
+categories, and artifact-relative locations. Use `semanticContext.prelude` for
+bindings or ambient declarations supplied by the artifact's eventual insertion
+site. Diagnostics are attributed to the final graph node; child-node source
+mapping is not currently performed.
+
 Raw-code ports are opt-in and can carry a small policy for planner-provided
 snippets:
 

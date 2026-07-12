@@ -8,6 +8,7 @@ import {
 import type {
 	CompleteTemplateArtifact,
 	FragmentInputPort,
+	FragmentCollectionInputPort,
 	GeneratedFragment,
 	GraphCompilationResult,
 	GraphPartialCompilationResult,
@@ -73,7 +74,11 @@ export const synthesisDiagnosticPattern: P.Pattern<SynthesisDiagnostic> = {
 	path: P.optional(P.string),
 	expected: P.optional(P._),
 	actual: P.optional(P._),
-	repairHints: P.optional(P.array(synthesisRepairHintPattern))
+	repairHints: P.optional(P.array(synthesisRepairHintPattern)),
+	compilerCode: P.optional(P.number),
+	compilerCategory: P.optional(P.union('error', 'warning', 'suggestion', 'message')),
+	line: P.optional(P.number),
+	column: P.optional(P.number)
 } satisfies P.Pattern<SynthesisDiagnostic>
 
 const synthesisDiagnosticsPattern = P.array(synthesisDiagnosticPattern)
@@ -175,6 +180,20 @@ export const fragmentInputPortPattern: P.Pattern<FragmentInputPort> = {
 	...inputPortMetadataPattern
 } satisfies P.Pattern<FragmentInputPort>
 
+export const fragmentCollectionInputPortPattern: P.Pattern<FragmentCollectionInputPort> = {
+	kind: 'fragmentCollection',
+	regionKind: regionKindPattern,
+	accepts: {
+		outputKind: P.optional(regionKindPattern),
+		type: P.optional(typeDescriptorPattern),
+		sourceModelIds: P.optional(P.array(P.string))
+	},
+	separator: P.optional(P.string),
+	minItems: P.optional(P.number),
+	maxItems: P.optional(P.number),
+	...inputPortMetadataPattern
+} satisfies P.Pattern<FragmentCollectionInputPort>
+
 /** Runtime `ts-pattern` pattern for raw-code input ports. */
 export const rawCodeInputPortPattern: P.Pattern<RawCodeInputPort> = {
 	kind: 'rawCode',
@@ -201,6 +220,7 @@ export const unionInputPortPattern: P.Pattern<UnionInputPort> = {
 export const inputPortPattern: P.Pattern<InputPort> = P.union(
 	literalInputPortPattern,
 	fragmentInputPortPattern,
+	fragmentCollectionInputPortPattern,
 	rawCodeInputPortPattern,
 	unionInputPortPattern
 ) satisfies P.Pattern<InputPort>
@@ -313,11 +333,17 @@ export const fragmentTemplateArtifactInputPattern: P.Pattern<Extract<TemplateArt
 	fragment: P.when(isTemplateArtifact)
 } satisfies P.Pattern<Extract<TemplateArtifactInput, { kind: 'fragment' }>>
 
+export const fragmentCollectionTemplateArtifactInputPattern: P.Pattern<Extract<TemplateArtifactInput, { kind: 'fragmentCollection' }>> = {
+	kind: 'fragmentCollection',
+	fragments: P.array(P.when(isTemplateArtifact))
+} satisfies P.Pattern<Extract<TemplateArtifactInput, { kind: 'fragmentCollection' }>>
+
 /** Runtime `ts-pattern` pattern for values used to fill unresolved artifact inputs. */
 export const templateArtifactInputPattern: P.Pattern<TemplateArtifactInput> = P.union(
 	literalTemplateArtifactInputPattern,
 	rawCodeTemplateArtifactInputPattern,
-	fragmentTemplateArtifactInputPattern
+	fragmentTemplateArtifactInputPattern,
+	fragmentCollectionTemplateArtifactInputPattern
 ) satisfies P.Pattern<TemplateArtifactInput>
 
 /** Runtime `ts-pattern` pattern for resolved literal graph inputs. */
@@ -334,6 +360,12 @@ export const resolvedFragmentGraphInputPattern: P.Pattern<Extract<ResolvedGraphI
 	port: fragmentInputPortPattern
 } satisfies P.Pattern<Extract<ResolvedGraphInput, { kind: 'fragment' }>>
 
+export const resolvedFragmentCollectionGraphInputPattern: P.Pattern<Extract<ResolvedGraphInput, { kind: 'fragmentCollection' }>> = {
+	kind: 'fragmentCollection',
+	fragments: P.array(templateArtifactPattern),
+	port: fragmentCollectionInputPortPattern
+} satisfies P.Pattern<Extract<ResolvedGraphInput, { kind: 'fragmentCollection' }>>
+
 /** Runtime `ts-pattern` pattern for resolved raw-code graph inputs. */
 export const resolvedRawCodeGraphInputPattern: P.Pattern<Extract<ResolvedGraphInput, { kind: 'rawCode' }>> = {
 	kind: 'rawCode',
@@ -345,6 +377,7 @@ export const resolvedRawCodeGraphInputPattern: P.Pattern<Extract<ResolvedGraphIn
 export const resolvedGraphInputPattern: P.Pattern<ResolvedGraphInput> = P.union(
 	resolvedLiteralGraphInputPattern,
 	resolvedFragmentGraphInputPattern,
+	resolvedFragmentCollectionGraphInputPattern,
 	resolvedRawCodeGraphInputPattern
 ) satisfies P.Pattern<ResolvedGraphInput>
 
@@ -382,16 +415,28 @@ export const refShorthandSynthesisInputPattern: P.Pattern<Extract<SynthesisInput
 	$ref: P.string
 } satisfies P.Pattern<Extract<SynthesisInput, { $ref: string }>>
 
+export const fragmentCollectionSynthesisInputPattern: P.Pattern<Extract<SynthesisInput, { kind: 'fragmentCollection' }>> = {
+	kind: 'fragmentCollection',
+	items: P.array(P.union(refSynthesisInputPattern, inlineSynthesisInputPattern, refShorthandSynthesisInputPattern))
+} satisfies P.Pattern<Extract<SynthesisInput, { kind: 'fragmentCollection' }>>
+
+const normalizedFragmentCollectionSynthesisInputPattern: P.Pattern<Extract<NormalizedSynthesisInput, { kind: 'fragmentCollection' }>> = {
+	kind: 'fragmentCollection',
+	items: P.array(refSynthesisInputPattern)
+} satisfies P.Pattern<Extract<NormalizedSynthesisInput, { kind: 'fragmentCollection' }>>
+
 /** Runtime `ts-pattern` pattern for graph inputs after normalization. */
 export const normalizedSynthesisInputPattern: P.Pattern<NormalizedSynthesisInput> = P.union(
 	literalSynthesisInputPattern,
 	refSynthesisInputPattern,
-	rawCodeSynthesisInputPattern
+	rawCodeSynthesisInputPattern,
+	normalizedFragmentCollectionSynthesisInputPattern
 ) satisfies P.Pattern<NormalizedSynthesisInput>
 
 /** Runtime `ts-pattern` pattern for any authored graph input. */
 export const synthesisInputPattern: P.Pattern<SynthesisInput> = P.union(
 	normalizedSynthesisInputPattern,
+	fragmentCollectionSynthesisInputPattern,
 	inlineSynthesisInputPattern,
 	refShorthandSynthesisInputPattern
 ) satisfies P.Pattern<SynthesisInput>

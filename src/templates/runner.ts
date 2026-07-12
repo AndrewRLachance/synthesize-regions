@@ -59,6 +59,9 @@ export function createGraphRunner(
 					? compilerOrTemplates(state.graph, { ...options, mode: 'partial' })
 					: compileGraph(state.graph, compilerOrTemplates as TemplateRegistry, { ...options, mode: 'partial' })
 				if (!result.ok) {
+					if (result.diagnostics.some(diagnostic => diagnostic.code === 'TypeScriptSemanticError')) {
+						return state = { kind: 'failed', graph: state.graph, diagnostics: result.diagnostics }
+					}
 					return state = { kind: 'needsGraphRepair', graph: state.graph, result, diagnostics: result.diagnostics }
 				}
 				if (result.finalArtifact.complete === true) {

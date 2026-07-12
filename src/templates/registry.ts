@@ -94,6 +94,23 @@ function inputSchemaForPort(port: InputPort): Record<string, unknown> {
           inlineInputSchema()
         ]
       };
+    case "fragmentCollection": {
+      const item = { anyOf: [refInputSchema(), refShorthandInputSchema(), inlineInputSchema()] };
+      return {
+        type: "object",
+        additionalProperties: false,
+        required: ["kind", "items"],
+        properties: {
+          kind: { const: "fragmentCollection" },
+          items: {
+            type: "array",
+            items: item,
+            minItems: port.minItems ?? 0,
+            ...(port.maxItems === undefined ? {} : { maxItems: port.maxItems })
+          }
+        }
+      };
+    }
     case "rawCode":
       return {
         type: "object",
@@ -134,7 +151,16 @@ function genericSynthesisInputSchema(): Record<string, unknown> {
         }
       },
       inlineInputSchema(),
-      refShorthandInputSchema()
+      refShorthandInputSchema(),
+      {
+        type: "object",
+        additionalProperties: false,
+        required: ["kind", "items"],
+        properties: {
+          kind: { const: "fragmentCollection" },
+          items: { type: "array", items: { anyOf: [refInputSchema(), refShorthandInputSchema(), inlineInputSchema()] } }
+        }
+      }
     ]
   };
 }

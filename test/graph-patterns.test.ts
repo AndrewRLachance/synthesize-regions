@@ -40,6 +40,27 @@ describe("graph ts-pattern matchers", () => {
     expect(isGraphCompilationResult(result)).toBe(true);
   });
 
+  it("matches structured TypeScript semantic diagnostics", () => {
+    const result = {
+      kind: "graphCompilation",
+      mode: "strict",
+      ok: false,
+      diagnostics: [{
+        stage: "type",
+        code: "TypeScriptSemanticError",
+        severity: "error",
+        message: "Type mismatch.",
+        compilerCode: 2322,
+        compilerCategory: "error",
+        line: 1,
+        column: 7
+      }]
+    };
+
+    expect(isMatching(graphCompilationResultPattern, result)).toBe(true);
+    expect(isGraphCompilationResult(result)).toBe(true);
+  });
+
   it("rejects strict result maps with invalid fragment values", () => {
     expect(isMatching(generatedFragmentRecordPattern, { source: { code: "value" } })).toBe(false);
   });

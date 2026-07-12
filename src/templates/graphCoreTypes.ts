@@ -65,6 +65,14 @@ export interface SynthesisDiagnostic {
 	actual?: unknown
 	/** Optional suggestions for repairing planner-provided input. */
 	repairHints?: SynthesisRepairHint[]
+	/** TypeScript compiler diagnostic code, when emitted by semantic validation. */
+	compilerCode?: number
+	/** TypeScript compiler diagnostic category, when emitted by semantic validation. */
+	compilerCategory?: 'error' | 'warning' | 'suggestion' | 'message'
+	/** One-based line within generated artifact code, when available. */
+	line?: number
+	/** One-based column within generated artifact code, when available. */
+	column?: number
 }
 
 /**
@@ -123,6 +131,11 @@ export type TemplateArtifactInput =
 			kind: 'fragment'
 			/** Fragment or partial artifact supplied to a fragment-compatible unresolved input. */
 			fragment: TemplateArtifact
+	  }
+	| {
+			/** Fill an unresolved variadic input with ordered generated fragments. */
+			kind: 'fragmentCollection'
+			fragments: TemplateArtifact[]
 	  }
 
 /** Template artifact fill values keyed by unresolved scoped ID or input name. */
@@ -186,7 +199,7 @@ export interface RawCodePolicy {
  * A template input contract. Each variant describes one accepted graph input
  * shape and the replacement region kind it will feed in the template source.
  */
-export type InputPort = LiteralInputPort | FragmentInputPort | RawCodeInputPort | UnionInputPort
+export type InputPort = LiteralInputPort | FragmentInputPort | FragmentCollectionInputPort | RawCodeInputPort | UnionInputPort
 
 /** Common metadata shared by all input port shapes. */
 interface BaseInputPort {
@@ -223,6 +236,20 @@ export interface FragmentInputPort extends RegionInputPort {
 		/** Optional allowlist of template model IDs that may produce the fragment. */
 		sourceModelIds?: string[]
 	}
+}
+
+/** An ordered, variadic collection of references to compatible generated fragments. */
+export interface FragmentCollectionInputPort extends RegionInputPort {
+	/** Port discriminator for graph fragment-reference collections. */
+	kind: 'fragmentCollection'
+	/** Fragment compatibility requirements applied independently to every item. */
+	accepts: FragmentInputPort['accepts']
+	/** Text placed between fragment sources when replacing the collection region. Defaults to a newline. */
+	separator?: string
+	/** Minimum number of referenced fragments. Defaults to zero. */
+	minItems?: number
+	/** Maximum number of referenced fragments, when bounded. */
+	maxItems?: number
 }
 
 /** A caller-provided TypeScript snippet gated by an optional raw-code policy. */
@@ -266,9 +293,9 @@ export interface SynthesisGraph {
 	/** Nodes available to compile. */
 	nodes: SynthesisNode[]
 	/** Node ID whose fragment should be returned as the final result. */
-	finalNodeId: string
+	readonly finalNodeId: string
 	/** Optional constraints for the final generated fragment. */
-	goal?: SynthesisGoal
+	readonly goal?: SynthesisGoal
 }
 
 /** One graph node: select a template and provide inputs by template port name. */
@@ -288,6 +315,16 @@ export interface SynthesisNode {
  * normalized into standalone nodes before validation.
  */
 export type SynthesisInput =
+	| {
+			/** Input discriminator for an ordered collection of graph fragment references. */
+			kind: 'fragmentCollection'
+			/** References or inline nodes whose generated sources are joined in order. */
+			items: Array<
+				| { kind: 'ref'; nodeId: string }
+				| { kind: 'inline'; node: SynthesisNode }
+				| { $ref: string }
+			>
+	  }
 	| {
 			/** Input discriminator for JSON-like literal values. */
 			kind: 'literal'
@@ -318,10 +355,9 @@ export type SynthesisInput =
 	  }
 
 /** Graph input shape after shorthand refs and inline nodes are expanded. */
-export type NormalizedSynthesisInput = Exclude<
-	SynthesisInput,
-	{ $ref: string } | { kind: 'inline'; node: SynthesisNode }
->
+export type NormalizedSynthesisInput =
+	| Exclude<SynthesisInput, { $ref: string } | { kind: 'inline'; node: SynthesisNode } | { kind: 'fragmentCollection' }>
+	| { kind: 'fragmentCollection'; items: Array<{ kind: 'ref'; nodeId: string }> }
 
 /** Result of graph normalization before validation and compilation. */
 export interface GraphNormalizationResult {
@@ -450,6 +486,14 @@ export type ResolvedGraphInput =
 			port: FragmentInputPort
 	  }
 	| {
+			/** Resolved input discriminator for ordered fragment collections. */
+			kind: 'fragmentCollection'
+			/** Referenced fragments in authored order. */
+			fragments: TemplateArtifact[]
+			/** Collection port that accepted every fragment. */
+			port: FragmentCollectionInputPort
+	  }
+	| {
 			/** Resolved input discriminator for raw-code snippets. */
 			kind: 'rawCode'
 			/** Raw TypeScript source accepted by the raw-code port. */
@@ -517,7 +561,12 @@ export interface GraphTemplateDefinition<
 }
 
 /** Graph compilation options are the normal generation options. */
-export interface GraphCompileOptions extends GenerateOptions {}
+export interface GraphCompileOptions extends GenerateOptions {
+	/** Optional declarations or imports prepended during graph semantic validation. */
+	semanticContext?: {
+		prelude?: string
+	}
+}
 
 /** Options for the unified graph compiler. */
 export interface ModeAwareGraphCompileOptions extends GraphCompileOptions {
@@ -528,6 +577,7 @@ export interface ModeAwareGraphCompileOptions extends GraphCompileOptions {
 export type InputPortSummary =
 	| LiteralInputPortSummary
 	| FragmentInputPortSummary
+	| FragmentCollectionInputPortSummary
 	| RawCodeInputPortSummary
 	| UnionInputPortSummary
 
@@ -563,6 +613,15 @@ export interface FragmentInputPortSummary extends BasePortSummary {
 		/** Template model IDs allowed as fragment sources, when provided. */
 		sourceModelIds?: string[]
 	}
+}
+
+export interface FragmentCollectionInputPortSummary extends BasePortSummary {
+	kind: 'fragmentCollection'
+	regionKind: RegionKind
+	accepts: FragmentInputPortSummary['accepts']
+	separator: string
+	minItems: number
+	maxItems?: number
 }
 
 export interface RawCodeInputPortSummary extends BasePortSummary {

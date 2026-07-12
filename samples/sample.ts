@@ -244,7 +244,9 @@ function main() {
 		}
 	]
 
-	const runner = createGraphRunner(buildGraphCompiler(allTemplate), data)
+	const compiler = buildGraphCompiler(allTemplate)
+	const runner = createGraphRunner(compiler, data)
+
 	let state = runner.advance()
 
 	for (;;) {

@@ -3,6 +3,7 @@ import type {
   AuthoredGraphInput,
   AuthoredGraphNode,
   FragmentInputPort,
+  FragmentCollectionInputPort,
   GraphTemplateDefinition,
   InputPort,
   LiteralInputPort,
@@ -31,6 +32,7 @@ type StrictUnionInputPort<T extends UnionInputPort> =
 export type StrictInputPort<T extends InputPort> =
   T extends LiteralInputPort ? T & Exact<LiteralInputPort, T> :
   T extends FragmentInputPort ? T & Exact<FragmentInputPort, T> :
+  T extends FragmentCollectionInputPort ? T & Exact<FragmentCollectionInputPort, T> :
   T extends RawCodeInputPort ? T & Exact<RawCodeInputPort, T> :
   T extends UnionInputPort ? StrictUnionInputPort<T> :
   never;
@@ -129,6 +131,11 @@ type RefSynthesisInput<TNodeId extends string> =
       readonly node: SynthesisNode;
     };
 
+type FragmentCollectionSynthesisInput<TNodeId extends string> = {
+  readonly kind: "fragmentCollection";
+  readonly items: ReadonlyArray<RefSynthesisInput<TNodeId>>;
+};
+
 /** Graph input shape accepted by literal ports. */
 type LiteralSynthesisInput = {
   readonly kind: "literal";
@@ -142,12 +149,12 @@ type RawCodeSynthesisInput = {
 };
 
 /** Resolve the fragment output kind expected by a fragment port. */
-type FragmentExpectedOutputKind<TPort extends FragmentInputPort> =
+type FragmentExpectedOutputKind<TPort extends FragmentInputPort | FragmentCollectionInputPort> =
   TPort["accepts"] extends { readonly outputKind: infer O extends RegionKind } ? O : TPort["regionKind"];
 
 /** Check a producer model ID against a fragment port source allowlist. */
 type FragmentAcceptsSourceModel<
-  TPort extends FragmentInputPort,
+  TPort extends FragmentInputPort | FragmentCollectionInputPort,
   TModelId extends string
 > =
   TPort["accepts"] extends { readonly sourceModelIds: readonly string[] }
@@ -157,7 +164,7 @@ type FragmentAcceptsSourceModel<
 /** Return the node ID only when the producer satisfies a fragment port. */
 type FragmentCompatibleNodeId<
   TProducerIndex,
-  TPort extends FragmentInputPort,
+  TPort extends FragmentInputPort | FragmentCollectionInputPort,
   TNodeId extends string
 > =
   TNodeId extends keyof TProducerIndex
@@ -173,7 +180,7 @@ type FragmentCompatibleNodeId<
 /** Union of all authored node IDs compatible with one fragment port. */
 type CompatibleFragmentNodeIds<
   TProducerIndex,
-  TPort extends FragmentInputPort
+  TPort extends FragmentInputPort | FragmentCollectionInputPort
 > = {
   [K in Extract<keyof TProducerIndex, string>]: FragmentCompatibleNodeId<TProducerIndex, TPort, K>;
 }[Extract<keyof TProducerIndex, string>];
@@ -187,6 +194,7 @@ type SynthesisInputForPort<
 > =
   TPort extends LiteralInputPort ? LiteralSynthesisInput :
   TPort extends FragmentInputPort ? RefSynthesisInput<CompatibleFragmentNodeIds<TProducerIndex, TPort>> :
+  TPort extends FragmentCollectionInputPort ? FragmentCollectionSynthesisInput<CompatibleFragmentNodeIds<TProducerIndex, TPort>> :
   TPort extends RawCodeInputPort ? RawCodeSynthesisInput :
   TPort extends UnionInputPort ? SynthesisInputForPort<TPort["options"][number], TNodeId, TProducerIndex> :
   never;

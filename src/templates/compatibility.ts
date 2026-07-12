@@ -1,5 +1,6 @@
 import type {
   FragmentInputPort,
+  FragmentCollectionInputPort,
   InputPort,
   InputPortSummary,
   LiteralInputPort,
@@ -311,7 +312,13 @@ export function fragmentPort<const P extends Omit<FragmentInputPort, "kind">>(
   return { ...port, kind: "fragment" } as unknown as FragmentInputPort & P & { readonly kind: "fragment" };
 }
 
-export function fragmentPortOutputKind(port: FragmentInputPort): RegionKind {
+export function fragmentCollectionPort<const P extends Omit<FragmentCollectionInputPort, "kind">>(
+  port: StrictPortInput<FragmentCollectionInputPort, P>
+): FragmentCollectionInputPort & P & { readonly kind: "fragmentCollection" } {
+  return { ...port, kind: "fragmentCollection" } as unknown as FragmentCollectionInputPort & P & { readonly kind: "fragmentCollection" };
+}
+
+export function fragmentPortOutputKind(port: FragmentInputPort | FragmentCollectionInputPort): RegionKind {
   return port.accepts.outputKind ?? port.regionKind;
 }
 
@@ -341,6 +348,7 @@ export function portRegionKind(port: InputPort): RegionKind {
       return port.options[0] ? portRegionKind(port.options[0]) : "expression";
     case "literal":
     case "fragment":
+    case "fragmentCollection":
     case "rawCode":
       return port.regionKind;
   }
@@ -369,6 +377,21 @@ export function summarizeInputPort(port: InputPort): InputPortSummary {
           ...(port.accepts.type ? { type: port.accepts.type } : {}),
           ...(port.accepts.sourceModelIds ? { sourceModelIds: port.accepts.sourceModelIds } : {})
         }
+      };
+    case "fragmentCollection":
+      return {
+        kind: "fragmentCollection",
+        regionKind: port.regionKind,
+        required,
+        ...(port.description ? { description: port.description } : {}),
+        accepts: {
+          outputKind: fragmentPortOutputKind(port),
+          ...(port.accepts.type ? { type: port.accepts.type } : {}),
+          ...(port.accepts.sourceModelIds ? { sourceModelIds: port.accepts.sourceModelIds } : {})
+        },
+        separator: port.separator ?? "\n",
+        minItems: port.minItems ?? 0,
+        ...(port.maxItems === undefined ? {} : { maxItems: port.maxItems })
       };
     case "rawCode":
       return {

@@ -25,6 +25,7 @@ import type {
 	OutputPort,
 	PartialTemplateArtifact,
 	RegionKind,
+	ResolvedGraphInput,
 	StrictInputPortMap,
 	StrictOutputPort,
 	TemplateArtifact,
@@ -156,8 +157,9 @@ function fragmentProvenance(
     invocation: GraphTemplateInvocation | GraphTemplatePartialInvocation
 ): NonNullable<GeneratedFragment['provenance']> {
     const inputRefs = Object.values(invocation.inputs)
-        .filter(input => input.kind === 'fragment')
-        .map(input => input.fragment.id)
+        .flatMap(input => input.kind === 'fragment'
+            ? [input.fragment.id]
+            : input.kind === 'fragmentCollection' ? input.fragments.map(fragment => fragment.id) : [])
         .filter((id): id is string => typeof id === 'string')
 
     const literalInputs: Record<string, unknown> = {}
@@ -175,13 +177,17 @@ function fragmentProvenance(
 }
 
 /** Collect unresolved inputs carried by partial child artifacts. */
-function partialChildInputs(inputs: Record<string, { kind: string; fragment?: TemplateArtifact }>): UnresolvedTemplateInput[] {
+function partialChildInputs(inputs: Record<string, ResolvedGraphInput>): UnresolvedTemplateInput[] {
     const unresolved = new Map<string, UnresolvedTemplateInput>()
 
     for (const input of Object.values(inputs)) {
-        if (input.kind !== 'fragment' || input.fragment?.complete !== false) continue
-        for (const unresolvedInput of input.fragment.unresolvedInputs) {
-            unresolved.set(unresolvedInput.id, unresolvedInput)
+        const fragments = input.kind === 'fragment' ? [input.fragment]
+            : input.kind === 'fragmentCollection' ? input.fragments : []
+        for (const fragment of fragments) {
+            if (fragment.complete !== false) continue
+            for (const unresolvedInput of fragment.unresolvedInputs) {
+                unresolved.set(unresolvedInput.id, unresolvedInput)
+            }
         }
     }
 

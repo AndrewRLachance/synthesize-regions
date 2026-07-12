@@ -107,6 +107,13 @@ function isInputPortSummary(value: unknown): value is InputPortSummary {
           value.accepts.sourceModelIds === undefined ||
           (Array.isArray(value.accepts.sourceModelIds) && value.accepts.sourceModelIds.every(item => typeof item === "string"))
         );
+    case "fragmentCollection":
+      return isRegionKind(value.regionKind) &&
+        isRecord(value.accepts) &&
+        isRegionKind(value.accepts.outputKind) &&
+        typeof value.separator === "string" &&
+        Number.isInteger(value.minItems) &&
+        (value.maxItems === undefined || Number.isInteger(value.maxItems));
     case "rawCode":
       return isRegionKind(value.regionKind) &&
         (value.policy === undefined || isRawCodePolicy(value.policy)) &&

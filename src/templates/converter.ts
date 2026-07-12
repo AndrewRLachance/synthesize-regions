@@ -328,6 +328,18 @@ export function graphInputsToReplacementMap(inputs: Record<string, ResolvedGraph
       case 'fragment':
         result[key] = replacementFromFragment(input)
         break
+      case 'fragmentCollection':
+        result[key] = replacementFromFragment({
+          kind: 'fragment',
+          fragment: {
+            code: input.fragments.map(fragment => fragment.code).join(input.port.separator ?? '\n'),
+            kind: input.port.regionKind,
+            source: { templateId: '__fragmentCollection' },
+            complete: true
+          },
+          port: { kind: 'fragment', regionKind: input.port.regionKind, accepts: input.port.accepts }
+        })
+        break
       case 'rawCode':
         result[key] = replacementFromRawCode(input)
         break

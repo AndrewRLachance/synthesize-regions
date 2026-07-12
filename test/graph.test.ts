@@ -8,6 +8,7 @@ import {
   defineTemplateCatalog,
   defineTemplate,
   fillTemplateArtifact,
+  fragmentCollectionPort,
   fragmentPort,
   finalizeTemplateArtifact,
   isTypeCompatible,
@@ -1482,5 +1483,179 @@ describe("schema-driven synthesis graph", () => {
     });
 
     expect(legacy.apply({ value: 1 }).code).toBe("1 + 1");
+  });
+
+  it("compiles ordered variadic fragment collections", () => {
+    const first = defineTemplate({
+      modelId: "FirstStatement", inputs: {}, output: { kind: "statement" },
+      template: () => "const first = 1;"
+    });
+    const second = defineTemplate({
+      modelId: "SecondStatement", inputs: {}, output: { kind: "statement" },
+      template: () => "const second = 2;"
+    });
+    const statementList = defineTemplate({
+      modelId: "StatementList",
+      inputs: {
+        statements: fragmentCollectionPort({
+          regionKind: "statement",
+          accepts: { outputKind: "statement" },
+          minItems: 1
+        })
+      },
+      output: { kind: "statement" },
+      template: r => r("statements")
+    });
+
+    const result = compileGraph({
+      nodes: [
+        { id: "first", templateId: "FirstStatement", inputs: {} },
+        { id: "second", templateId: "SecondStatement", inputs: {} },
+        {
+          id: "list", templateId: "StatementList", inputs: {
+            statements: { kind: "fragmentCollection", items: [{ $ref: "first" }, { $ref: "second" }] }
+          }
+        }
+      ],
+      finalNodeId: "list"
+    }, [first, second, statementList]);
+
+    expect(result.ok, JSON.stringify(result.diagnostics, null, 2)).toBe(true);
+    if (result.ok) expect(result.finalArtifact.code).toBe("const first = 1;\nconst second = 2;");
+  });
+
+  it("validates variadic fragment collection bounds", () => {
+    const statementList = defineTemplate({
+      modelId: "NonEmptyStatementList",
+      inputs: {
+        statements: fragmentCollectionPort({
+          regionKind: "statement", accepts: { outputKind: "statement" }, minItems: 1
+        })
+      },
+      output: { kind: "statement" },
+      template: r => r("statements")
+    });
+    const result = compileGraph({
+      nodes: [{
+        id: "list", templateId: "NonEmptyStatementList", inputs: {
+          statements: { kind: "fragmentCollection", items: [] }
+        }
+      }],
+      finalNodeId: "list"
+    }, [statementList]);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics.some(diagnostic => diagnostic.code === "IncompatibleCollectionSize")).toBe(true);
+  });
+
+  it("optionally reports structured TypeScript semantic diagnostics for a complete graph", () => {
+    const invalid = defineTemplate({
+      modelId: "SemanticMismatch",
+      inputs: {},
+      output: { kind: "statement" },
+      template: () => 'const value: number = "wrong";'
+    });
+    const graph: SynthesisGraph = {
+      nodes: [{ id: "invalid", templateId: "SemanticMismatch", inputs: {} }],
+      finalNodeId: "invalid"
+    };
+
+    expect(compileGraph(graph, [invalid]).ok).toBe(true);
+    const checked = compileGraph(graph, [invalid], {
+      checkSemanticDiagnostics: true,
+      filePath: "generated/semantic.ts"
+    });
+
+    expect(checked.ok).toBe(false);
+    const diagnostic = checked.diagnostics.find(item => item.code === "TypeScriptSemanticError");
+    expect(diagnostic).toMatchObject({
+      stage: "type",
+      severity: "error",
+      nodeId: "invalid",
+      templateId: "SemanticMismatch",
+      path: "generated/semantic.ts",
+      compilerCode: 2322,
+      compilerCategory: "error",
+      line: 1
+    });
+    expect(diagnostic?.column).toBeGreaterThan(0);
+  });
+
+  it("uses a semantic prelude to provide insertion-site bindings", () => {
+    const external = defineTemplate({
+      modelId: "ExternalExpression",
+      inputs: {},
+      output: { kind: "expression" },
+      template: () => "externalValue + 1"
+    });
+    const graph: SynthesisGraph = {
+      nodes: [{ id: "external", templateId: "ExternalExpression", inputs: {} }],
+      finalNodeId: "external"
+    };
+
+    const missing = compileGraph(graph, [external], { checkSemanticDiagnostics: true });
+    expect(missing.ok).toBe(false);
+    expect(missing.diagnostics.some(diagnostic => diagnostic.compilerCode === 2304)).toBe(true);
+
+    const supplied = compileGraph(graph, [external], {
+      checkSemanticDiagnostics: true,
+      semanticContext: { prelude: "declare const externalValue: number;" }
+    });
+    expect(supplied.ok).toBe(true);
+  });
+
+  it("defers semantic checks until a partial artifact is filled", () => {
+    const partial = defineTemplate({
+      modelId: "PartialSemanticMismatch",
+      inputs: {
+        value: rawCodePort({ regionKind: "expression" })
+      },
+      output: { kind: "statement" },
+      template: r => `const value: number = ${r("value")};`
+    });
+    const graph: SynthesisGraph = {
+      nodes: [{ id: "partial", templateId: "PartialSemanticMismatch", inputs: {} }],
+      finalNodeId: "partial"
+    };
+
+    const compiled = compileGraph(graph, [partial], {
+      mode: "partial",
+      checkSemanticDiagnostics: true
+    });
+    expect(compiled.ok).toBe(true);
+    if (!compiled.ok) return;
+    expect(compiled.finalArtifact.complete).toBe(false);
+    if (compiled.finalArtifact.complete !== false) return;
+
+    const filled = fillTemplateArtifact(compiled.finalArtifact, {
+      value: { kind: "rawCode", code: '"wrong"' }
+    }, { checkSemanticDiagnostics: true });
+    expect(filled.ok).toBe(false);
+    expect(filled.diagnostics.some(diagnostic => diagnostic.compilerCode === 2322)).toBe(true);
+  });
+
+  it("reports artifact-relative semantic locations for supported wrappers", () => {
+    const cases = [
+      { modelId: "BadExpression", kind: "expression" as const, code: "missingExpression" },
+      { modelId: "BadStatement", kind: "statement" as const, code: "missingStatement();" },
+      { modelId: "BadProperty", kind: "objectProperty" as const, code: "value: missingProperty" }
+    ];
+
+    for (const item of cases) {
+      const template = defineTemplate({
+        modelId: item.modelId,
+        inputs: {},
+        output: { kind: item.kind },
+        template: () => item.code
+      });
+      const result = compileGraph({
+        nodes: [{ id: "bad", templateId: item.modelId, inputs: {} }],
+        finalNodeId: "bad"
+      }, [template], { checkSemanticDiagnostics: true });
+      const diagnostic = result.diagnostics.find(entry => entry.code === "TypeScriptSemanticError");
+      expect(result.ok).toBe(false);
+      expect(diagnostic?.line).toBe(1);
+      expect(diagnostic?.column).toBeGreaterThan(0);
+    }
   });
 });

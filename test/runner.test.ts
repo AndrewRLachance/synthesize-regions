@@ -64,4 +64,25 @@ describe('graph runner', () => {
 		expect(runner.advance().kind).toBe('failed')
 		expect(runner.state.diagnostics[0]?.code).toBe('InvalidRunnerTransition')
 	})
+
+	it('fails after a fill introduces a TypeScript semantic error', () => {
+		const InvalidAfterFill = defineTemplate({
+			modelId: 'InvalidAfterFill',
+			inputs: { value: literalPort({ regionKind: 'string', schema: { type: 'string' } }) },
+			output: { kind: 'statement' },
+			template: r => `const count: number = ${r('value')};`
+		})
+		const graph: SynthesisGraph = {
+			nodes: [{ id: 'invalid', templateId: 'InvalidAfterFill', inputs: {} }],
+			finalNodeId: 'invalid'
+		}
+		const runner = createGraphRunner([InvalidAfterFill], graph, { checkSemanticDiagnostics: true })
+		const pending = runner.advance()
+		expect(pending.kind).toBe('needsArtifactInputs')
+		if (pending.kind !== 'needsArtifactInputs') return
+
+		const failed = runner.advance({ kind: 'fill', inputs: { value: { kind: 'literal', value: 'wrong' } } })
+		expect(failed.kind).toBe('failed')
+		expect(failed.diagnostics.some(diagnostic => diagnostic.compilerCode === 2322)).toBe(true)
+	})
 })

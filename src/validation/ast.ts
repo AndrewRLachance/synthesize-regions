@@ -48,6 +48,35 @@ export function diagnosticMessages(sourceFile: SourceFile, semantic = false): { 
   };
 }
 
+export interface StructuredTypeScriptDiagnostic {
+  code: number;
+  category: "error" | "warning" | "suggestion" | "message";
+  message: string;
+  start?: number;
+}
+
+/** Collect semantic diagnostics without flattening away compiler codes and locations. */
+export function structuredSemanticDiagnostics(sourceFile: SourceFile): StructuredTypeScriptDiagnostic[] {
+  return sourceFile.getProject().getProgram().getSemanticDiagnostics(sourceFile).map(diagnostic => {
+    const start = diagnostic.getStart();
+    return {
+      code: diagnostic.getCode(),
+      category: diagnosticCategoryName(diagnostic.getCategory()),
+      message: ts.flattenDiagnosticMessageText(diagnostic.compilerObject.messageText, "\n"),
+      ...(start === undefined ? {} : { start })
+    };
+  });
+}
+
+function diagnosticCategoryName(category: ts.DiagnosticCategory): StructuredTypeScriptDiagnostic["category"] {
+  switch (category) {
+    case ts.DiagnosticCategory.Warning: return "warning";
+    case ts.DiagnosticCategory.Suggestion: return "suggestion";
+    case ts.DiagnosticCategory.Message: return "message";
+    default: return "error";
+  }
+}
+
 function diagnosticToString(diagnostic: { getMessageText(): unknown; getStart(): number | undefined }): string {
   const start = diagnostic.getStart();
   const pos = start === undefined ? "" : ` at ${start}`;

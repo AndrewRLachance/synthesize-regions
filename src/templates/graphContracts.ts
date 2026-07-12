@@ -29,7 +29,13 @@ export const SynthesisDiagnosticSchema = Type.Object({
 	repairHints: Type.Optional(Type.Array(Type.Object({
 		kind: Type.String(),
 		message: Type.String()
-	}, { additionalProperties: true })))
+	}, { additionalProperties: true }))),
+	compilerCode: Type.Optional(Type.Number()),
+	compilerCategory: Type.Optional(Type.Union([
+		Type.Literal('error'), Type.Literal('warning'), Type.Literal('suggestion'), Type.Literal('message')
+	])),
+	line: Type.Optional(Type.Number()),
+	column: Type.Optional(Type.Number())
 }, { additionalProperties: false })
 
 export const InputPortSchema: TSchema = Type.Recursive(Self => Type.Union([
@@ -45,6 +51,15 @@ export const InputPortSchema: TSchema = Type.Recursive(Self => Type.Union([
 			outputKind: Type.Optional(RegionKindSchema), type: Type.Optional(TypeDescriptorSchema),
 			sourceModelIds: Type.Optional(Type.Array(Type.String()))
 		}, { additionalProperties: false })
+	}, { additionalProperties: false }),
+	Type.Object({
+		kind: Type.Literal('fragmentCollection'), regionKind: RegionKindSchema,
+		required: Type.Optional(Type.Boolean()), description: Type.Optional(Type.String()),
+		accepts: Type.Object({
+			outputKind: Type.Optional(RegionKindSchema), type: Type.Optional(TypeDescriptorSchema),
+			sourceModelIds: Type.Optional(Type.Array(Type.String()))
+		}, { additionalProperties: false }),
+		separator: Type.Optional(Type.String()), minItems: Type.Optional(Type.Number()), maxItems: Type.Optional(Type.Number())
 	}, { additionalProperties: false }),
 	Type.Object({
 		kind: Type.Literal('rawCode'), regionKind: RegionKindSchema,
@@ -94,7 +109,8 @@ export const TemplateArtifactSchema = Type.Union([CompleteTemplateArtifactSchema
 export const TemplateArtifactInputSchema = Type.Union([
 	Type.Object({ kind: Type.Literal('literal'), value: Type.Unknown() }, { additionalProperties: false }),
 	Type.Object({ kind: Type.Literal('rawCode'), code: Type.String() }, { additionalProperties: false }),
-	Type.Object({ kind: Type.Literal('fragment'), fragment: TemplateArtifactSchema }, { additionalProperties: false })
+	Type.Object({ kind: Type.Literal('fragment'), fragment: TemplateArtifactSchema }, { additionalProperties: false }),
+	Type.Object({ kind: Type.Literal('fragmentCollection'), fragments: Type.Array(TemplateArtifactSchema) }, { additionalProperties: false })
 ])
 
 export const TemplateArtifactInputMapSchema = Type.Record(Type.String(), TemplateArtifactInputSchema)
@@ -103,6 +119,13 @@ export const SynthesisInputSchema: TSchema = Type.Recursive(Self => Type.Union([
 	Type.Object({ kind: Type.Literal('literal'), value: Type.Unknown() }, { additionalProperties: false }),
 	Type.Object({ kind: Type.Literal('ref'), nodeId: Type.String() }, { additionalProperties: false }),
 	Type.Object({ kind: Type.Literal('rawCode'), code: Type.String() }, { additionalProperties: false }),
+	Type.Object({ kind: Type.Literal('fragmentCollection'), items: Type.Array(Type.Union([
+		Type.Object({ kind: Type.Literal('ref'), nodeId: Type.String() }, { additionalProperties: false }),
+		Type.Object({ $ref: Type.String() }, { additionalProperties: false }),
+		Type.Object({ kind: Type.Literal('inline'), node: Type.Object({
+			id: Type.String(), templateId: Type.String(), inputs: Type.Record(Type.String(), Self)
+		}, { additionalProperties: false }) }, { additionalProperties: false })
+	])) }, { additionalProperties: false }),
 	Type.Object({ $ref: Type.String() }, { additionalProperties: false }),
 	Type.Object({ kind: Type.Literal('inline'), node: Type.Object({
 		id: Type.String(), templateId: Type.String(), inputs: Type.Record(Type.String(), Self)

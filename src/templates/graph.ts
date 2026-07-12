@@ -1,15 +1,15 @@
-import type {
-	GenerateOptions,
-	TemplateMode
-} from '../core/types.js'
+import type { TemplateMode } from '../core/types.js'
 import { buildReplacementEdits } from '../replacements/serialize.js'
 import { discoverReplacementRegions } from '../regions/discovery.js'
+import { wrapTemplateSource } from './templateMode.js'
+import { createProject, createSourceFile, structuredSemanticDiagnostics } from '../validation/ast.js'
 import { graphInputsToReplacementMap } from './converter.js'
 import type {
 	AuthoredGraphInput,
 	CompleteTemplateArtifact,
 	DefinedSynthesisGraph,
 	FragmentInputPort,
+	FragmentCollectionInputPort,
 	GeneratedFragment,
 	GraphCompilationResult,
 	GraphCompileOptions,
@@ -39,6 +39,50 @@ import { applyReplacementEdits, templateModeForRegionKind } from './rendering.js
 /** Create a graph diagnostic with error severity. */
 function errorDiagnostic(diagnostic: Omit<SynthesisDiagnostic, 'severity'>): SynthesisDiagnostic {
 	return { ...diagnostic, severity: 'error' }
+}
+
+/** Convert a zero-based artifact offset into a one-based line and column. */
+function artifactLineAndColumn(code: string, offset: number): { line: number; column: number } {
+	const before = code.slice(0, offset)
+	const lines = before.split('\n')
+	return { line: lines.length, column: (lines.at(-1)?.length ?? 0) + 1 }
+}
+
+/** Semantically validate one complete artifact and return graph-native diagnostics. */
+function validateArtifactSemantics(
+	artifact: CompleteTemplateArtifact,
+	options: GraphCompileOptions
+): SynthesisDiagnostic[] {
+	if (!options.checkSemanticDiagnostics) return []
+
+	const mode = options.templateMode ?? templateModeForArtifact(artifact)
+	const wrapped = wrapTemplateSource(artifact.code, mode)
+	const receiverPrelude = mode.kind === 'expressionSuffix' ? 'declare const __partialReceiver: any;\n' : ''
+	const callerPrelude = options.semanticContext?.prelude
+	const prelude = `${receiverPrelude}${callerPrelude ? `${callerPrelude}\n` : ''}`
+	const artifactStart = prelude.length + wrapped.prefix.length
+	const artifactEnd = artifactStart + artifact.code.length
+	const filePath = options.filePath ?? '__graph_semantic_validation__.ts'
+	const project = createProject(options)
+	const sourceFile = createSourceFile(project, `${prelude}${wrapped.wrappedText}`, filePath)
+
+	return structuredSemanticDiagnostics(sourceFile).map(diagnostic => {
+		const artifactLocation = diagnostic.start !== undefined && diagnostic.start >= artifactStart && diagnostic.start <= artifactEnd
+			? artifactLineAndColumn(artifact.code, diagnostic.start - artifactStart)
+			: undefined
+		return {
+			stage: 'type',
+			code: 'TypeScriptSemanticError',
+			severity: diagnostic.category === 'error' ? 'error' : 'warning',
+			message: diagnostic.message,
+			...(artifact.id ? { nodeId: artifact.id } : {}),
+			templateId: artifact.source.templateId,
+			...(options.filePath ? { path: options.filePath } : {}),
+			compilerCode: diagnostic.code,
+			compilerCategory: diagnostic.category,
+			...(artifactLocation ?? {})
+		}
+	})
 }
 
 /** Detect shorthand graph references of the form `{ "$ref": "nodeId" }`. */
@@ -109,6 +153,21 @@ export function normalizeSynthesisGraph(graph: SynthesisGraph): GraphNormalizati
 
 		for (const [inputName, input] of Object.entries(node.inputs)) {
 			const normalized = normalizeSynthesisInput(input)
+			if (normalized.kind === 'fragmentCollection') {
+				inputs[inputName] = {
+					kind: 'fragmentCollection',
+					items: normalized.items.map(item => {
+						const normalizedItem = isRefShorthand(item) ? { kind: 'ref' as const, nodeId: item.$ref } : item
+						if (normalizedItem.kind === 'inline') {
+							const inlineNode = normalizeNode(normalizedItem.node)
+							nodes.push(inlineNode)
+							return { kind: 'ref', nodeId: inlineNode.id }
+						}
+						return normalizedItem
+					})
+				}
+				continue
+			}
 			if (normalized.kind === 'inline') {
 				const inlineNode = normalizeNode(normalized.node)
 				nodes.push(inlineNode)
@@ -143,6 +202,7 @@ function inputDependencies(input: SynthesisInput): string[] {
 	const normalized = normalizeSynthesisInput(input)
 	if (normalized.kind === 'ref') return [normalized.nodeId]
 	if (normalized.kind === 'inline') return Object.values(normalized.node.inputs).flatMap(inputDependencies)
+	if (normalized.kind === 'fragmentCollection') return normalized.items.flatMap(inputDependencies)
 	return []
 }
 
@@ -314,7 +374,7 @@ function detectCycles(nodesById: Map<string, SynthesisNode>): SynthesisDiagnosti
 
 /** Check whether a produced fragment/artifact can satisfy a fragment port. */
 function fragmentCompatible(
-	port: FragmentInputPort,
+	port: FragmentInputPort | FragmentCollectionInputPort,
 	fragment: TemplateArtifact,
 	node: SynthesisNode,
 	inputName: string
@@ -360,6 +420,24 @@ function fragmentCompatible(
 		})
 	}
 
+	return undefined
+}
+
+function fragmentCollectionSizeCompatible(
+	port: FragmentCollectionInputPort,
+	count: number,
+	node: SynthesisNode,
+	inputName: string
+): SynthesisDiagnostic | undefined {
+	const minItems = port.minItems ?? 0
+	if (count < minItems || (port.maxItems !== undefined && count > port.maxItems)) {
+		return errorDiagnostic({
+			stage: 'port', code: 'IncompatibleCollectionSize',
+			message: `Input ${inputName} received ${count} fragments outside its allowed collection size.`,
+			nodeId: node.id, templateId: node.templateId, inputName,
+			expected: { minItems, ...(port.maxItems === undefined ? {} : { maxItems: port.maxItems }) }, actual: count
+		})
+	}
 	return undefined
 }
 
@@ -595,6 +673,16 @@ function resolveArtifactInput(
 			lastDiagnostic = fragmentCompatible(option, fill.fragment, node, inputName)
 			if (!lastDiagnostic) return { resolved: { kind: 'fragment', fragment: fill.fragment, port: option } }
 		}
+
+		if (option.kind === 'fragmentCollection' && fill.kind === 'fragmentCollection') {
+			lastDiagnostic = fragmentCollectionSizeCompatible(option, fill.fragments.length, node, inputName)
+			if (lastDiagnostic) continue
+			for (const fragment of fill.fragments) {
+				lastDiagnostic = fragmentCompatible(option, fragment, node, inputName)
+				if (lastDiagnostic) break
+			}
+			if (!lastDiagnostic) return { resolved: { kind: 'fragmentCollection', fragments: fill.fragments, port: option } }
+		}
 	}
 
 	return {
@@ -636,10 +724,14 @@ function findArtifactFill(
 export function fillTemplateArtifact(
 	artifact: TemplateArtifact,
 	inputs: TemplateArtifactInputMap,
-	options: GenerateOptions = {}
+	options: GraphCompileOptions = {}
 ): TemplateArtifactResult {
 	if (artifact.complete !== false) {
-		return { kind: 'templateArtifact', ok: true, artifact: completeArtifact(artifact), diagnostics: [] }
+		const complete = completeArtifact(artifact) as CompleteTemplateArtifact
+		const diagnostics = validateArtifactSemantics(complete, options)
+		return diagnostics.some(diagnostic => diagnostic.severity === 'error')
+			? { kind: 'templateArtifact', ok: false, artifact: complete, diagnostics }
+			: { kind: 'templateArtifact', ok: true, artifact: complete, diagnostics }
 	}
 
 	const diagnostics: SynthesisDiagnostic[] = []
@@ -702,7 +794,11 @@ export function fillTemplateArtifact(
 		}
 
 		if (remaining.length === 0) {
-			return { kind: 'templateArtifact', ok: true, artifact: { ...base, complete: true }, diagnostics }
+			const complete: CompleteTemplateArtifact = { ...base, complete: true }
+			diagnostics.push(...validateArtifactSemantics(complete, options))
+			return diagnostics.some(diagnostic => diagnostic.severity === 'error')
+				? { kind: 'templateArtifact', ok: false, artifact: complete, diagnostics }
+				: { kind: 'templateArtifact', ok: true, artifact: complete, diagnostics }
 		}
 
 		return {
@@ -737,12 +833,12 @@ export function fillTemplateArtifact(
 export function finalizeTemplateArtifact(
 	artifact: TemplateArtifact,
 	inputs: TemplateArtifactInputMap = {},
-	options?: GenerateOptions
+	options: GraphCompileOptions = {}
 ): TemplateArtifactResult {
 
 	const filled = Object.keys(inputs).length > 0 ? 
 		fillTemplateArtifact(artifact, inputs, options) : 
-		{ kind: 'templateArtifact' as const, ok: true as const, artifact, diagnostics: [] }
+		fillTemplateArtifact(artifact, {}, options)
 
 	if (!filled.ok) return filled
 	if (filled.artifact.complete === false) {
@@ -843,6 +939,24 @@ function compileGraphPartial(
 			let lastDiagnostic: SynthesisDiagnostic | undefined
 
 			for (const option of inputPortOptions(port)) {
+				if (option.kind === 'fragmentCollection' && input.kind === 'fragmentCollection') {
+					lastDiagnostic = fragmentCollectionSizeCompatible(option, input.items.length, node, inputName)
+					if (lastDiagnostic) continue
+					const fragments: TemplateArtifact[] = []
+					for (const item of input.items) {
+						const normalizedItem = normalizeSynthesisInput(item)
+						if (normalizedItem.kind !== 'ref') continue
+						const artifact = executeNode(normalizedItem.nodeId)
+						if (!artifact) continue
+						lastDiagnostic = fragmentCompatible(option, artifact, node, inputName)
+						if (lastDiagnostic) break
+						fragments.push(artifact)
+					}
+					if (!lastDiagnostic && fragments.length === input.items.length) {
+						resolved = { kind: 'fragmentCollection', fragments, port: option }
+						break
+					}
+				}
 				if (option.kind === 'literal' && input.kind === 'literal') {
 					lastDiagnostic = literalCompatible(option, input.value, node, inputName)
 					if (!lastDiagnostic) {
@@ -920,6 +1034,9 @@ function compileGraphPartial(
 	const finalArtifact = executeNode(normalized.finalNodeId)
 	if (finalArtifact) {
 		diagnostics.push(...validateFinalGoal(normalized, finalArtifact))
+		if (finalArtifact.complete === true) {
+			diagnostics.push(...validateArtifactSemantics(finalArtifact, options))
+		}
 	}
 
 	if (!finalArtifact || diagnostics.some((diagnostic) => diagnostic.severity === 'error')) {

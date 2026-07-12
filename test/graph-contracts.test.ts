@@ -32,6 +32,14 @@ describe('canonical graph contracts', () => {
 			}],
 			finalNodeId: 'outer'
 		})).toBe(true)
+		expect(checkContract(SynthesisGraphSchema, {
+			nodes: [{
+				id: 'list', templateId: 'StatementList', inputs: {
+					statements: { kind: 'fragmentCollection', items: [{ $ref: 'one' }, { kind: 'ref', nodeId: 'two' }] }
+				}
+			}],
+			finalNodeId: 'list'
+		})).toBe(true)
 	})
 
 	it('validates normalized strict compilation records', () => {
@@ -39,6 +47,16 @@ describe('canonical graph contracts', () => {
 		expect(checkContract(GraphCompilationResultSchema, {
 			kind: 'graphCompilation', mode: 'strict', ok: true,
 			finalArtifact: artifact, artifacts: { source: artifact }, diagnostics: []
+		})).toBe(true)
+	})
+
+	it('accepts structured TypeScript compiler details on graph diagnostics', () => {
+		const diagnostic = {
+			stage: 'type', code: 'TypeScriptSemanticError', severity: 'error', message: 'Type mismatch.',
+			compilerCode: 2322, compilerCategory: 'error', line: 2, column: 7
+		}
+		expect(checkContract(GraphCompilationResultSchema, {
+			kind: 'graphCompilation', mode: 'strict', ok: false, diagnostics: [diagnostic]
 		})).toBe(true)
 	})
 })
