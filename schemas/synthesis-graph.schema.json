@@ -3,33 +3,220 @@
   "$id": "https://schemas.synthesize-regions.dev/synthesis-graph.schema.json",
   "title": "synthesize-regions SynthesisGraph",
   "description": "Structural JSON Schema for SynthesisGraph values. Template existence, port compatibility, graph cycles, literal schemas, raw-code policies, and final output validation are enforced by the synthesize-regions API.",
-  "$ref": "#/$defs/synthesisGraph",
   "$defs": {
-    "synthesisGraph": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "nodes",
-        "finalNodeId"
-      ],
-      "properties": {
-        "nodes": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/synthesisNode"
-          }
-        },
-        "finalNodeId": {
+    "GraphRegionKind": {
+      "anyOf": [
+        {
+          "const": "identifier",
           "type": "string"
         },
-        "goal": {
-          "$ref": "#/$defs/synthesisGoal"
+        {
+          "const": "expression",
+          "type": "string"
+        },
+        {
+          "const": "expressionSuffix",
+          "type": "string"
+        },
+        {
+          "const": "statement",
+          "type": "string"
+        },
+        {
+          "const": "array",
+          "type": "string"
+        },
+        {
+          "const": "object",
+          "type": "string"
+        },
+        {
+          "const": "string",
+          "type": "string"
+        },
+        {
+          "const": "number",
+          "type": "string"
+        },
+        {
+          "const": "boolean",
+          "type": "string"
+        },
+        {
+          "const": "null",
+          "type": "string"
+        },
+        {
+          "const": "objectProperty",
+          "type": "string"
         }
-      }
+      ],
+      "$id": "GraphRegionKind"
     },
-    "synthesisNode": {
-      "type": "object",
+    "GraphTypeDescriptor": {
       "additionalProperties": false,
+      "type": "object",
+      "properties": {
+        "ts": {
+          "type": "string"
+        },
+        "schema": {}
+      },
+      "$id": "GraphTypeDescriptor"
+    },
+    "SynthesisInput": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "const": "literal",
+              "type": "string"
+            },
+            "value": {}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "nodeId"
+          ],
+          "properties": {
+            "kind": {
+              "const": "ref",
+              "type": "string"
+            },
+            "nodeId": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "code"
+          ],
+          "properties": {
+            "kind": {
+              "const": "rawCode",
+              "type": "string"
+            },
+            "code": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "items"
+          ],
+          "properties": {
+            "kind": {
+              "const": "fragmentCollection",
+              "type": "string"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "nodeId"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "ref",
+                        "type": "string"
+                      },
+                      "nodeId": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "additionalProperties": false,
+                    "type": "object",
+                    "required": [
+                      "$ref"
+                    ],
+                    "properties": {
+                      "$ref": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "additionalProperties": false,
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "node"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "inline",
+                        "type": "string"
+                      },
+                      "node": {
+                        "$ref": "SynthesisNode"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "$ref"
+          ],
+          "properties": {
+            "$ref": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "node"
+          ],
+          "properties": {
+            "kind": {
+              "const": "inline",
+              "type": "string"
+            },
+            "node": {
+              "$ref": "SynthesisNode"
+            }
+          }
+        }
+      ],
+      "$id": "SynthesisInput"
+    },
+    "SynthesisNode": {
+      "additionalProperties": false,
+      "type": "object",
       "required": [
         "id",
         "templateId",
@@ -44,142 +231,52 @@
         },
         "inputs": {
           "type": "object",
-          "additionalProperties": {
-            "$ref": "#/$defs/synthesisInput"
+          "patternProperties": {
+            "^(.*)$": {
+              "$ref": "SynthesisInput"
+            }
           }
         }
-      }
+      },
+      "$id": "SynthesisNode"
     },
-    "synthesisInput": {
-      "oneOf": [
-        {
-          "$ref": "#/$defs/literalInput"
-        },
-        {
-          "$ref": "#/$defs/refInput"
-        },
-        {
-          "$ref": "#/$defs/rawCodeInput"
-        },
-        {
-          "$ref": "#/$defs/inlineInput"
-        },
-        {
-          "$ref": "#/$defs/refShorthandInput"
-        }
-      ]
-    },
-    "literalInput": {
-      "type": "object",
+    "SynthesisGoal": {
       "additionalProperties": false,
-      "required": [
-        "kind",
-        "value"
-      ],
-      "properties": {
-        "kind": {
-          "const": "literal"
-        },
-        "value": true
-      }
-    },
-    "refInput": {
       "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "kind",
-        "nodeId"
-      ],
-      "properties": {
-        "kind": {
-          "const": "ref"
-        },
-        "nodeId": {
-          "type": "string"
-        }
-      }
-    },
-    "rawCodeInput": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "kind",
-        "code"
-      ],
-      "properties": {
-        "kind": {
-          "const": "rawCode"
-        },
-        "code": {
-          "type": "string"
-        }
-      }
-    },
-    "inlineInput": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "kind",
-        "node"
-      ],
-      "properties": {
-        "kind": {
-          "const": "inline"
-        },
-        "node": {
-          "$ref": "#/$defs/synthesisNode"
-        }
-      }
-    },
-    "refShorthandInput": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "$ref"
-      ],
-      "properties": {
-        "$ref": {
-          "type": "string"
-        }
-      }
-    },
-    "synthesisGoal": {
-      "type": "object",
-      "additionalProperties": false,
       "properties": {
         "outputKind": {
-          "$ref": "#/$defs/regionKind"
+          "$ref": "GraphRegionKind"
         },
         "type": {
-          "$ref": "#/$defs/typeDescriptor"
+          "$ref": "GraphTypeDescriptor"
         },
-        "schema": true
-      }
+        "schema": {}
+      },
+      "$id": "SynthesisGoal"
     },
-    "typeDescriptor": {
-      "type": "object",
+    "SynthesisGraph": {
       "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "nodes",
+        "finalNodeId"
+      ],
       "properties": {
-        "ts": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "SynthesisNode"
+          }
+        },
+        "finalNodeId": {
           "type": "string"
         },
-        "schema": true
-      }
-    },
-    "regionKind": {
-      "enum": [
-        "identifier",
-        "expression",
-        "expressionSuffix",
-        "statement",
-        "array",
-        "object",
-        "string",
-        "number",
-        "boolean",
-        "null",
-        "objectProperty"
-      ]
+        "goal": {
+          "$ref": "SynthesisGoal"
+        }
+      },
+      "$id": "SynthesisGraph"
     }
-  }
+  },
+  "$ref": "SynthesisGraph"
 }

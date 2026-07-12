@@ -1,0 +1,914 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.synthesize-regions.dev/graph-compilation-result.schema.json",
+  "title": "synthesize-regions GraphCompilationResult",
+  "description": "Structural JSON Schema for strict and partial graph compilation results, including generated artifacts, unresolved inputs, and structured diagnostics.",
+  "$defs": {
+    "CompilationRegionKind": {
+      "anyOf": [
+        {
+          "const": "identifier",
+          "type": "string"
+        },
+        {
+          "const": "expression",
+          "type": "string"
+        },
+        {
+          "const": "expressionSuffix",
+          "type": "string"
+        },
+        {
+          "const": "statement",
+          "type": "string"
+        },
+        {
+          "const": "array",
+          "type": "string"
+        },
+        {
+          "const": "object",
+          "type": "string"
+        },
+        {
+          "const": "string",
+          "type": "string"
+        },
+        {
+          "const": "number",
+          "type": "string"
+        },
+        {
+          "const": "boolean",
+          "type": "string"
+        },
+        {
+          "const": "null",
+          "type": "string"
+        },
+        {
+          "const": "objectProperty",
+          "type": "string"
+        }
+      ],
+      "$id": "CompilationRegionKind"
+    },
+    "CompilationTypeDescriptor": {
+      "additionalProperties": false,
+      "type": "object",
+      "properties": {
+        "ts": {
+          "type": "string"
+        },
+        "schema": {}
+      },
+      "$id": "CompilationTypeDescriptor"
+    },
+    "CompilationRawCodePolicy": {
+      "additionalProperties": false,
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "maxLength": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "allowNewlines": {
+          "type": "boolean"
+        },
+        "forbiddenSubstrings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbiddenPatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "$id": "CompilationRawCodePolicy"
+    },
+    "SynthesisRepairHint": {
+      "additionalProperties": true,
+      "type": "object",
+      "required": [
+        "kind",
+        "message"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "$id": "SynthesisRepairHint"
+    },
+    "SynthesisDiagnostic": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "stage",
+        "code",
+        "severity",
+        "message"
+      ],
+      "properties": {
+        "stage": {
+          "anyOf": [
+            {
+              "const": "graph",
+              "type": "string"
+            },
+            {
+              "const": "template",
+              "type": "string"
+            },
+            {
+              "const": "input",
+              "type": "string"
+            },
+            {
+              "const": "port",
+              "type": "string"
+            },
+            {
+              "const": "region",
+              "type": "string"
+            },
+            {
+              "const": "ast",
+              "type": "string"
+            },
+            {
+              "const": "type",
+              "type": "string"
+            },
+            {
+              "const": "policy",
+              "type": "string"
+            }
+          ]
+        },
+        "code": {
+          "type": "string"
+        },
+        "severity": {
+          "anyOf": [
+            {
+              "const": "error",
+              "type": "string"
+            },
+            {
+              "const": "warning",
+              "type": "string"
+            }
+          ]
+        },
+        "message": {
+          "type": "string"
+        },
+        "nodeId": {
+          "type": "string"
+        },
+        "templateId": {
+          "type": "string"
+        },
+        "inputName": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "expected": {},
+        "actual": {},
+        "repairHints": {
+          "type": "array",
+          "items": {
+            "$ref": "SynthesisRepairHint"
+          }
+        },
+        "compilerCode": {
+          "type": "number"
+        },
+        "compilerCategory": {
+          "anyOf": [
+            {
+              "const": "error",
+              "type": "string"
+            },
+            {
+              "const": "warning",
+              "type": "string"
+            },
+            {
+              "const": "suggestion",
+              "type": "string"
+            },
+            {
+              "const": "message",
+              "type": "string"
+            }
+          ]
+        },
+        "line": {
+          "type": "number"
+        },
+        "column": {
+          "type": "number"
+        }
+      },
+      "$id": "SynthesisDiagnostic"
+    },
+    "FragmentAccepts": {
+      "additionalProperties": false,
+      "type": "object",
+      "properties": {
+        "outputKind": {
+          "$ref": "CompilationRegionKind"
+        },
+        "type": {
+          "$ref": "CompilationTypeDescriptor"
+        },
+        "sourceModelIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "$id": "FragmentAccepts"
+    },
+    "InputPort": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "regionKind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "literal",
+              "type": "string"
+            },
+            "regionKind": {
+              "$ref": "CompilationRegionKind"
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "description": {
+              "type": "string"
+            },
+            "schema": {}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "regionKind",
+            "accepts"
+          ],
+          "properties": {
+            "kind": {
+              "const": "fragment",
+              "type": "string"
+            },
+            "regionKind": {
+              "$ref": "CompilationRegionKind"
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "description": {
+              "type": "string"
+            },
+            "accepts": {
+              "$ref": "FragmentAccepts"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "regionKind",
+            "accepts"
+          ],
+          "properties": {
+            "kind": {
+              "const": "fragmentCollection",
+              "type": "string"
+            },
+            "regionKind": {
+              "$ref": "CompilationRegionKind"
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "description": {
+              "type": "string"
+            },
+            "accepts": {
+              "$ref": "FragmentAccepts"
+            },
+            "separator": {
+              "type": "string"
+            },
+            "minItems": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "regionKind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "rawCode",
+              "type": "string"
+            },
+            "regionKind": {
+              "$ref": "CompilationRegionKind"
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "description": {
+              "type": "string"
+            },
+            "policy": {
+              "$ref": "CompilationRawCodePolicy"
+            },
+            "type": {
+              "$ref": "CompilationTypeDescriptor"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "options"
+          ],
+          "properties": {
+            "kind": {
+              "const": "union",
+              "type": "string"
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "description": {
+              "type": "string"
+            },
+            "options": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "InputPort"
+              }
+            }
+          }
+        }
+      ],
+      "$id": "InputPort"
+    },
+    "GeneratedFragment": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "code",
+        "kind",
+        "source"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "CompilationRegionKind"
+        },
+        "source": {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "templateId"
+          ],
+          "properties": {
+            "templateId": {
+              "type": "string"
+            },
+            "templateVersion": {
+              "type": "string"
+            }
+          }
+        },
+        "type": {
+          "$ref": "CompilationTypeDescriptor"
+        },
+        "schema": {},
+        "provenance": {
+          "additionalProperties": false,
+          "type": "object",
+          "properties": {
+            "nodeId": {
+              "type": "string"
+            },
+            "inputRefs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "literalInputs": {
+              "type": "object",
+              "patternProperties": {
+                "^(.*)$": {}
+              }
+            }
+          }
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "$ref": "SynthesisDiagnostic"
+          }
+        }
+      },
+      "$id": "GeneratedFragment"
+    },
+    "CompleteTemplateArtifact": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "code",
+        "kind",
+        "source",
+        "complete"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "CompilationRegionKind"
+        },
+        "source": {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "templateId"
+          ],
+          "properties": {
+            "templateId": {
+              "type": "string"
+            },
+            "templateVersion": {
+              "type": "string"
+            }
+          }
+        },
+        "type": {
+          "$ref": "CompilationTypeDescriptor"
+        },
+        "schema": {},
+        "provenance": {
+          "additionalProperties": false,
+          "type": "object",
+          "properties": {
+            "nodeId": {
+              "type": "string"
+            },
+            "inputRefs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "literalInputs": {
+              "type": "object",
+              "patternProperties": {
+                "^(.*)$": {}
+              }
+            }
+          }
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "$ref": "SynthesisDiagnostic"
+          }
+        },
+        "complete": {
+          "const": true,
+          "type": "boolean"
+        }
+      },
+      "$id": "CompleteTemplateArtifact"
+    },
+    "PartialTemplateArtifact": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "code",
+        "kind",
+        "source",
+        "complete",
+        "unresolvedInputs"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "CompilationRegionKind"
+        },
+        "source": {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "templateId"
+          ],
+          "properties": {
+            "templateId": {
+              "type": "string"
+            },
+            "templateVersion": {
+              "type": "string"
+            }
+          }
+        },
+        "type": {
+          "$ref": "CompilationTypeDescriptor"
+        },
+        "schema": {},
+        "provenance": {
+          "additionalProperties": false,
+          "type": "object",
+          "properties": {
+            "nodeId": {
+              "type": "string"
+            },
+            "inputRefs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "literalInputs": {
+              "type": "object",
+              "patternProperties": {
+                "^(.*)$": {}
+              }
+            }
+          }
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "$ref": "SynthesisDiagnostic"
+          }
+        },
+        "complete": {
+          "const": false,
+          "type": "boolean"
+        },
+        "unresolvedInputs": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "id",
+              "inputName",
+              "templateId",
+              "port"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "inputName": {
+                "type": "string"
+              },
+              "nodeId": {
+                "type": "string"
+              },
+              "templateId": {
+                "type": "string"
+              },
+              "port": {
+                "$ref": "InputPort"
+              },
+              "path": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "$id": "PartialTemplateArtifact"
+    },
+    "TemplateArtifact": {
+      "anyOf": [
+        {
+          "$ref": "CompleteTemplateArtifact"
+        },
+        {
+          "$ref": "PartialTemplateArtifact"
+        }
+      ],
+      "$id": "TemplateArtifact"
+    },
+    "TemplateArtifactInput": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "const": "literal",
+              "type": "string"
+            },
+            "value": {}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "code"
+          ],
+          "properties": {
+            "kind": {
+              "const": "rawCode",
+              "type": "string"
+            },
+            "code": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "fragment"
+          ],
+          "properties": {
+            "kind": {
+              "const": "fragment",
+              "type": "string"
+            },
+            "fragment": {
+              "$ref": "TemplateArtifact"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "fragments"
+          ],
+          "properties": {
+            "kind": {
+              "const": "fragmentCollection",
+              "type": "string"
+            },
+            "fragments": {
+              "type": "array",
+              "items": {
+                "$ref": "TemplateArtifact"
+              }
+            }
+          }
+        }
+      ],
+      "$id": "TemplateArtifactInput"
+    },
+    "StrictGraphCompilationResult": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "mode",
+            "ok",
+            "finalArtifact",
+            "artifacts",
+            "diagnostics"
+          ],
+          "properties": {
+            "kind": {
+              "const": "graphCompilation",
+              "type": "string"
+            },
+            "mode": {
+              "const": "strict",
+              "type": "string"
+            },
+            "ok": {
+              "const": true,
+              "type": "boolean"
+            },
+            "finalArtifact": {
+              "$ref": "CompleteTemplateArtifact"
+            },
+            "artifacts": {
+              "type": "object",
+              "patternProperties": {
+                "^(.*)$": {
+                  "$ref": "CompleteTemplateArtifact"
+                }
+              }
+            },
+            "diagnostics": {
+              "type": "array",
+              "items": {
+                "$ref": "SynthesisDiagnostic"
+              }
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "mode",
+            "ok",
+            "diagnostics"
+          ],
+          "properties": {
+            "kind": {
+              "const": "graphCompilation",
+              "type": "string"
+            },
+            "mode": {
+              "const": "strict",
+              "type": "string"
+            },
+            "ok": {
+              "const": false,
+              "type": "boolean"
+            },
+            "diagnostics": {
+              "type": "array",
+              "items": {
+                "$ref": "SynthesisDiagnostic"
+              }
+            },
+            "partialArtifacts": {
+              "type": "object",
+              "patternProperties": {
+                "^(.*)$": {
+                  "$ref": "CompleteTemplateArtifact"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "$id": "StrictGraphCompilationResult"
+    },
+    "PartialGraphCompilationResult": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "mode",
+            "ok",
+            "finalArtifact",
+            "artifacts",
+            "diagnostics"
+          ],
+          "properties": {
+            "kind": {
+              "const": "graphCompilation",
+              "type": "string"
+            },
+            "mode": {
+              "const": "partial",
+              "type": "string"
+            },
+            "ok": {
+              "const": true,
+              "type": "boolean"
+            },
+            "finalArtifact": {
+              "$ref": "TemplateArtifact"
+            },
+            "artifacts": {
+              "type": "object",
+              "patternProperties": {
+                "^(.*)$": {
+                  "$ref": "TemplateArtifact"
+                }
+              }
+            },
+            "diagnostics": {
+              "type": "array",
+              "items": {
+                "$ref": "SynthesisDiagnostic"
+              }
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "mode",
+            "ok",
+            "diagnostics"
+          ],
+          "properties": {
+            "kind": {
+              "const": "graphCompilation",
+              "type": "string"
+            },
+            "mode": {
+              "const": "partial",
+              "type": "string"
+            },
+            "ok": {
+              "const": false,
+              "type": "boolean"
+            },
+            "diagnostics": {
+              "type": "array",
+              "items": {
+                "$ref": "SynthesisDiagnostic"
+              }
+            },
+            "partialArtifacts": {
+              "type": "object",
+              "patternProperties": {
+                "^(.*)$": {
+                  "$ref": "TemplateArtifact"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "$id": "PartialGraphCompilationResult"
+    },
+    "GraphCompilationResult": {
+      "anyOf": [
+        {
+          "$ref": "StrictGraphCompilationResult"
+        },
+        {
+          "$ref": "PartialGraphCompilationResult"
+        }
+      ],
+      "$id": "GraphCompilationResult"
+    }
+  },
+  "$ref": "GraphCompilationResult"
+}

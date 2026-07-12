@@ -1,6 +1,21 @@
-import type { GraphTemplateDefinition, InputPort, RawCodePolicy, TemplateRegistry } from "./graphTypes.js";
+import type {
+  GraphTemplateDefinition,
+  InputPort,
+  RawCodePolicy,
+  TemplateCatalogView,
+  TemplateRegistry,
+  TemplateRegistrySnapshot,
+  TemplateSummary
+} from "./graphTypes.js";
+import type { StrictTemplateCatalog } from "./graphStrictTypes.js";
 import { REGION_KIND_VALUES } from "./graphTypes.js";
 import { portIsRequired } from "./compatibility.js";
+import { assertTemplateCatalogValid, TemplateCatalogValidationError } from "./catalogValidation.js";
+import {
+  cloneTemplateSummaries,
+  templateCatalogDigest,
+  templateSummaryContractDigest
+} from "./catalogDigest.js";
 
 const JSON_SCHEMA_URI = "https://json-schema.org/draft/2020-12/schema";
 
@@ -281,7 +296,7 @@ export function graphTemplateDefinitionToJsonSchema(
  * compiler/semantic checks.
  */
 export function templateRegistryToSynthesisGraphJsonSchema(
-  registry: TemplateRegistry
+  registry: TemplateCatalogView
 ): Record<string, unknown> {
   const templates = registry.list();
   const templateNodeSchemaEntries = templates.map((template, index) => [
@@ -322,32 +337,129 @@ export function templateRegistryToSynthesisGraphJsonSchema(
 /** Alias with the shorter name used by callers that already work in registry scope. */
 export const registryToGraphJsonSchema = templateRegistryToSynthesisGraphJsonSchema;
 
-export function defineTemplateCatalog<const T extends readonly GraphTemplateDefinition<any, string, any>[]>(templates: T): T {
+export function defineTemplateCatalog<const T extends readonly GraphTemplateDefinition<any, string, any>[]>(
+  templates: StrictTemplateCatalog<T>
+): T {
+  templateCatalogDigest(templates);
   return templates;
 }
 
-export function createTemplateRegistry(initialTemplates: readonly GraphTemplateDefinition<any, string>[] = []): TemplateRegistry {
-  const templates = new Map<string, GraphTemplateDefinition<any, string>>();
+interface CatalogState {
+  readonly templates: Map<string, GraphTemplateDefinition<any, string>>;
+  readonly summaries: TemplateSummary[];
+  readonly contractDigest: string;
+}
 
-  for (const template of initialTemplates) {
-    templates.set(template.modelId, template);
+function compareTemplates(
+  left: GraphTemplateDefinition<any, string>,
+  right: GraphTemplateDefinition<any, string>
+): number {
+  return left.modelId < right.modelId ? -1 : left.modelId > right.modelId ? 1 : 0;
+}
+
+function createCatalogState(
+  templates: readonly GraphTemplateDefinition<any, string>[]
+): CatalogState {
+  assertTemplateCatalogValid(templates);
+  const sortedTemplates = [...templates].sort(compareTemplates);
+  let summaries: TemplateSummary[];
+  let contractDigest: string;
+  try {
+    summaries = cloneTemplateSummaries(sortedTemplates.map(template => template.summary()));
+    contractDigest = templateSummaryContractDigest(summaries);
+  } catch (error) {
+    throw new TemplateCatalogValidationError([{
+      stage: "template",
+      code: "CatalogContractNotSerializable",
+      severity: "error",
+      message: "Template catalog metadata must be deterministic JSON data.",
+      actual: error instanceof Error ? { name: error.name, message: error.message } : error
+    }]);
   }
 
   return {
-    register(template) {
-      templates.set(template.modelId, template);
-    },
+    templates: new Map(sortedTemplates.map(template => [template.modelId, template])),
+    summaries,
+    contractDigest
+  };
+}
 
-    get(templateId) {
+function snapshotFromState(state: CatalogState): TemplateRegistrySnapshot {
+  const templates = new Map(state.templates);
+  const summaries = cloneTemplateSummaries(state.summaries);
+  return Object.freeze({
+    contractDigest: state.contractDigest,
+    get(templateId: string) {
       return templates.get(templateId);
     },
-
     list() {
       return [...templates.values()];
     },
+    summaries() {
+      return cloneTemplateSummaries(summaries);
+    }
+  });
+}
+
+export function createTemplateRegistry(): TemplateRegistry;
+export function createTemplateRegistry<
+  const T extends readonly GraphTemplateDefinition<any, string, any>[]
+>(initialTemplates: StrictTemplateCatalog<T>): TemplateRegistry;
+export function createTemplateRegistry(
+  initialTemplates: readonly GraphTemplateDefinition<any, string>[] = []
+): TemplateRegistry {
+  let state = createCatalogState(initialTemplates);
+
+  return {
+    get contractDigest() {
+      return state.contractDigest;
+    },
+
+    register(template) {
+      const nextState = createCatalogState([...state.templates.values(), template]);
+      state = nextState;
+    },
+
+    registerAll(templates) {
+      if (templates.length === 0) return;
+      const candidate = [...state.templates.values(), ...templates];
+      const nextState = createCatalogState(candidate);
+      state = nextState;
+    },
+
+    replace(template) {
+      if (!state.templates.has(template.modelId)) {
+        throw new TemplateCatalogValidationError([{
+          stage: "template",
+          code: "UnknownTemplateReplacement",
+          severity: "error",
+          message: `Cannot replace unknown template ${template.modelId}.`,
+          templateId: template.modelId,
+          path: "template.modelId",
+          expected: [...state.templates.keys()],
+          actual: template.modelId
+        }]);
+      }
+      const candidate = new Map(state.templates);
+      candidate.set(template.modelId, template);
+      const nextState = createCatalogState([...candidate.values()]);
+      state = nextState;
+    },
+
+    get(templateId) {
+      return state.templates.get(templateId);
+    },
+
+    list() {
+      return [...state.templates.values()];
+    },
 
     summaries() {
-      return [...templates.values()].map(template => template.summary());
+      return cloneTemplateSummaries(state.summaries);
+    },
+
+    snapshot() {
+      return snapshotFromState(state);
     }
   };
 }

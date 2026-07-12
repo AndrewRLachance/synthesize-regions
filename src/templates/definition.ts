@@ -194,6 +194,15 @@ function partialChildInputs(inputs: Record<string, ResolvedGraphInput>): Unresol
     return [...unresolved.values()]
 }
 
+/** Preserve marker-bearing partial fragments instead of reducing them through structured AST values. */
+function partialArtifactReplacementCode(input: ResolvedGraphInput): string | undefined {
+    if (input.kind === 'fragment' && input.fragment.complete === false) return input.fragment.code
+    if (input.kind === 'fragmentCollection' && input.fragments.some(fragment => fragment.complete === false)) {
+        return input.fragments.map(fragment => fragment.code).join(input.port.separator ?? '\n')
+    }
+    return undefined
+}
+
 /**
  * Define a typed template that can validate ergonomic input values, synthesize
  * marker replacements, and brand the generated output with its model ID.
@@ -271,7 +280,14 @@ export function defineTemplate<
             },
 
             invokePartial(invocation: GraphTemplatePartialInvocation): TemplateArtifact {
-                const replacements = graphInputsToReplacementMap(invocation.inputs)
+                const passthroughCode = new Map<string, string>()
+                const serializedInputs: Record<string, ResolvedGraphInput> = {}
+                for (const [inputName, input] of Object.entries(invocation.inputs)) {
+                    const code = partialArtifactReplacementCode(input)
+                    if (code === undefined) serializedInputs[inputName] = input
+                    else passthroughCode.set(inputName, code)
+                }
+                const replacements = graphInputsToReplacementMap(serializedInputs)
                 const generationOptions: GenerateOptions = {
                     ...(invocation.options ?? {}),
                     templateMode: invocation.options?.templateMode ?? templateMode
@@ -287,6 +303,17 @@ export function defineTemplate<
 
                 for (const region of regions) {
                     if (Object.prototype.hasOwnProperty.call(replacements, region.id)) continue
+
+                    const passthrough = passthroughCode.get(region.id)
+                    if (passthrough !== undefined) {
+                        edits.push({
+                            start: region.startCommentStart,
+                            end: region.endCommentEnd,
+                            text: passthrough,
+                            region
+                        })
+                        continue
+                    }
 
                     const unresolved = invocation.unresolvedInputs[region.id]
                     if (unresolved) {

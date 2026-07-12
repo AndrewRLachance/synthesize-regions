@@ -282,10 +282,13 @@ generation.
 
 ```ts
 import {
+  buildGraphCompiler,
   compileGraph,
   createGraphRunner,
   createTemplateRegistry,
+  defineTemplateCatalog,
   defineTemplate,
+  fillTemplateArtifact,
   fragmentPort,
   literalPort,
   rawCodePort,
@@ -329,7 +332,11 @@ const MapBooleanArray = defineTemplate({
   template: region => `${region("source")}.map(x => Boolean(x))`
 });
 
-const registry = createTemplateRegistry([BooleanArrayLiteral, MapBooleanArray]);
+const catalog = defineTemplateCatalog([
+  BooleanArrayLiteral,
+  MapBooleanArray
+] as const);
+const registry = createTemplateRegistry(catalog);
 
 const graph: SynthesisGraph = {
   nodes: [
@@ -362,6 +369,102 @@ if (result.ok) {
   // [true, false, true].map(x => Boolean(x))
 }
 ```
+
+### Validated and reproducible catalogs
+
+Catalogs are validated before graph compilation. `defineTemplateCatalog()`,
+initial registry construction, and every registry mutation reject duplicate
+template IDs, invalid or mixed-region unions, invalid collection bounds,
+malformed raw-code policies, and broken fragment source allowlists. Use
+`validateTemplateCatalog()` when diagnostics are preferable to an exception;
+construction and mutation throw `TemplateCatalogValidationError` containing all
+catalog issues.
+
+Registry mutations are explicit and atomic:
+
+```ts
+const registryForUpdates = createTemplateRegistry();
+
+registryForUpdates.register(BooleanArrayLiteral); // insert only
+registryForUpdates.registerAll([MapBooleanArray]); // one validated batch
+registryForUpdates.replace(MapBooleanArray); // existing modelId only
+```
+
+`registerAll()` permits forward and mutually referencing templates within its
+batch. Self references and an explicit empty `sourceModelIds` allowlist are also
+valid. A failed registration or replacement leaves the registry unchanged,
+including its ordering and digest. `list()` and `summaries()` are always sorted
+by `modelId`, independent of registration order.
+
+Use a snapshot and its planner-contract digest to keep planning and execution on
+the same catalog contract:
+
+```ts
+const snapshot = registry.snapshot();
+const compiler = buildGraphCompiler(registry);
+const digest = snapshot.contractDigest; // c1_<sha256>
+const runner = createGraphRunner(snapshot, graph, {
+  expectedCatalogDigest: digest
+});
+
+console.log(compiler.contractDigest === digest); // true
+console.log(runner.contractDigest === digest); // true
+
+const result = compileGraph(graph, snapshot, {
+  mode: "strict",
+  expectedCatalogDigest: digest
+});
+```
+
+Snapshots implement the read-only `TemplateCatalogView` API and capture
+immutable membership, summaries, and digest. Compilation and registry-specific
+schema generation accept this view without requiring a mutable registry. Graph
+compilers and runners likewise capture one catalog snapshot when created, so
+later registry mutations do not alter an active session. A mismatched
+`expectedCatalogDigest` returns a `CatalogDigestMismatch` diagnostic; a runner
+transitions to `failed` for the same mismatch.
+
+The versioned `c1_` digest hashes normalized planner-facing summaries, including
+versions, descriptions, inputs, defaulted port settings, policies, allowlists,
+schemas, types, and outputs. It intentionally excludes template function
+source. Change a template's `version` when implementation behavior changes
+without a metadata change. Snapshot membership is frozen, while executable
+closure purity remains the template author's responsibility.
+
+Partial compilation preserves required inputs as durable artifact markers. Each
+entry in `unresolvedInputs` has a stable opaque ID; use that ID when filling a
+persisted artifact. A unique `inputName` is accepted as a convenience alias,
+but unknown, ambiguous, conflicting, repeated, and post-completion fills are
+rejected with structured diagnostics.
+
+```ts
+const partial = compileGraph(incompleteGraph, registry, {
+  mode: "partial",
+  compilationScope: "repair-job-42"
+});
+
+if (partial.ok && partial.finalArtifact.complete === false) {
+  const input = partial.finalArtifact.unresolvedInputs[0];
+  const filled = fillTemplateArtifact(partial.finalArtifact, {
+    [input.id]: { kind: "rawCode", code: "request.user.id" }
+  });
+}
+```
+
+Without `compilationScope`, IDs are reproducibly derived from the normalized
+graph. Supply a stable job or session ID when separately persisted instances of
+the same graph may later be merged; use distinct scopes when those instances
+must remain independent. Artifact filling verifies that unique marker IDs and
+`unresolvedInputs` correspond exactly before and after every operation. One
+logical ID may appear at multiple code locations when a partial child is reused,
+and one fill intentionally resolves every such occurrence.
+
+For authored template catalogs, `buildGraphCompiler(...).defineGraph(...)`
+checks the graph against the catalog while it is written. This checking is
+recursive: inline nodes and inline collection items must select known
+templates, provide exact required inputs, and produce compatible fragments.
+All top-level and inline node IDs share one namespace for references and must be
+unique, matching the graph produced by runtime inline-node normalization.
 
 Graph compilation can opt into project-aware TypeScript semantic validation of
 the complete final artifact:
@@ -575,6 +678,7 @@ The package includes draft 2020-12 JSON Schemas for JSON-shaped public data:
 schemas/replacement-map.schema.json
 schemas/synthesis-graph.schema.json
 schemas/template-summary.schema.json
+schemas/graph-compilation-result.schema.json
 ```
 
 Package export paths:
@@ -583,6 +687,7 @@ Package export paths:
 synthesize-regions/schemas/replacement-map.schema.json
 synthesize-regions/schemas/synthesis-graph.schema.json
 synthesize-regions/schemas/template-summary.schema.json
+synthesize-regions/schemas/graph-compilation-result.schema.json
 ```
 
 Example import:
@@ -591,6 +696,7 @@ Example import:
 import replacementMapSchema from "synthesize-regions/schemas/replacement-map.schema.json" with { type: "json" };
 import synthesisGraphSchema from "synthesize-regions/schemas/synthesis-graph.schema.json" with { type: "json" };
 import templateSummarySchema from "synthesize-regions/schemas/template-summary.schema.json" with { type: "json" };
+import graphCompilationResultSchema from "synthesize-regions/schemas/graph-compilation-result.schema.json" with { type: "json" };
 ```
 
 The replacement-map schema validates replacement IDs, replacement `kind`
@@ -598,7 +704,15 @@ discriminators, nested expression replacements, and non-empty arrays for list
 replacement values. The synthesis-graph schema validates graph structure,
 node/input discriminators, inline nodes, ref shorthand, and final-goal shape. The
 template-summary schema validates the planner-facing metadata returned by
-template registries.
+template registries. The graph-compilation-result schema validates strict and
+partial successes and failures, complete and unresolved artifacts, and structured
+graph diagnostics.
+
+The graph, template-summary, and compilation-result documents are generated from
+the live TypeBox contracts in the package. Run `npm run schemas:generate` after a
+contract change, or `npm run schemas:check` to detect missing or stale committed
+documents. JSON is the supported published format; catalog-specific schemas are
+still generated dynamically by the registry APIs.
 
 These schemas are structural. Marker-specific compatibility, template existence,
 graph cycles, literal schema checks, raw TypeScript syntax, and security policy
@@ -655,6 +769,7 @@ InvalidIdentifierError
 EmptyManyReplacementError
 SecurityPolicyViolationError
 FinalValidationError
+TemplateCatalogValidationError
 ```
 
 ## Public API
@@ -665,9 +780,11 @@ template helpers:
 
 ```ts
 import {
+  buildGraphCompiler,
   code,
   compileGraph,
   createTemplateRegistry,
+  defineTemplateCatalog,
   defineTemplate,
   discoverReplacementRegions,
   fragmentPort,
@@ -675,8 +792,12 @@ import {
   graphTemplateDefinitionToJsonSchema,
   literalPort,
   rawCodePort,
+  templateCatalogDigest,
   unionPort,
-  type ReplacementMap
+  validateTemplateCatalog,
+  type ReplacementMap,
+  type TemplateCatalogView,
+  type TemplateRegistrySnapshot
 } from "synthesize-regions";
 ```
 
@@ -690,7 +811,15 @@ discoverFileReplacementRegions(inputFilePath, options?)
 scanReplacementRegions(sourceText)
 serializeReplacement(replacement, options?, region?)
 defineTemplate(definition)
+defineTemplateCatalog(templates)
+validateTemplateCatalog(templates)
+templateCatalogDigest(templates)
 createTemplateRegistry(templates?)
+registry.register(template)
+registry.registerAll(templates)
+registry.replace(template)
+registry.snapshot()
+buildGraphCompiler(templates)
 graphTemplateDefinitionToJsonSchema(template)
 compileGraph(graph, registryOrTemplates, { mode: "strict" | "partial", ...options })
 createGraphRunner(registryOrTemplates, graph, options?)

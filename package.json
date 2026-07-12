@@ -13,6 +13,7 @@
     "./schemas/replacement-map.schema.json": "./schemas/replacement-map.schema.json",
     "./schemas/synthesis-graph.schema.json": "./schemas/synthesis-graph.schema.json",
     "./schemas/template-summary.schema.json": "./schemas/template-summary.schema.json",
+    "./schemas/graph-compilation-result.schema.json": "./schemas/graph-compilation-result.schema.json",
     "./builders": {
       "types": "./dist/builders.d.ts",
       "import": "./dist/builders.js"
@@ -26,7 +27,13 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.typecheck.json --noEmit",
-    "test": "vitest run"
+    "schemas:generate": "node --import tsx scripts/generate-schemas.ts",
+    "schemas:check": "node --import tsx scripts/generate-schemas.ts --check",
+    "pretest": "npm run schemas:check",
+    "test": "vitest run",
+    "test:package": "npm run schemas:check && npm run build && node --import tsx scripts/package-smoke.ts",
+    "prepack": "npm run schemas:check && npm run build",
+    "verify": "npm run typecheck && npm test && npm run test:package"
   },
   "dependencies": {
     "@sinclair/typebox": "^0.34.51",
@@ -37,6 +44,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
+    "ajv": "^8.20.0",
     "tsx": "^4.19.2",
     "vitest": "^2.1.8"
   }

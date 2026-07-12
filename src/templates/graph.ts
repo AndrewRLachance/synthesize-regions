@@ -2,8 +2,10 @@ import type { TemplateMode } from '../core/types.js'
 import { buildReplacementEdits } from '../replacements/serialize.js'
 import { discoverReplacementRegions } from '../regions/discovery.js'
 import { wrapTemplateSource } from './templateMode.js'
-import { createProject, createSourceFile, structuredSemanticDiagnostics } from '../validation/ast.js'
+import { assertFinalValid, createProject, createSourceFile, structuredSemanticDiagnostics } from '../validation/ast.js'
 import { graphInputsToReplacementMap } from './converter.js'
+import { canonicalizeJson, createCompilationScope, createUnresolvedInputId } from './artifactIdentity.js'
+import { validateTemplateArtifactIntegrity } from './artifactIntegrity.js'
 import type {
 	AuthoredGraphInput,
 	CompleteTemplateArtifact,
@@ -18,9 +20,11 @@ import type {
 	GraphNormalizationResult,
 	InputPort,
 	NormalizedSynthesisInput,
+	PartialTemplateArtifact,
 	RawCodeInputPort,
 	ResolvedGraphInput,
 	StrictSynthesisGraph,
+	StrictTemplateCatalog,
 	SynthesisDiagnostic,
 	SynthesisGraph,
 	SynthesisInput,
@@ -29,7 +33,8 @@ import type {
 	TemplateArtifactInput,
 	TemplateArtifactInputMap,
 	TemplateArtifactResult,
-	TemplateRegistry,
+	TemplateCatalogView,
+	TemplateRegistrySnapshot,
 	UnresolvedTemplateInput
 } from './graphTypes.js'
 import { fragmentPortOutputKind, isTypeCompatible, portIsRequired, validateJsonSchemaSubset } from './compatibility.js'
@@ -85,6 +90,34 @@ function validateArtifactSemantics(
 	})
 }
 
+/** Syntactically validate an artifact using the wrapper implied by its output kind. */
+function validateArtifactSyntax(
+	artifact: TemplateArtifact,
+	options: GraphCompileOptions
+): SynthesisDiagnostic[] {
+	try {
+		const mode = templateModeForArtifact(artifact)
+		const wrapped = wrapTemplateSource(artifact.code, mode)
+		const filePath = options.filePath ?? '__template_artifact_validation__.ts'
+		const project = createProject(options)
+		const sourceFile = createSourceFile(project, wrapped.wrappedText, filePath)
+		assertFinalValid(sourceFile, filePath, false)
+		return []
+	} catch (error) {
+		return [errorDiagnostic({
+			stage: 'ast',
+			code: 'GeneratedTypeScriptInvalid',
+			message: error instanceof Error ? error.message : String(error),
+			...(artifact.id ? { nodeId: artifact.id } : {}),
+			templateId: artifact.source.templateId,
+			...(options.filePath ? { path: options.filePath } : {}),
+			actual: error instanceof Error
+				? { name: error.name, message: error.message }
+				: error
+		})]
+	}
+}
+
 /** Detect shorthand graph references of the form `{ "$ref": "nodeId" }`. */
 function isRefShorthand(input: SynthesisInput): input is { $ref: string } {
 	return typeof input === 'object' && input !== null && '$ref' in input && typeof input.$ref === 'string'
@@ -99,13 +132,18 @@ export function normalizeSynthesisInput(input: SynthesisInput): Exclude<Synthesi
 export function defineGraph<
 	const TTemplates extends readonly GraphTemplateDefinition<any, string>[],
 	const TGraph extends AuthoredGraphInput
->(templates: TTemplates, graph: StrictSynthesisGraph<TTemplates, TGraph>): DefinedSynthesisGraph<TTemplates> {
-	void templates
+>(
+	templates: TTemplates & StrictTemplateCatalog<TTemplates>,
+	graph: StrictSynthesisGraph<TTemplates, TGraph>
+): DefinedSynthesisGraph<TTemplates> {
+	createTemplateRegistry(templates as StrictTemplateCatalog<TTemplates>)
 	return graph as unknown as DefinedSynthesisGraph<TTemplates>
 }
 
 /** Callable graph compiler with strict and partial compilation entrypoints. */
 export type GraphCompiler<TTemplates extends readonly GraphTemplateDefinition<any, string>[]> = {
+	/** Stable planner-contract digest captured when this compiler was built. */
+	readonly contractDigest: string
 	/** Compile a previously defined graph with strict required-input behavior. */
 	(graph: DefinedSynthesisGraph<TTemplates>): GraphCompilationResult
 	/** Compile an inline typed graph with strict required-input behavior. */
@@ -120,27 +158,44 @@ export type GraphCompiler<TTemplates extends readonly GraphTemplateDefinition<an
 
 /** Build a typed compiler from an authored template catalog. */
 export function buildGraphCompiler<const TTemplates extends readonly GraphTemplateDefinition<any, string>[]>(
-	templates: TTemplates,
+	templates: TTemplates & StrictTemplateCatalog<TTemplates>,
 	options?: GraphCompileOptions
-): GraphCompiler<TTemplates> {
+): GraphCompiler<TTemplates>
+
+/** Build a runtime compiler from an already validated catalog view. */
+export function buildGraphCompiler(
+	templates: TemplateCatalogView,
+	options?: GraphCompileOptions
+): GraphCompiler<readonly GraphTemplateDefinition<any, string>[]>
+
+export function buildGraphCompiler(
+	templates: TemplateCatalogView | readonly GraphTemplateDefinition<any, string>[],
+	options?: GraphCompileOptions
+): GraphCompiler<readonly GraphTemplateDefinition<any, string>[]> {
+	const catalog = templateRegistryFromInput(templates)
 	const compiler = (graph: SynthesisGraph, callOptions?: GraphCompileOptions & { mode?: 'strict' | 'partial' }) =>
-		compileGraph(graph as never, templates, { ...options, ...callOptions } as never)
-	compiler.defineGraph = (graph: AuthoredGraphInput) => defineGraph(templates, graph as never)
-	return compiler as GraphCompiler<TTemplates>
+		compileGraph(graph as never, catalog, { ...options, ...callOptions } as never)
+	Object.defineProperty(compiler, 'contractDigest', { value: catalog.contractDigest, enumerable: true })
+	compiler.defineGraph = (graph: AuthoredGraphInput) => graph as never
+	return compiler as unknown as GraphCompiler<readonly GraphTemplateDefinition<any, string>[]>
 }
 
 /** Distinguish a template catalog array from a registry instance. */
 function isTemplateCatalog(
-	value: TemplateRegistry | readonly GraphTemplateDefinition<any, string>[]
+	value: TemplateCatalogView | readonly GraphTemplateDefinition<any, string>[]
 ): value is readonly GraphTemplateDefinition<any, string>[] {
 	return Array.isArray(value)
 }
 
-/** Convert either supported template source into a registry. */
+/** Capture either supported template source as one immutable validated catalog. */
 function templateRegistryFromInput(
-	registryOrTemplates: TemplateRegistry | readonly GraphTemplateDefinition<any, string>[]
-): TemplateRegistry {
-	return isTemplateCatalog(registryOrTemplates) ? createTemplateRegistry(registryOrTemplates) : registryOrTemplates
+	registryOrTemplates: TemplateCatalogView | readonly GraphTemplateDefinition<any, string>[]
+): TemplateRegistrySnapshot {
+	if (isTemplateCatalog(registryOrTemplates)) return createTemplateRegistry(registryOrTemplates).snapshot()
+	if ('snapshot' in registryOrTemplates && typeof registryOrTemplates.snapshot === 'function') {
+		return registryOrTemplates.snapshot()
+	}
+	return createTemplateRegistry(registryOrTemplates.list()).snapshot()
 }
 
 /** Expand inline nodes and shorthand references before validation/execution. */
@@ -219,7 +274,7 @@ function templateInputs(template: GraphTemplateDefinition): Record<string, Input
 /** Validate graph shape and static references before any template invocation. */
 function validateStaticGraph(
 	graph: SynthesisGraph,
-	registry: TemplateRegistry,
+	registry: TemplateCatalogView,
 	options: { allowMissingRequiredInputs?: boolean } = {}
 ): { diagnostics: SynthesisDiagnostic[]; nodesById: Map<string, SynthesisNode> } {
 	const diagnostics: SynthesisDiagnostic[] = []
@@ -620,25 +675,6 @@ function validateFinalGoal(graph: SynthesisGraph, finalFragment: TemplateArtifac
 	return diagnostics
 }
 
-let partialScopeCounter = 0
-
-/** Allocate a process-local scope for independently compiled partial artifacts. */
-function nextPartialScope(): string {
-	partialScopeCounter += 1
-	return `partial${partialScopeCounter}`
-}
-
-/** Convert arbitrary graph IDs into marker-ID-safe scope segments. */
-function sanitizeScopePart(value: string): string {
-	const sanitized = value.replace(/[^A-Za-z0-9_]/gu, '_')
-	return /^[A-Za-z_]/u.test(sanitized) ? sanitized : `_${sanitized}`
-}
-
-/** Create a stable scoped marker ID for a missing graph input. */
-function scopedInputId(scope: string, nodeId: string, inputName: string): string {
-	return `${sanitizeScopePart(scope)}__${sanitizeScopePart(nodeId)}__${sanitizeScopePart(inputName)}`
-}
-
 /** Pick the partial-template parser wrapper needed for an artifact kind. */
 function templateModeForArtifact(artifact: TemplateArtifact): TemplateMode {
 	return templateModeForRegionKind(artifact.kind)
@@ -647,6 +683,29 @@ function templateModeForArtifact(artifact: TemplateArtifact): TemplateMode {
 /** Return a complete artifact shape for complete fragments/artifacts. */
 function completeArtifact(artifact: TemplateArtifact): TemplateArtifact {
 	return artifact.complete === false ? artifact : { ...artifact, complete: true }
+}
+
+/** Return partial child artifacts carried by a resolved fill value. */
+function partialArtifactsFromResolvedInput(input: ResolvedGraphInput): PartialTemplateArtifact[] {
+	if (input.kind === 'fragment') return input.fragment.complete === false ? [input.fragment] : []
+	if (input.kind === 'fragmentCollection') {
+		return input.fragments.filter((fragment): fragment is PartialTemplateArtifact => fragment.complete === false)
+	}
+	return []
+}
+
+/** Return source that must bypass structured AST conversion to preserve child markers. */
+function partialArtifactReplacementCode(input: ResolvedGraphInput): string | undefined {
+	if (input.kind === 'fragment' && input.fragment.complete === false) return input.fragment.code
+	if (input.kind === 'fragmentCollection' && input.fragments.some(fragment => fragment.complete === false)) {
+		return input.fragments.map(fragment => fragment.code).join(input.port.separator ?? '\n')
+	}
+	return undefined
+}
+
+/** Compare unresolved descriptors when one logical child is composed repeatedly. */
+function unresolvedInputsEquivalent(left: UnresolvedTemplateInput, right: UnresolvedTemplateInput): boolean {
+	return canonicalizeJson(left) === canonicalizeJson(right)
 }
 
 /** Resolve one caller-provided fill value against an unresolved input port. */
@@ -701,54 +760,169 @@ function resolveArtifactInput(
 	}
 }
 
-/** Look up a fill by scoped marker ID, or by unique original input name. */
-function findArtifactFill(
-	inputs: TemplateArtifactInputMap,
-	inputNameCounts: Map<string, number>,
-	id: string,
-	inputName: string
-): TemplateArtifactInput | undefined {
-	if (Object.prototype.hasOwnProperty.call(inputs, id)) return inputs[id]
-	if (inputNameCounts.get(inputName) === 1 && Object.prototype.hasOwnProperty.call(inputs, inputName)) {
-		return inputs[inputName]
+interface PlannedArtifactFill {
+	readonly key: string
+	readonly unresolvedInput: UnresolvedTemplateInput
+	readonly fill: TemplateArtifactInput
+}
+
+/** Resolve every supplied key transactionally to an exact unresolved input. */
+function planArtifactFills(
+	artifact: PartialTemplateArtifact,
+	inputs: TemplateArtifactInputMap
+): { fills: Map<string, PlannedArtifactFill>; diagnostics: SynthesisDiagnostic[] } {
+	const diagnostics: SynthesisDiagnostic[] = []
+	const fills = new Map<string, PlannedArtifactFill>()
+	const unresolvedById = new Map(artifact.unresolvedInputs.map(input => [input.id, input]))
+	const unresolvedByName = new Map<string, UnresolvedTemplateInput[]>()
+	for (const unresolvedInput of artifact.unresolvedInputs) {
+		const named = unresolvedByName.get(unresolvedInput.inputName)
+		if (named) named.push(unresolvedInput)
+		else unresolvedByName.set(unresolvedInput.inputName, [unresolvedInput])
 	}
-	return undefined
+
+	for (const key of Object.keys(inputs)) {
+		let target = unresolvedById.get(key)
+		if (!target) {
+			const candidates = unresolvedByName.get(key)
+			if (!candidates) {
+				diagnostics.push(errorDiagnostic({
+					stage: 'input',
+					code: 'UnknownArtifactFillKey',
+					message: `Fill key ${key} does not match an unresolved artifact input.`,
+					...(artifact.id ? { nodeId: artifact.id } : {}),
+					templateId: artifact.source.templateId,
+					path: `inputs.${key}`,
+					expected: artifact.unresolvedInputs.map(input => input.id),
+					actual: key,
+					repairHints: [{
+						kind: 'useScopedArtifactInputId',
+						message: 'Use an exact ID from artifact.unresolvedInputs.'
+					}]
+				}))
+				continue
+			}
+			if (candidates.length !== 1) {
+				diagnostics.push(errorDiagnostic({
+					stage: 'input',
+					code: 'AmbiguousArtifactInputAlias',
+					message: `Input-name alias ${key} matches more than one unresolved artifact input.`,
+					...(artifact.id ? { nodeId: artifact.id } : {}),
+					templateId: artifact.source.templateId,
+					inputName: key,
+					path: `inputs.${key}`,
+					expected: candidates.map(candidate => candidate.id),
+					actual: key,
+					repairHints: [{
+						kind: 'useScopedArtifactInputId',
+						message: 'Use one of the exact candidate IDs.'
+					}]
+				}))
+				continue
+			}
+			target = candidates[0]
+		}
+
+		if (!target) continue
+		const existing = fills.get(target.id)
+		if (existing) {
+			diagnostics.push(errorDiagnostic({
+				stage: 'input',
+				code: 'ConflictingArtifactFillKeys',
+				message: `Fill keys ${existing.key} and ${key} target the same unresolved artifact input.`,
+				...(artifact.id ? { nodeId: artifact.id } : {}),
+				templateId: artifact.source.templateId,
+				inputName: target.inputName,
+				path: `inputs.${key}`,
+				expected: { id: target.id, oneFillKey: true },
+				actual: [existing.key, key]
+			}))
+			continue
+		}
+
+		const fill = inputs[key]
+		if (fill) fills.set(target.id, { key, unresolvedInput: target, fill })
+	}
+
+	return { fills, diagnostics }
+}
+
+/** Return fragments nested in a caller-provided fill. */
+function fillArtifacts(fill: TemplateArtifactInput): TemplateArtifact[] {
+	if (fill.kind === 'fragment') return [fill.fragment]
+	if (fill.kind === 'fragmentCollection') return fill.fragments
+	return []
 }
 
 /**
- * Fill any matching unresolved inputs in a template artifact.
+ * Transactionally fill matching unresolved inputs in a template artifact.
  *
- * Inputs may be keyed by the scoped marker ID exposed in `unresolvedInputs`, or
+ * Inputs may be keyed by the opaque marker ID exposed in `unresolvedInputs`, or
  * by the original input name when that name appears only once in the artifact.
+ * Unknown, ambiguous, conflicting, and already-consumed keys are rejected.
  */
 export function fillTemplateArtifact(
 	artifact: TemplateArtifact,
 	inputs: TemplateArtifactInputMap,
 	options: GraphCompileOptions = {}
 ): TemplateArtifactResult {
+	const integrityDiagnostics = validateTemplateArtifactIntegrity(artifact)
+	if (integrityDiagnostics.some(diagnostic => diagnostic.severity === 'error')) {
+		return { kind: 'templateArtifact', ok: false, diagnostics: integrityDiagnostics, artifact }
+	}
+
+	const syntaxDiagnostics = validateArtifactSyntax(artifact, options)
+	if (syntaxDiagnostics.some(diagnostic => diagnostic.severity === 'error')) {
+		return { kind: 'templateArtifact', ok: false, diagnostics: syntaxDiagnostics, artifact }
+	}
+
 	if (artifact.complete !== false) {
 		const complete = completeArtifact(artifact) as CompleteTemplateArtifact
+		if (Object.keys(inputs).length > 0) {
+			return {
+				kind: 'templateArtifact',
+				ok: false,
+				artifact: complete,
+				diagnostics: [errorDiagnostic({
+					stage: 'input',
+					code: 'ArtifactAlreadyComplete',
+					message: 'A complete template artifact cannot accept additional fills.',
+					...(complete.id ? { nodeId: complete.id } : {}),
+					templateId: complete.source.templateId,
+					path: 'inputs',
+					expected: {},
+					actual: Object.keys(inputs)
+				})]
+			}
+		}
 		const diagnostics = validateArtifactSemantics(complete, options)
 		return diagnostics.some(diagnostic => diagnostic.severity === 'error')
 			? { kind: 'templateArtifact', ok: false, artifact: complete, diagnostics }
 			: { kind: 'templateArtifact', ok: true, artifact: complete, diagnostics }
 	}
 
-	const diagnostics: SynthesisDiagnostic[] = []
-	const inputNameCounts = new Map<string, number>()
-	for (const unresolvedInput of artifact.unresolvedInputs) {
-		inputNameCounts.set(unresolvedInput.inputName, (inputNameCounts.get(unresolvedInput.inputName) ?? 0) + 1)
+	const plan = planArtifactFills(artifact, inputs)
+	if (plan.diagnostics.some(diagnostic => diagnostic.severity === 'error')) {
+		return { kind: 'templateArtifact', ok: false, diagnostics: plan.diagnostics, artifact }
 	}
 
+	const diagnostics: SynthesisDiagnostic[] = []
 	const resolvedInputs: Record<string, ResolvedGraphInput> = {}
-	const remaining: UnresolvedTemplateInput[] = []
-
+	const remainingById = new Map<string, UnresolvedTemplateInput>()
+	const filledTargetIds = new Set(plan.fills.keys())
 	for (const unresolvedInput of artifact.unresolvedInputs) {
-		const fill = findArtifactFill(inputs, inputNameCounts, unresolvedInput.id, unresolvedInput.inputName)
-		if (!fill) {
-			remaining.push(unresolvedInput)
-			continue
+		if (!filledTargetIds.has(unresolvedInput.id)) remainingById.set(unresolvedInput.id, unresolvedInput)
+	}
+
+	for (const { unresolvedInput, fill } of plan.fills.values()) {
+		for (const childArtifact of fillArtifacts(fill)) {
+			const childIntegrity = validateTemplateArtifactIntegrity(childArtifact)
+			diagnostics.push(...childIntegrity)
+			if (!childIntegrity.some(diagnostic => diagnostic.severity === 'error')) {
+				diagnostics.push(...validateArtifactSyntax(childArtifact, options))
+			}
 		}
+		if (diagnostics.some(diagnostic => diagnostic.severity === 'error')) continue
 
 		const node: SynthesisNode = {
 			id: unresolvedInput.nodeId ?? artifact.id ?? '__artifact__',
@@ -762,6 +936,26 @@ export function fillTemplateArtifact(
 		}
 		if (resolved) {
 			resolvedInputs[unresolvedInput.id] = resolved
+			for (const childArtifact of partialArtifactsFromResolvedInput(resolved)) {
+				for (const childInput of childArtifact.unresolvedInputs) {
+					const existing = remainingById.get(childInput.id)
+					if (filledTargetIds.has(childInput.id) || (existing && !unresolvedInputsEquivalent(existing, childInput))) {
+						diagnostics.push(errorDiagnostic({
+							stage: 'input',
+							code: 'ArtifactInputIdCollision',
+							message: `Nested partial artifact input ID ${childInput.id} conflicts with another logical input.`,
+							...(artifact.id ? { nodeId: artifact.id } : {}),
+							templateId: artifact.source.templateId,
+							inputName: childInput.inputName,
+							path: childInput.path ?? 'unresolvedInputs',
+							expected: existing ?? { idNotInFilledTargets: true },
+							actual: childInput
+						}))
+						continue
+					}
+					if (!existing) remainingById.set(childInput.id, childInput)
+				}
+			}
 		}
 	}
 
@@ -770,8 +964,15 @@ export function fillTemplateArtifact(
 	}
 
 	try {
-		const generationOptions = { ...options, templateMode: options.templateMode ?? templateModeForArtifact(artifact) }
-		const replacements = graphInputsToReplacementMap(resolvedInputs)
+		const generationOptions = { ...options, templateMode: templateModeForArtifact(artifact) }
+		const passthroughCode = new Map<string, string>()
+		const serializedInputs: Record<string, ResolvedGraphInput> = {}
+		for (const [id, resolved] of Object.entries(resolvedInputs)) {
+			const code = partialArtifactReplacementCode(resolved)
+			if (code === undefined) serializedInputs[id] = resolved
+			else passthroughCode.set(id, code)
+		}
+		const replacements = graphInputsToReplacementMap(serializedInputs)
 		const regions = discoverReplacementRegions(artifact.code, generationOptions)
 		const resolvedRegions = regions.filter(region => Object.prototype.hasOwnProperty.call(replacements, region.id))
 		const edits = buildReplacementEdits(
@@ -780,8 +981,17 @@ export function fillTemplateArtifact(
 			{ ...generationOptions, allowUnusedReplacements: true },
 			artifact.code
 		)
+		for (const region of regions) {
+			const code = passthroughCode.get(region.id)
+			if (code === undefined) continue
+			edits.push({
+				start: region.startCommentStart,
+				end: region.endCommentEnd,
+				text: code,
+				region
+			})
+		}
 		const code = applyReplacementEdits(artifact.code, edits)
-		discoverReplacementRegions(code, { ...generationOptions, filePath: '__filled_template_artifact__.ts' })
 
 		const base = {
 			...(artifact.id ? { id: artifact.id } : {}),
@@ -792,9 +1002,25 @@ export function fillTemplateArtifact(
 			...(artifact.schema === undefined ? {} : { schema: artifact.schema }),
 			...(artifact.provenance ? { provenance: artifact.provenance } : {})
 		}
+		const remaining = [...remainingById.values()]
+		const candidate: TemplateArtifact = remaining.length === 0
+			? { ...base, complete: true }
+			: { ...base, complete: false, unresolvedInputs: remaining }
+		const candidateDiagnostics = [
+			...validateTemplateArtifactIntegrity(candidate),
+			...validateArtifactSyntax(candidate, options)
+		]
+		if (candidateDiagnostics.some(diagnostic => diagnostic.severity === 'error')) {
+			return {
+				kind: 'templateArtifact',
+				ok: false,
+				artifact,
+				diagnostics: [...diagnostics, ...candidateDiagnostics]
+			}
+		}
 
-		if (remaining.length === 0) {
-			const complete: CompleteTemplateArtifact = { ...base, complete: true }
+		if (candidate.complete === true) {
+			const complete: CompleteTemplateArtifact = candidate
 			diagnostics.push(...validateArtifactSemantics(complete, options))
 			return diagnostics.some(diagnostic => diagnostic.severity === 'error')
 				? { kind: 'templateArtifact', ok: false, artifact: complete, diagnostics }
@@ -804,11 +1030,7 @@ export function fillTemplateArtifact(
 		return {
 			kind: 'templateArtifact',
 			ok: true,
-			artifact: {
-				...base,
-				complete: false,
-				unresolvedInputs: remaining
-			},
+			artifact: candidate,
 			diagnostics
 		}
 	} catch (error) {
@@ -862,16 +1084,16 @@ export function finalizeTemplateArtifact(
 }
 
 /** Partially compile a defined graph against an authored template catalog. */
-function compileGraphPartial(
+function compileGraphPartial<const TTemplates extends readonly GraphTemplateDefinition<any, string>[]>(
 	graph: DefinedSynthesisGraph<any>,
-	templates: readonly GraphTemplateDefinition<any, string>[],
+	templates: TTemplates & StrictTemplateCatalog<TTemplates>,
 	options?: GraphCompileOptions
 ): GraphPartialCompilationResult
 
 /** Partially compile a graph against a runtime template registry. */
 function compileGraphPartial(
 	graph: SynthesisGraph,
-	registry: TemplateRegistry,
+	registry: TemplateCatalogView,
 	options?: GraphCompileOptions
 ): GraphPartialCompilationResult
 
@@ -881,24 +1103,59 @@ function compileGraphPartial<
 	const TGraph extends AuthoredGraphInput
 >(
 	graph: StrictSynthesisGraph<TTemplates, TGraph>,
-	templates: TTemplates,
+	templates: TTemplates & StrictTemplateCatalog<TTemplates>,
 	options?: GraphCompileOptions
 ): GraphPartialCompilationResult
 
 /** Implementation for partial graph compilation. */
 function compileGraphPartial(
 	graph: SynthesisGraph,
-	registryOrTemplates: TemplateRegistry | readonly GraphTemplateDefinition<any, string>[],
+	registryOrTemplates: TemplateCatalogView | readonly GraphTemplateDefinition<any, string>[],
 	options: GraphCompileOptions = {}
 ): GraphPartialCompilationResult {
 	const registry = templateRegistryFromInput(registryOrTemplates)
+	if (options.expectedCatalogDigest !== undefined && options.expectedCatalogDigest !== registry.contractDigest) {
+		return {
+			kind: 'graphCompilation',
+			mode: 'partial',
+			ok: false,
+			diagnostics: [errorDiagnostic({
+				stage: 'template',
+				code: 'CatalogDigestMismatch',
+				message: 'The active template catalog does not match the expected planner contract digest.',
+				path: 'options.expectedCatalogDigest',
+				expected: options.expectedCatalogDigest,
+				actual: registry.contractDigest
+			})]
+		}
+	}
 	const normalized = normalizeSynthesisGraph(graph).graph
 	const { diagnostics, nodesById } = validateStaticGraph(normalized, registry, { allowMissingRequiredInputs: true })
 	if (diagnostics.some((diagnostic) => diagnostic.severity === 'error')) {
 		return { kind: 'graphCompilation', mode: 'partial', ok: false, diagnostics }
 	}
 
-	const scope = nextPartialScope()
+	let scope: string | undefined
+	let scopeFailed = false
+	function getCompilationScope(): string | undefined {
+		if (scope) return scope
+		if (scopeFailed) return undefined
+		try {
+			scope = createCompilationScope(normalized, options.compilationScope, registry.contractDigest)
+			return scope
+		} catch (error) {
+			scopeFailed = true
+			diagnostics.push(errorDiagnostic({
+				stage: 'graph',
+				code: 'CompilationScopeInvalid',
+				message: error instanceof Error ? error.message : String(error),
+				path: 'graph',
+				actual: error instanceof Error ? { name: error.name, message: error.message } : error
+			}))
+			return undefined
+		}
+	}
+	const allocatedInputIds = new Map<string, string>()
 	const artifacts = new Map<string, TemplateArtifact>()
 	const executing = new Set<string>()
 
@@ -919,8 +1176,28 @@ function compileGraphPartial(
 
 		for (const [inputName, port] of Object.entries(template.inputs) as Array<[string, InputPort]>) {
 			if (portIsRequired(port) && !Object.prototype.hasOwnProperty.call(node.inputs, inputName)) {
+				const compilationScope = getCompilationScope()
+				if (!compilationScope) continue
+				const id = createUnresolvedInputId(compilationScope, node.id, inputName)
+				const identity = canonicalizeJson([node.id, node.templateId, inputName])
+				const existingIdentity = allocatedInputIds.get(id)
+				if (existingIdentity !== undefined && existingIdentity !== identity) {
+					diagnostics.push(errorDiagnostic({
+						stage: 'input',
+						code: 'ArtifactInputIdCollision',
+						message: 'Two unresolved graph inputs produced the same opaque artifact input ID.',
+						nodeId: node.id,
+						templateId: node.templateId,
+						inputName,
+						path: `nodes.${node.id}.inputs.${inputName}`,
+						expected: existingIdentity,
+						actual: identity
+					}))
+					continue
+				}
+				allocatedInputIds.set(id, identity)
 				unresolvedInputs[inputName] = {
-					id: scopedInputId(scope, node.id, inputName),
+					id,
 					inputName,
 					nodeId: node.id,
 					templateId: node.templateId,
@@ -1012,6 +1289,15 @@ function compileGraphPartial(
 
 		try {
 			const artifact = template.invokePartial({ nodeId: node.id, inputs: resolvedInputs, unresolvedInputs, options })
+			const artifactDiagnostics = [
+				...validateTemplateArtifactIntegrity(artifact),
+				...validateArtifactSyntax(artifact, options)
+			]
+			if (artifactDiagnostics.some(diagnostic => diagnostic.severity === 'error')) {
+				diagnostics.push(...artifactDiagnostics)
+				executing.delete(nodeId)
+				return undefined
+			}
 			artifacts.set(node.id, artifact)
 			executing.delete(nodeId)
 			return artifact
@@ -1054,30 +1340,30 @@ function compileGraphPartial(
 }
 
 /** Strictly compile a defined graph against an authored template catalog. */
-export function compileGraph(
+export function compileGraph<const TTemplates extends readonly GraphTemplateDefinition<any, string>[]>(
 	graph: DefinedSynthesisGraph<any>,
-	templates: readonly GraphTemplateDefinition<any, string>[],
+	templates: TTemplates & StrictTemplateCatalog<TTemplates>,
 	options?: GraphCompileOptions
 ): GraphCompilationResult
 
 /** Strictly compile a graph against a runtime template registry. */
 export function compileGraph(
 	graph: SynthesisGraph,
-	registry: TemplateRegistry,
+	registry: TemplateCatalogView,
 	options?: GraphCompileOptions
 ): GraphCompilationResult
 
 /** Compile a graph while preserving unresolved required inputs. */
 export function compileGraph(
 	graph: SynthesisGraph,
-	registry: TemplateRegistry,
+	registry: TemplateCatalogView,
 	options: GraphCompileOptions & { mode: 'partial' }
 ): GraphPartialCompilationResult
 
 /** Compile a graph against an authored catalog while preserving unresolved required inputs. */
-export function compileGraph(
+export function compileGraph<const TTemplates extends readonly GraphTemplateDefinition<any, string>[]>(
 	graph: DefinedSynthesisGraph<any>,
-	templates: readonly GraphTemplateDefinition<any, string>[],
+	templates: TTemplates & StrictTemplateCatalog<TTemplates>,
 	options: GraphCompileOptions & { mode: 'partial' }
 ): GraphPartialCompilationResult
 
@@ -1087,17 +1373,32 @@ export function compileGraph<
 	const TGraph extends AuthoredGraphInput
 >(
 	graph: StrictSynthesisGraph<TTemplates, TGraph>,
-	templates: TTemplates,
+	templates: TTemplates & StrictTemplateCatalog<TTemplates>,
 	options?: GraphCompileOptions
 ): GraphCompilationResult
 
 /** Implementation for strict graph compilation. */
 export function compileGraph(
 	graph: SynthesisGraph,
-	registryOrTemplates: TemplateRegistry | readonly GraphTemplateDefinition<any, string>[],
+	registryOrTemplates: TemplateCatalogView | readonly GraphTemplateDefinition<any, string>[],
 	options: GraphCompileOptions & { mode?: 'strict' | 'partial' } = {}
 ): GraphCompilationResult | GraphPartialCompilationResult {
 	const registry = templateRegistryFromInput(registryOrTemplates)
+	if (options.expectedCatalogDigest !== undefined && options.expectedCatalogDigest !== registry.contractDigest) {
+		return {
+			kind: 'graphCompilation',
+			mode: options.mode === 'partial' ? 'partial' : 'strict',
+			ok: false,
+			diagnostics: [errorDiagnostic({
+				stage: 'template',
+				code: 'CatalogDigestMismatch',
+				message: 'The active template catalog does not match the expected planner contract digest.',
+				path: 'options.expectedCatalogDigest',
+				expected: options.expectedCatalogDigest,
+				actual: registry.contractDigest
+			})]
+		} as GraphCompilationResult | GraphPartialCompilationResult
+	}
 	if (options.mode === 'partial') {
 		const { mode: _mode, ...generateOptions } = options
 		return compileGraphPartial(graph, registry, generateOptions)

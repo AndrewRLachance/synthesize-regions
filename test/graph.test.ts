@@ -15,6 +15,7 @@ import {
   literalPort,
   normalizeSynthesisGraph,
   rawCodePort,
+  TemplateCatalogValidationError,
   unionPort,
   validateJsonSchemaSubset,
   type SynthesisGraph
@@ -802,7 +803,7 @@ describe("schema-driven synthesis graph", () => {
     }));
   });
 
-  it("reports invalid raw-code policy patterns", () => {
+  it("reports invalid raw-code policy patterns during registry construction", () => {
     const template = defineTemplate({
       modelId: "InvalidPolicy",
       inputs: {
@@ -817,24 +818,17 @@ describe("schema-driven synthesis graph", () => {
       template: r => r("value")
     });
 
-    const result = compileGraph(
-      {
-        nodes: [
-          {
-            id: "raw",
-            templateId: "InvalidPolicy",
-            inputs: { value: { kind: "rawCode", code: "input.count" } }
-          }
-        ],
-        finalNodeId: "raw"
-      },
-      createTemplateRegistry([template])
-    );
+    let thrown: unknown;
+    try {
+      createTemplateRegistry([template]);
+    } catch (error) {
+      thrown = error;
+    }
 
-    expect(result.ok).toBe(false);
-    expect(result.diagnostics).toContainEqual(expect.objectContaining({
-      code: "InvalidRawCodePolicy",
-      stage: "policy",
+    expect(thrown).toBeInstanceOf(TemplateCatalogValidationError);
+    expect((thrown as TemplateCatalogValidationError).diagnostics).toContainEqual(expect.objectContaining({
+      code: "InvalidRawCodePattern",
+      stage: "template",
       inputName: "value"
     }));
   });
@@ -1245,7 +1239,7 @@ describe("schema-driven synthesis graph", () => {
     expect(finalized.artifact.code).toBe("items.with(x => x.ok).with(x => x.ok)");
   });
 
-  it("gives independently created partial artifacts distinct scopes", () => {
+  it("gives repeated compilations reproducible IDs and supports explicit scopes", () => {
     const template = defineTemplate({
       modelId: "ScopedPartial",
       inputs: {
@@ -1268,14 +1262,26 @@ describe("schema-driven synthesis graph", () => {
 
     const first = compileGraph(graph, registry, { mode: "partial" });
     const second = compileGraph(graph, registry, { mode: "partial" });
+    const independentlyScoped = compileGraph(graph, registry, {
+      mode: "partial",
+      compilationScope: "independent-job"
+    });
 
     expect(first.ok).toBe(true);
     expect(second.ok).toBe(true);
-    if (!first.ok || !second.ok) return;
+    expect(independentlyScoped.ok).toBe(true);
+    if (!first.ok || !second.ok || !independentlyScoped.ok) return;
     expect(first.finalArtifact.complete).toBe(false);
     expect(second.finalArtifact.complete).toBe(false);
-    if (first.finalArtifact.complete !== false || second.finalArtifact.complete !== false) return;
-    expect(first.finalArtifact.unresolvedInputs[0]!.id).not.toBe(second.finalArtifact.unresolvedInputs[0]!.id);
+    expect(independentlyScoped.finalArtifact.complete).toBe(false);
+    if (
+      first.finalArtifact.complete !== false ||
+      second.finalArtifact.complete !== false ||
+      independentlyScoped.finalArtifact.complete !== false
+    ) return;
+    expect(first.finalArtifact.unresolvedInputs[0]!.id).toBe(second.finalArtifact.unresolvedInputs[0]!.id);
+    expect(first.finalArtifact.unresolvedInputs[0]!.id)
+      .not.toBe(independentlyScoped.finalArtifact.unresolvedInputs[0]!.id);
   });
 
   it("uses optional input fallback bodies without leaving partial holes", () => {

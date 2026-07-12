@@ -138,12 +138,16 @@ export type TemplateArtifactInput =
 			fragments: TemplateArtifact[]
 	  }
 
-/** Template artifact fill values keyed by unresolved scoped ID or input name. */
+/**
+ * Template artifact fill values keyed by unresolved opaque ID or by an input
+ * name that is unique within the artifact. Unknown and ambiguous keys are
+ * rejected transactionally.
+ */
 export type TemplateArtifactInputMap = Record<string, TemplateArtifactInput>
 
 /** An input marker that is still open in a partial template artifact. */
 export interface UnresolvedTemplateInput {
-	/** Scoped replacement ID used by the marker in `code`. */
+	/** Stable opaque replacement ID used by the marker in `code`. */
 	id: string
 	/** Original template input name. */
 	inputName: string
@@ -403,16 +407,31 @@ export interface TemplateSummary {
 	output: OutputPortSummary
 }
 
-/** Mutable registry used by graph compilation to resolve template IDs. */
-export interface TemplateRegistry {
-	/** Add or replace a template by its model ID. */
-	register(template: GraphTemplateDefinition<any, string>): void
+/** Read-only validated template catalog accepted by graph compilation. */
+export interface TemplateCatalogView {
+	/** Stable digest of the normalized planner-facing catalog contract. */
+	readonly contractDigest: string
 	/** Look up a template by model ID. */
 	get(templateId: string): GraphTemplateDefinition<any, string> | undefined
-	/** Return all registered templates. */
+	/** Return all templates sorted by model ID. */
 	list(): GraphTemplateDefinition<any, string>[]
-	/** Return planner-facing summaries for all registered templates. */
+	/** Return planner-facing summaries sorted by model ID. */
 	summaries(): TemplateSummary[]
+}
+
+/** Immutable registry membership and planner contract captured at one point in time. */
+export interface TemplateRegistrySnapshot extends TemplateCatalogView {}
+
+/** Mutable validated registry used to construct template catalog snapshots. */
+export interface TemplateRegistry extends TemplateCatalogView {
+	/** Insert a template whose model ID is not already registered. */
+	register(template: GraphTemplateDefinition<any, string>): void
+	/** Atomically insert a batch, allowing references among templates in the batch. */
+	registerAll(templates: readonly GraphTemplateDefinition<any, string>[]): void
+	/** Explicitly replace an existing template and revalidate all dependents. */
+	replace(template: GraphTemplateDefinition<any, string>): void
+	/** Capture immutable membership, summaries, and contract digest. */
+	snapshot(): TemplateRegistrySnapshot
 }
 
 /** Compilation behavior selected for graph execution. */
@@ -562,6 +581,16 @@ export interface GraphTemplateDefinition<
 
 /** Graph compilation options are the normal generation options. */
 export interface GraphCompileOptions extends GenerateOptions {
+	/**
+	 * Stable caller-selected namespace for unresolved artifact input IDs.
+	 *
+	 * Supply distinct values when separately compiled instances of the same
+	 * graph may later be merged. Omitting it derives a reproducible scope from
+	 * the graph itself.
+	 */
+	compilationScope?: string
+	/** Reject compilation when the active catalog does not match this digest. */
+	expectedCatalogDigest?: string
 	/** Optional declarations or imports prepended during graph semantic validation. */
 	semanticContext?: {
 		prelude?: string

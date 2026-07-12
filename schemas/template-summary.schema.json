@@ -3,11 +3,318 @@
   "$id": "https://schemas.synthesize-regions.dev/template-summary.schema.json",
   "title": "synthesize-regions TemplateSummary",
   "description": "Structural JSON Schema for TemplateSummary values returned by graph template registries. It describes public planner-facing metadata and intentionally excludes template implementation source.",
-  "$ref": "#/$defs/templateSummary",
   "$defs": {
-    "templateSummary": {
-      "type": "object",
+    "SummaryRegionKind": {
+      "anyOf": [
+        {
+          "const": "identifier",
+          "type": "string"
+        },
+        {
+          "const": "expression",
+          "type": "string"
+        },
+        {
+          "const": "expressionSuffix",
+          "type": "string"
+        },
+        {
+          "const": "statement",
+          "type": "string"
+        },
+        {
+          "const": "array",
+          "type": "string"
+        },
+        {
+          "const": "object",
+          "type": "string"
+        },
+        {
+          "const": "string",
+          "type": "string"
+        },
+        {
+          "const": "number",
+          "type": "string"
+        },
+        {
+          "const": "boolean",
+          "type": "string"
+        },
+        {
+          "const": "null",
+          "type": "string"
+        },
+        {
+          "const": "objectProperty",
+          "type": "string"
+        }
+      ],
+      "$id": "SummaryRegionKind"
+    },
+    "SummaryTypeDescriptor": {
       "additionalProperties": false,
+      "type": "object",
+      "properties": {
+        "ts": {
+          "type": "string"
+        },
+        "schema": {}
+      },
+      "$id": "SummaryTypeDescriptor"
+    },
+    "SummaryRawCodePolicy": {
+      "additionalProperties": false,
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "maxLength": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "allowNewlines": {
+          "type": "boolean"
+        },
+        "forbiddenSubstrings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbiddenPatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "$id": "SummaryRawCodePolicy"
+    },
+    "FragmentAcceptsSummary": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "outputKind"
+      ],
+      "properties": {
+        "outputKind": {
+          "$ref": "SummaryRegionKind"
+        },
+        "type": {
+          "$ref": "SummaryTypeDescriptor"
+        },
+        "sourceModelIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "$id": "FragmentAcceptsSummary"
+    },
+    "LiteralInputPortSummary": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "regionKind",
+        "required"
+      ],
+      "properties": {
+        "kind": {
+          "const": "literal",
+          "type": "string"
+        },
+        "regionKind": {
+          "$ref": "SummaryRegionKind"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string"
+        },
+        "schema": {}
+      },
+      "$id": "LiteralInputPortSummary"
+    },
+    "FragmentInputPortSummary": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "regionKind",
+        "required",
+        "accepts"
+      ],
+      "properties": {
+        "kind": {
+          "const": "fragment",
+          "type": "string"
+        },
+        "regionKind": {
+          "$ref": "SummaryRegionKind"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string"
+        },
+        "accepts": {
+          "$ref": "FragmentAcceptsSummary"
+        }
+      },
+      "$id": "FragmentInputPortSummary"
+    },
+    "FragmentCollectionInputPortSummary": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "regionKind",
+        "required",
+        "accepts",
+        "separator",
+        "minItems"
+      ],
+      "properties": {
+        "kind": {
+          "const": "fragmentCollection",
+          "type": "string"
+        },
+        "regionKind": {
+          "$ref": "SummaryRegionKind"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string"
+        },
+        "accepts": {
+          "$ref": "FragmentAcceptsSummary"
+        },
+        "separator": {
+          "type": "string"
+        },
+        "minItems": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "maxItems": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "$id": "FragmentCollectionInputPortSummary"
+    },
+    "RawCodeInputPortSummary": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "regionKind",
+        "required"
+      ],
+      "properties": {
+        "kind": {
+          "const": "rawCode",
+          "type": "string"
+        },
+        "regionKind": {
+          "$ref": "SummaryRegionKind"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string"
+        },
+        "policy": {
+          "$ref": "SummaryRawCodePolicy"
+        },
+        "type": {
+          "$ref": "SummaryTypeDescriptor"
+        }
+      },
+      "$id": "RawCodeInputPortSummary"
+    },
+    "UnionInputPortSummary": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind",
+        "required",
+        "options"
+      ],
+      "properties": {
+        "kind": {
+          "const": "union",
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string"
+        },
+        "options": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "$ref": "InputPortSummary"
+          }
+        }
+      },
+      "$id": "UnionInputPortSummary"
+    },
+    "InputPortSummary": {
+      "anyOf": [
+        {
+          "$ref": "LiteralInputPortSummary"
+        },
+        {
+          "$ref": "FragmentInputPortSummary"
+        },
+        {
+          "$ref": "FragmentCollectionInputPortSummary"
+        },
+        {
+          "$ref": "RawCodeInputPortSummary"
+        },
+        {
+          "$ref": "UnionInputPortSummary"
+        }
+      ],
+      "$id": "InputPortSummary"
+    },
+    "OutputPortSummary": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "$ref": "SummaryRegionKind"
+        },
+        "type": {
+          "$ref": "SummaryTypeDescriptor"
+        },
+        "schema": {},
+        "description": {
+          "type": "string"
+        }
+      },
+      "$id": "OutputPortSummary"
+    },
+    "TemplateSummary": {
+      "additionalProperties": false,
+      "type": "object",
       "required": [
         "modelId",
         "inputs",
@@ -25,226 +332,18 @@
         },
         "inputs": {
           "type": "object",
-          "additionalProperties": {
-            "$ref": "#/$defs/inputPortSummary"
+          "patternProperties": {
+            "^(.*)$": {
+              "$ref": "InputPortSummary"
+            }
           }
         },
         "output": {
-          "$ref": "#/$defs/outputPortSummary"
+          "$ref": "OutputPortSummary"
         }
-      }
-    },
-    "inputPortSummary": {
-      "oneOf": [
-        {
-          "$ref": "#/$defs/literalInputPortSummary"
-        },
-        {
-          "$ref": "#/$defs/fragmentInputPortSummary"
-        },
-        {
-          "$ref": "#/$defs/rawCodeInputPortSummary"
-        },
-        {
-          "$ref": "#/$defs/unionInputPortSummary"
-        }
-      ]
-    },
-    "literalInputPortSummary": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "kind",
-        "regionKind",
-        "required"
-      ],
-      "properties": {
-        "kind": {
-          "const": "literal"
-        },
-        "regionKind": {
-          "$ref": "#/$defs/regionKind"
-        },
-        "required": {
-          "type": "boolean"
-        },
-        "description": {
-          "type": "string"
-        },
-        "schema": true
-      }
-    },
-    "fragmentInputPortSummary": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "kind",
-        "regionKind",
-        "required",
-        "accepts"
-      ],
-      "properties": {
-        "kind": {
-          "const": "fragment"
-        },
-        "regionKind": {
-          "$ref": "#/$defs/regionKind"
-        },
-        "required": {
-          "type": "boolean"
-        },
-        "description": {
-          "type": "string"
-        },
-        "accepts": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "outputKind"
-          ],
-          "properties": {
-            "outputKind": {
-              "$ref": "#/$defs/regionKind"
-            },
-            "type": {
-              "$ref": "#/$defs/typeDescriptor"
-            },
-            "sourceModelIds": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          }
-        }
-      }
-    },
-    "rawCodeInputPortSummary": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "kind",
-        "regionKind",
-        "required"
-      ],
-      "properties": {
-        "kind": {
-          "const": "rawCode"
-        },
-        "regionKind": {
-          "$ref": "#/$defs/regionKind"
-        },
-        "required": {
-          "type": "boolean"
-        },
-        "description": {
-          "type": "string"
-        },
-        "policy": {
-          "$ref": "#/$defs/rawCodePolicy"
-        },
-        "type": {
-          "$ref": "#/$defs/typeDescriptor"
-        }
-      }
-    },
-    "unionInputPortSummary": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "kind",
-        "required",
-        "options"
-      ],
-      "properties": {
-        "kind": {
-          "const": "union"
-        },
-        "required": {
-          "type": "boolean"
-        },
-        "description": {
-          "type": "string"
-        },
-        "options": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/inputPortSummary"
-          }
-        }
-      }
-    },
-    "outputPortSummary": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "kind"
-      ],
-      "properties": {
-        "kind": {
-          "$ref": "#/$defs/regionKind"
-        },
-        "type": {
-          "$ref": "#/$defs/typeDescriptor"
-        },
-        "schema": true,
-        "description": {
-          "type": "string"
-        }
-      }
-    },
-    "rawCodePolicy": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "description": {
-          "type": "string"
-        },
-        "maxLength": {
-          "type": "number",
-          "minimum": 0
-        },
-        "allowNewlines": {
-          "type": "boolean"
-        },
-        "forbiddenSubstrings": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "forbiddenPatterns": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    },
-    "typeDescriptor": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "ts": {
-          "type": "string"
-        },
-        "schema": true
-      }
-    },
-    "regionKind": {
-      "enum": [
-        "identifier",
-        "expression",
-        "expressionSuffix",
-        "statement",
-        "array",
-        "object",
-        "string",
-        "number",
-        "boolean",
-        "null",
-        "objectProperty"
-      ]
+      },
+      "$id": "TemplateSummary"
     }
-  }
+  },
+  "$ref": "TemplateSummary"
 }

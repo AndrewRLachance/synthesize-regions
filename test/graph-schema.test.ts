@@ -1,310 +1,572 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
-// import { BooleanArrayLiteral, MapBooleanArray, sampleGraph, sampleRegistry } from "../src/templates/sample.js";
-import { defineTemplate, graphTemplateDefinitionToJsonSchema, literalPort, rawCodePort, unionPort } from "../src/index.js";
-import type { InputPortSummary, SynthesisGraph, SynthesisInput, TemplateSummary } from "../src/index.js";
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import type { ValidateFunction } from 'ajv'
+import Ajv2020 from 'ajv/dist/2020.js'
+import { describe, expect, it } from 'vitest'
+import {
+	compileGraph,
+	createTemplateRegistry,
+	defineTemplate,
+	fragmentCollectionPort,
+	fragmentPort,
+	graphTemplateDefinitionToJsonSchema,
+	literalPort,
+	rawCodePort,
+	unionPort
+} from '../src/index.js'
+import type { SynthesisGraph } from '../src/index.js'
 
-const currentDir = fileURLToPath(new URL(".", import.meta.url));
-const rootDir = join(currentDir, "..");
+const currentDir = fileURLToPath(new URL('.', import.meta.url))
+const rootDir = join(currentDir, '..')
+const publishedSchemaPaths = [
+	'schemas/synthesis-graph.schema.json',
+	'schemas/template-summary.schema.json',
+	'schemas/graph-compilation-result.schema.json'
+] as const
 
 function readJson(path: string): Record<string, unknown> {
-  return JSON.parse(readFileSync(join(rootDir, path), "utf8")) as Record<string, unknown>;
+	return JSON.parse(readFileSync(join(rootDir, path), 'utf8')) as Record<string, unknown>
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+function compilePublishedSchema(path: string): {
+	schema: Record<string, unknown>
+	validate: ValidateFunction<unknown>
+} {
+	const ajv = new Ajv2020({ allErrors: true, strict: true })
+	const schemas = new Map(publishedSchemaPaths.map(schemaPath => [schemaPath, readJson(schemaPath)]))
+	for (const publishedSchema of schemas.values()) ajv.addSchema(publishedSchema)
+
+	const schema = schemas.get(path)
+	if (!schema || typeof schema.$id !== 'string') throw new Error(`Unknown published schema: ${path}`)
+	const validate = ajv.getSchema(schema.$id)
+	if (!validate) throw new Error(`Ajv did not compile published schema: ${path}`)
+	return { schema, validate }
 }
 
-function isRegionKind(value: unknown): boolean {
-  return [
-    "identifier",
-    "expression",
-    "expressionSuffix",
-    "statement",
-    "array",
-    "object",
-    "string",
-    "number",
-    "boolean",
-    "null",
-    "objectProperty"
-  ].includes(String(value));
+function expectValid(validate: ValidateFunction<unknown>, value: unknown): void {
+	const valid = validate(value)
+	expect(valid, JSON.stringify(validate.errors, null, 2)).toBe(true)
 }
 
-function isTypeDescriptor(value: unknown): boolean {
-  return isRecord(value) &&
-    (value.ts === undefined || typeof value.ts === "string") &&
-    true;
+function expectInvalid(validate: ValidateFunction<unknown>, value: unknown): void {
+	expect(validate(value)).toBe(false)
+	expect(validate.errors).not.toBeNull()
 }
 
-function isSynthesisInput(value: unknown): value is SynthesisInput {
-  if (!isRecord(value)) return false;
+const SummaryShowcase = defineTemplate({
+	modelId: 'SummaryShowcase',
+	version: '1.2.3',
+	description: 'Exercises every planner-facing input-port summary.',
+	inputs: {
+		literal: literalPort({
+			regionKind: 'expression',
+			required: false,
+			description: 'A bounded number.',
+			schema: { type: 'number', minimum: 0 }
+		}),
+		fragment: fragmentPort({
+			regionKind: 'expression',
+			required: false,
+			description: 'A numeric expression fragment.',
+			accepts: {
+				outputKind: 'expression',
+				type: { ts: 'number', schema: { type: 'number' } },
+				sourceModelIds: ['NumberExpression']
+			}
+		}),
+		fragments: fragmentCollectionPort({
+			regionKind: 'expression',
+			required: false,
+			description: 'An ordered collection of numeric expressions.',
+			accepts: {
+				outputKind: 'expression',
+				type: { ts: 'number' },
+				sourceModelIds: ['NumberExpression']
+			},
+			maxItems: 4
+		}),
+		raw: rawCodePort({
+			regionKind: 'expression',
+			required: false,
+			description: 'A constrained numeric expression.',
+			policy: {
+				description: 'Single-line arithmetic only.',
+				maxLength: 80,
+				allowNewlines: false,
+				forbiddenSubstrings: ['eval', 'Function'],
+				forbiddenPatterns: ['\\bprocess\\b']
+			},
+			type: { ts: 'number' }
+		}),
+		choice: unionPort({
+			required: false,
+			description: 'A recursively summarized union.',
+			options: [
+				literalPort({
+					regionKind: 'expression',
+					schema: { type: 'number' }
+				}),
+				unionPort({
+					options: [
+						rawCodePort({ regionKind: 'expression' }),
+						fragmentPort({
+							regionKind: 'expression',
+							accepts: { outputKind: 'expression' }
+						})
+					]
+				})
+			]
+		})
+	},
+	output: {
+		kind: 'expression',
+		type: { ts: 'number' },
+		schema: { type: 'number' },
+		description: 'A numeric expression.'
+	},
+	template: region => region('choice')
+})
 
-  if (typeof value.$ref === "string") {
-    return Object.keys(value).length === 1;
-  }
+const NumberExpression = defineTemplate({
+	modelId: 'NumberExpression',
+	inputs: {
+		value: literalPort({
+			regionKind: 'number',
+			schema: { type: 'number' }
+		})
+	},
+	output: {
+		kind: 'expression',
+		type: { ts: 'number', schema: { type: 'number' } },
+		schema: { type: 'number' }
+	},
+	template: region => region('value')
+})
 
-  switch (value.kind) {
-    case "literal":
-      return Object.prototype.hasOwnProperty.call(value, "value");
-    case "ref":
-      return typeof value.nodeId === "string";
-    case "rawCode":
-      return typeof value.code === "string";
-    case "inline":
-      return isSynthesisNode(value.node);
-    default:
-      return false;
-  }
-}
+const RequiredExpression = defineTemplate({
+	modelId: 'RequiredExpression',
+	inputs: {
+		value: rawCodePort({
+			regionKind: 'expression',
+			policy: { allowNewlines: false },
+			type: { ts: 'number' }
+		})
+	},
+	output: { kind: 'expression', type: { ts: 'number' } },
+	template: region => region('value')
+})
 
-function isSynthesisNode(value: unknown): boolean {
-  return isRecord(value) &&
-    typeof value.id === "string" &&
-    typeof value.templateId === "string" &&
-    isRecord(value.inputs) &&
-    Object.values(value.inputs).every(isSynthesisInput);
-}
+const SemanticMismatch = defineTemplate({
+	modelId: 'SemanticMismatch',
+	inputs: {},
+	output: { kind: 'statement' },
+	template: () => 'const value: number = "wrong";'
+})
 
-function isSynthesisGraph(value: unknown): value is SynthesisGraph {
-  return isRecord(value) &&
-    Array.isArray(value.nodes) &&
-    value.nodes.every(isSynthesisNode) &&
-    typeof value.finalNodeId === "string" &&
-    (
-      value.goal === undefined ||
-      (
-        isRecord(value.goal) &&
-        (value.goal.outputKind === undefined || isRegionKind(value.goal.outputKind)) &&
-        (value.goal.type === undefined || isTypeDescriptor(value.goal.type))
-      )
-    );
-}
+const graphFixture = {
+	nodes: [
+		{
+			id: 'source',
+			templateId: 'NumberExpression',
+			inputs: {
+				value: { kind: 'literal', value: 1 }
+			}
+		},
+		{
+			id: 'root',
+			templateId: 'StructuralShowcase',
+			inputs: {
+				literal: { kind: 'literal', value: { enabled: true } },
+				raw: { kind: 'rawCode', code: 'externalValue + 1' },
+				explicitReference: { kind: 'ref', nodeId: 'source' },
+				shorthandReference: { $ref: 'source' },
+				inline: {
+					kind: 'inline',
+					node: {
+						id: 'inlineParent',
+						templateId: 'InlineParent',
+						inputs: {
+							child: {
+								kind: 'inline',
+								node: {
+									id: 'inlineChild',
+									templateId: 'InlineChild',
+									inputs: {
+										value: { kind: 'literal', value: 'nested' }
+									}
+								}
+							}
+						}
+					}
+				},
+				collection: {
+					kind: 'fragmentCollection',
+					items: [
+						{ kind: 'ref', nodeId: 'source' },
+						{ $ref: 'source' },
+						{
+							kind: 'inline',
+							node: {
+								id: 'inlineCollectionItem',
+								templateId: 'NumberExpression',
+								inputs: {
+									value: { kind: 'literal', value: 2 },
+									raw: { kind: 'rawCode', code: '2 + 2' }
+								}
+							}
+						}
+					]
+				}
+			}
+		}
+	],
+	finalNodeId: 'root',
+	goal: {
+		outputKind: 'expression',
+		type: { ts: 'number', schema: { type: 'number' } },
+		schema: { type: 'number' }
+	}
+} satisfies SynthesisGraph
 
-function isRawCodePolicy(value: unknown): boolean {
-  return isRecord(value) &&
-    (value.description === undefined || typeof value.description === "string") &&
-    (value.maxLength === undefined || Number.isInteger(value.maxLength)) &&
-    (value.allowNewlines === undefined || typeof value.allowNewlines === "boolean") &&
-    (value.forbiddenSubstrings === undefined || (Array.isArray(value.forbiddenSubstrings) && value.forbiddenSubstrings.every(item => typeof item === "string"))) &&
-    (value.forbiddenPatterns === undefined || (Array.isArray(value.forbiddenPatterns) && value.forbiddenPatterns.every(item => typeof item === "string")));
-}
+describe('published graph JSON Schemas', () => {
+	it('publishes and compiles each canonical schema as draft 2020-12', () => {
+		for (const path of publishedSchemaPaths) {
+			const { schema, validate } = compilePublishedSchema(path)
+			expect(schema.$schema).toBe('https://json-schema.org/draft/2020-12/schema')
+			expect(validate).toBeTypeOf('function')
+		}
+	})
 
-function isInputPortSummary(value: unknown): value is InputPortSummary {
-  if (!isRecord(value) || typeof value.required !== "boolean") return false;
+	it('exports every published schema from a package subpath', () => {
+		const packageJson = readJson('package.json')
+		const exportsMap = packageJson.exports as Record<string, unknown>
 
-  switch (value.kind) {
-    case "literal":
-      return isRegionKind(value.regionKind);
-    case "fragment":
-      return isRegionKind(value.regionKind) &&
-        isRecord(value.accepts) &&
-        isRegionKind(value.accepts.outputKind) &&
-        (value.accepts.type === undefined || isTypeDescriptor(value.accepts.type)) &&
-        (
-          value.accepts.sourceModelIds === undefined ||
-          (Array.isArray(value.accepts.sourceModelIds) && value.accepts.sourceModelIds.every(item => typeof item === "string"))
-        );
-    case "fragmentCollection":
-      return isRegionKind(value.regionKind) &&
-        isRecord(value.accepts) &&
-        isRegionKind(value.accepts.outputKind) &&
-        typeof value.separator === "string" &&
-        Number.isInteger(value.minItems) &&
-        (value.maxItems === undefined || Number.isInteger(value.maxItems));
-    case "rawCode":
-      return isRegionKind(value.regionKind) &&
-        (value.policy === undefined || isRawCodePolicy(value.policy)) &&
-        (value.type === undefined || isTypeDescriptor(value.type));
-    case "union":
-      return Array.isArray(value.options) && value.options.every(isInputPortSummary);
-    default:
-      return false;
-  }
-}
+		expect(exportsMap['./schemas/replacement-map.schema.json']).toBe('./schemas/replacement-map.schema.json')
+		expect(exportsMap['./schemas/synthesis-graph.schema.json']).toBe('./schemas/synthesis-graph.schema.json')
+		expect(exportsMap['./schemas/template-summary.schema.json']).toBe('./schemas/template-summary.schema.json')
+		expect(exportsMap['./schemas/graph-compilation-result.schema.json']).toBe('./schemas/graph-compilation-result.schema.json')
+	})
 
-function isTemplateSummary(value: unknown): value is TemplateSummary {
-  return isRecord(value) &&
-    typeof value.modelId === "string" &&
-    (value.version === undefined || typeof value.version === "string") &&
-    (value.description === undefined || typeof value.description === "string") &&
-    isRecord(value.inputs) &&
-    Object.values(value.inputs).every(isInputPortSummary) &&
-    isRecord(value.output) &&
-    isRegionKind(value.output.kind) &&
-    (value.output.type === undefined || isTypeDescriptor(value.output.type));
-}
+	it('validates every authored graph input form, including recursive inline collection items', () => {
+		const { validate } = compilePublishedSchema('schemas/synthesis-graph.schema.json')
+		expectValid(validate, graphFixture)
+	})
 
-describe("graph JSON Schemas", () => {
-  it("publishes graph and template-summary schemas as draft 2020-12 JSON Schema", () => {
-    const graphSchema = readJson("schemas/synthesis-graph.schema.json");
-    const summarySchema = readJson("schemas/template-summary.schema.json");
+	it('rejects malformed graph inputs, missing fields, and additional properties', () => {
+		const { validate } = compilePublishedSchema('schemas/synthesis-graph.schema.json')
 
-    expect(graphSchema.$schema).toBe("https://json-schema.org/draft/2020-12/schema");
-    expect(graphSchema.title).toBe("synthesize-regions SynthesisGraph");
-    expect(graphSchema).toHaveProperty("$defs.synthesisInput.oneOf");
-    expect(graphSchema).toHaveProperty("$defs.refShorthandInput.properties.$ref");
+		expectInvalid(validate, {
+			nodes: [{
+				id: 'list',
+				templateId: 'StatementList',
+				inputs: {
+					statements: {
+						kind: 'fragmentCollection',
+						items: [{ kind: 'literal', value: 'not a collection reference' }]
+					}
+				}
+			}],
+			finalNodeId: 'list'
+		})
+		expectInvalid(validate, {
+			nodes: [{ id: 'unknown', templateId: 'Unknown', inputs: { value: { kind: 'mystery' } } }],
+			finalNodeId: 'unknown'
+		})
+		expectInvalid(validate, {
+			nodes: [{
+				id: 'inline',
+				templateId: 'Inline',
+				inputs: {
+					value: { kind: 'inline', node: { id: 'missingInputs', templateId: 'Nested' } }
+				}
+			}],
+			finalNodeId: 'inline'
+		})
+		expectInvalid(validate, { ...graphFixture, unexpected: true })
+	})
 
-    expect(summarySchema.$schema).toBe("https://json-schema.org/draft/2020-12/schema");
-    expect(summarySchema.title).toBe("synthesize-regions TemplateSummary");
-    expect(summarySchema).toHaveProperty("$defs.inputPortSummary.oneOf");
-    expect(summarySchema).toHaveProperty("$defs.rawCodePolicy.properties.forbiddenPatterns");
-  });
+	it('validates real registry summaries for every port kind and recursive unions', () => {
+		const { validate } = compilePublishedSchema('schemas/template-summary.schema.json')
+		const registry = createTemplateRegistry([NumberExpression, SummaryShowcase])
+		const summaries = registry.summaries()
+		const showcase = summaries.find(summary => summary.modelId === SummaryShowcase.modelId)!
 
-  it("exports graph schemas from package subpaths", () => {
-    const packageJson = readJson("package.json");
-    const exportsMap = packageJson.exports as Record<string, unknown>;
+		expect(summaries).toHaveLength(2)
+		expect(showcase.inputs.fragments).toMatchObject({
+			kind: 'fragmentCollection',
+			required: false,
+			separator: '\n',
+			minItems: 0,
+			maxItems: 4
+		})
+		expect(showcase.inputs.choice).toMatchObject({
+			kind: 'union',
+			options: [
+				{ kind: 'literal' },
+				{ kind: 'union', options: [{ kind: 'rawCode' }, { kind: 'fragment' }] }
+			]
+		})
+		for (const summary of summaries) expectValid(validate, summary)
+	})
 
-    expect(exportsMap["./schemas/replacement-map.schema.json"]).toBe("./schemas/replacement-map.schema.json");
-    expect(exportsMap["./schemas/synthesis-graph.schema.json"]).toBe("./schemas/synthesis-graph.schema.json");
-    expect(exportsMap["./schemas/template-summary.schema.json"]).toBe("./schemas/template-summary.schema.json");
-  });
+	it('rejects incomplete, unknown, and extended template summary variants', () => {
+		const { validate } = compilePublishedSchema('schemas/template-summary.schema.json')
+		const summary = createTemplateRegistry([NumberExpression, SummaryShowcase])
+			.summaries().find(candidate => candidate.modelId === SummaryShowcase.modelId)!
 
-  // it("models canonical graph and template-summary values structurally", () => {
-  //   expect(isSynthesisGraph(sampleGraph)).toBe(true);
-  //   expect(sampleRegistry.summaries().every(isTemplateSummary)).toBe(true);
-  // });
+		expectInvalid(validate, {
+			...summary,
+			inputs: {
+				...summary.inputs,
+				fragments: {
+					kind: 'fragmentCollection',
+					regionKind: 'expression',
+					required: true,
+					accepts: { outputKind: 'expression' }
+				}
+			}
+		})
+		expectInvalid(validate, {
+			...summary,
+			inputs: { unknown: { kind: 'unknown', required: true } }
+		})
+		expectInvalid(validate, { ...summary, unexpected: true })
+	})
 
-  it("models shorthand refs, inline nodes, and main rejected graph structures", () => {
-    expect(isSynthesisGraph({
-      nodes: [
-        {
-          id: "mapped",
-          templateId: "MapBooleanArray",
-          inputs: {
-            source: {
-              kind: "inline",
-              node: {
-                id: "source",
-                templateId: "BooleanArrayLiteral",
-                inputs: {
-                  values: { kind: "literal", value: [true] }
-                }
-              }
-            }
-          }
-        },
-        {
-          id: "mappedAgain",
-          templateId: "MapBooleanArray",
-          inputs: {
-            source: { "$ref": "mapped" }
-          }
-        }
-      ],
-      finalNodeId: "mappedAgain"
-    })).toBe(true);
+	it('rejects empty unions and non-integer or negative summary bounds', () => {
+		const { validate } = compilePublishedSchema('schemas/template-summary.schema.json')
+		const summary = createTemplateRegistry([NumberExpression, SummaryShowcase])
+			.summaries().find(candidate => candidate.modelId === SummaryShowcase.modelId)!
+		const withInput = (input: unknown) => ({
+			...summary,
+			inputs: { constrained: input }
+		})
 
-    expect(isSynthesisGraph({ nodes: [], finalNodeId: 1 })).toBe(false);
-    expect(isSynthesisGraph({ nodes: [{ id: "x", templateId: "T", inputs: { value: { kind: "ref" } } }], finalNodeId: "x" })).toBe(false);
-    expect(isTemplateSummary({ modelId: "T", inputs: {}, output: { kind: "notARegionKind" } })).toBe(false);
-  });
+		for (const maxLength of [-1, 1.5]) {
+			expectInvalid(validate, withInput({
+				kind: 'rawCode',
+				regionKind: 'expression',
+				required: true,
+				policy: { maxLength }
+			}))
+		}
 
-  // it("converts literal-port template definitions into node JSON Schema", () => {
-  //   const schema = graphTemplateDefinitionToJsonSchema(BooleanArrayLiteral);
+		const collection = (minItems: number, maxItems?: number) => ({
+			kind: 'fragmentCollection',
+			regionKind: 'statement',
+			required: true,
+			accepts: { outputKind: 'statement' },
+			separator: '\n',
+			minItems,
+			...(maxItems === undefined ? {} : { maxItems })
+		})
+		for (const input of [collection(-1), collection(1.5), collection(0, -1), collection(0, 1.5)]) {
+			expectInvalid(validate, withInput(input))
+		}
 
-  //   expect(schema).toMatchObject({
-  //     $schema: "https://json-schema.org/draft/2020-12/schema",
-  //     title: "BooleanArrayLiteral SynthesisNode",
-  //     description: "Produces a boolean array expression from a literal input.",
-  //     type: "object",
-  //     additionalProperties: false,
-  //     required: ["id", "templateId", "inputs"],
-  //     properties: {
-  //       templateId: { const: "BooleanArrayLiteral" },
-  //       inputs: {
-  //         type: "object",
-  //         additionalProperties: false,
-  //         required: ["values"],
-  //         properties: {
-  //           values: {
-  //             type: "object",
-  //             additionalProperties: false,
-  //             required: ["kind", "value"],
-  //             properties: {
-  //               kind: { const: "literal" },
-  //               value: {
-  //                 type: "array",
-  //                 items: { type: "boolean" }
-  //               }
-  //             }
-  //           }
-  //         }
-  //       }
-  //     }
-  //   });
-  // });
+		expectInvalid(validate, withInput({ kind: 'union', required: true, options: [] }))
+		expectInvalid(validate, withInput({
+			kind: 'union',
+			required: true,
+			options: [{ kind: 'union', required: true, options: [] }]
+		}))
+	})
 
-  // it("converts fragment-port template definitions into ref-compatible node JSON Schema", () => {
-  //   const schema = graphTemplateDefinitionToJsonSchema(MapBooleanArray);
-  //   const properties = schema.properties as Record<string, unknown>;
-  //   const inputs = (properties.inputs as Record<string, unknown>).properties as Record<string, unknown>;
-  //   const source = inputs.source as Record<string, unknown>;
+	it('validates real strict and partial compilation successes and failures', () => {
+		const { validate } = compilePublishedSchema('schemas/graph-compilation-result.schema.json')
+		const registry = createTemplateRegistry([NumberExpression, RequiredExpression, SemanticMismatch])
+		const strictSuccess = compileGraph({
+			nodes: [{
+				id: 'number',
+				templateId: 'NumberExpression',
+				inputs: { value: { kind: 'literal', value: 42 } }
+			}],
+			finalNodeId: 'number'
+		}, registry)
+		const partialSuccess = compileGraph({
+			nodes: [{ id: 'partial', templateId: 'RequiredExpression', inputs: {} }],
+			finalNodeId: 'partial'
+		}, registry, { mode: 'partial' })
+		const strictFailure = compileGraph({
+			nodes: [{ id: 'missing', templateId: 'MissingTemplate', inputs: {} }],
+			finalNodeId: 'missing'
+		}, registry)
+		const partialFailure = compileGraph({
+			nodes: [{ id: 'invalid', templateId: 'SemanticMismatch', inputs: {} }],
+			finalNodeId: 'invalid'
+		}, registry, { mode: 'partial', checkSemanticDiagnostics: true })
 
-  //   expect((properties.templateId as Record<string, unknown>).const).toBe("MapBooleanArray");
-  //   expect(source).toHaveProperty("anyOf");
-  //   expect(source.anyOf).toEqual([
-  //     expect.objectContaining({ required: ["kind", "nodeId"] }),
-  //     expect.objectContaining({ required: ["$ref"] }),
-  //     expect.objectContaining({ required: ["kind", "node"] })
-  //   ]);
-  //   expect(schema).toHaveProperty("$defs.synthesisNode");
-  //   expect(schema).toHaveProperty("$defs.synthesisInput");
-  // });
+		expect(strictSuccess.ok).toBe(true)
+		expect(partialSuccess.ok).toBe(true)
+		if (partialSuccess.ok) expect(partialSuccess.finalArtifact.complete).toBe(false)
+		expect(strictFailure.ok).toBe(false)
+		expect(partialFailure.ok).toBe(false)
+		if (!partialFailure.ok) expect(partialFailure.partialArtifacts).toHaveProperty('invalid')
+		for (const result of [strictSuccess, partialSuccess, strictFailure, partialFailure]) {
+			expectValid(validate, result)
+		}
+	})
 
-  it("converts raw-code and union ports into node JSON Schema", () => {
-    const template = defineTemplate({
-      modelId: "ScoreOrExpression",
-      inputs: {
-        score: unionPort({
-          required: false,
-          options: [
-            literalPort({
-              regionKind: "expression",
-              schema: { type: "number" }
-            }),
-            rawCodePort({
-              regionKind: "expression",
-              policy: {
-                maxLength: 24,
-                allowNewlines: false
-              }
-            })
-          ]
-        })
-      },
-      output: { kind: "expression" },
-      template: r => `${r("score")} + 1`
-    });
+	it('validates structured TypeScript semantic diagnostic fields', () => {
+		const { validate } = compilePublishedSchema('schemas/graph-compilation-result.schema.json')
+		const result = compileGraph({
+			nodes: [{ id: 'invalid', templateId: 'SemanticMismatch', inputs: {} }],
+			finalNodeId: 'invalid'
+		}, [SemanticMismatch], {
+			checkSemanticDiagnostics: true,
+			filePath: 'generated/schema-fixture.ts'
+		})
 
-    const schema = graphTemplateDefinitionToJsonSchema(template);
-    const properties = schema.properties as Record<string, unknown>;
-    const inputs = properties.inputs as Record<string, unknown>;
-    const inputProperties = inputs.properties as Record<string, unknown>;
-    const score = inputProperties.score as Record<string, unknown>;
-    const options = score.anyOf as Array<Record<string, unknown>>;
-    const rawCodeOption = options[1] as Record<string, unknown>;
-    const rawCodeProperties = rawCodeOption.properties as Record<string, unknown>;
-    const code = rawCodeProperties.code as Record<string, unknown>;
+		expect(result.ok).toBe(false)
+		expect(result.diagnostics).toEqual(expect.arrayContaining([
+			expect.objectContaining({
+				stage: 'type',
+				code: 'TypeScriptSemanticError',
+				severity: 'error',
+				nodeId: 'invalid',
+				templateId: 'SemanticMismatch',
+				path: 'generated/schema-fixture.ts',
+				compilerCode: 2322,
+				compilerCategory: 'error',
+				line: 1
+			})
+		]))
+		expectValid(validate, result)
+		expectValid(validate, {
+			kind: 'graphCompilation',
+			mode: 'strict',
+			ok: false,
+			diagnostics: [{
+				stage: 'type',
+				code: 'TypeScriptSemanticError',
+				severity: 'error',
+				message: 'Every structured diagnostic field is represented.',
+				nodeId: 'invalid',
+				templateId: 'SemanticMismatch',
+				inputName: 'value',
+				path: 'generated/schema-fixture.ts',
+				expected: { ts: 'number' },
+				actual: { ts: 'string' },
+				repairHints: [{
+					kind: 'replaceInput',
+					message: 'Supply a numeric expression.',
+					candidateNodeIds: ['number']
+				}],
+				compilerCode: 2322,
+				compilerCategory: 'error',
+				line: 1,
+				column: 7
+			}]
+		})
+	})
 
-    expect(inputs.required).toEqual([]);
-    expect(options[0]).toMatchObject({
-      properties: {
-        kind: { const: "literal" },
-        value: { type: "number" }
-      }
-    });
-    expect(rawCodeOption).toMatchObject({
-      properties: {
-        kind: { const: "rawCode" }
-      }
-    });
-    expect(code).toMatchObject({
-      type: "string",
-      maxLength: 24,
-      pattern: "^[^\\r\\n]*$"
-    });
-  });
-});
+	it('rejects inconsistent results, invalid diagnostics, and additional properties', () => {
+		const { validate } = compilePublishedSchema('schemas/graph-compilation-result.schema.json')
+		const completeArtifact = {
+			id: 'value',
+			code: '1',
+			kind: 'expression',
+			source: { templateId: 'NumberExpression' },
+			complete: true
+		}
+
+		expectInvalid(validate, {
+			kind: 'graphCompilation',
+			mode: 'strict',
+			ok: true,
+			finalArtifact: { ...completeArtifact, complete: false, unresolvedInputs: [] },
+			artifacts: {},
+			diagnostics: []
+		})
+		expectInvalid(validate, {
+			kind: 'graphCompilation',
+			mode: 'strict',
+			ok: false,
+			diagnostics: [{
+				stage: 'type',
+				code: 'TypeScriptSemanticError',
+				severity: 'error',
+				message: 'Invalid compiler category.',
+				compilerCategory: 'fatal'
+			}]
+		})
+		expectInvalid(validate, {
+			kind: 'graphCompilation',
+			mode: 'partial',
+			ok: false,
+			diagnostics: [],
+			unexpected: true
+		})
+	})
+
+	it('rejects empty unions and non-integer or negative artifact-port bounds', () => {
+		const { validate } = compilePublishedSchema('schemas/graph-compilation-result.schema.json')
+		const resultWithPort = (port: unknown) => {
+			const artifact = {
+				id: 'partial',
+				code: '/* unresolved */',
+				kind: 'statement',
+				source: { templateId: 'Partial' },
+				complete: false,
+				unresolvedInputs: [{
+					id: 'partial:value',
+					inputName: 'value',
+					templateId: 'Partial',
+					port
+				}]
+			}
+			return {
+				kind: 'graphCompilation',
+				mode: 'partial',
+				ok: true,
+				finalArtifact: artifact,
+				artifacts: { partial: artifact },
+				diagnostics: []
+			}
+		}
+
+		for (const maxLength of [-1, 1.5]) {
+			expectInvalid(validate, resultWithPort({
+				kind: 'rawCode',
+				regionKind: 'expression',
+				policy: { maxLength }
+			}))
+		}
+
+		const collection = (minItems: number, maxItems?: number) => ({
+			kind: 'fragmentCollection',
+			regionKind: 'statement',
+			accepts: { outputKind: 'statement' },
+			minItems,
+			...(maxItems === undefined ? {} : { maxItems })
+		})
+		for (const port of [collection(-1), collection(1.5), collection(0, -1), collection(0, 1.5)]) {
+			expectInvalid(validate, resultWithPort(port))
+		}
+
+		expectInvalid(validate, resultWithPort({ kind: 'union', options: [] }))
+		expectInvalid(validate, resultWithPort({
+			kind: 'union',
+			options: [{ kind: 'union', options: [] }]
+		}))
+	})
+
+	it('continues to derive catalog-specific raw-code and union schemas', () => {
+		const schema = graphTemplateDefinitionToJsonSchema(SummaryShowcase)
+		const properties = schema.properties as Record<string, unknown>
+		const inputs = properties.inputs as Record<string, unknown>
+		const inputProperties = inputs.properties as Record<string, unknown>
+		const raw = inputProperties.raw as Record<string, unknown>
+		const rawProperties = raw.properties as Record<string, unknown>
+		const code = rawProperties.code as Record<string, unknown>
+		const choice = inputProperties.choice as Record<string, unknown>
+
+		expect(code).toMatchObject({
+			type: 'string',
+			maxLength: 80,
+			pattern: '^[^\\r\\n]*$'
+		})
+		expect(choice).toHaveProperty('anyOf')
+	})
+})
