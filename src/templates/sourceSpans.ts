@@ -438,6 +438,50 @@ function sourceMapFormattingWrapper(
 			prefix = `const __partial = {\n${FORMAT_START_MARKER}\n`
 			suffix = `\n${FORMAT_END_MARKER}\n};`
 			break
+		case 'type':
+			prefix = `type __partial = ${FORMAT_START_MARKER}`
+			suffix = `${FORMAT_END_MARKER};`
+			break
+		case 'typeMemberList':
+			prefix = `interface __partial {\n${FORMAT_START_MARKER}\n`
+			suffix = `\n${FORMAT_END_MARKER}\n}`
+			break
+		case 'typeParameterList':
+			prefix = `type __partial<${FORMAT_START_MARKER}`
+			suffix = `${FORMAT_END_MARKER}> = unknown;`
+			break
+		case 'parameterList':
+			prefix = `declare function __partial(${FORMAT_START_MARKER}`
+			suffix = `${FORMAT_END_MARKER}): void;`
+			break
+		case 'constructorParameterList':
+			prefix = `class __Partial { constructor(${FORMAT_START_MARKER}`
+			suffix = `${FORMAT_END_MARKER}) {} }`
+			break
+		case 'heritageTypeList':
+			prefix = `interface __Partial extends ${FORMAT_START_MARKER}`
+			suffix = `${FORMAT_END_MARKER} {}`
+			break
+		case 'declarationList':
+			prefix = FORMAT_START_MARKER
+			suffix = FORMAT_END_MARKER
+			break
+		case 'classMemberList':
+			prefix = `class __Partial {\n${FORMAT_START_MARKER}\n`
+			suffix = `\n${FORMAT_END_MARKER}\n}`
+			break
+		case 'enumMemberList':
+			prefix = `enum __Partial {\n${FORMAT_START_MARKER}\n`
+			suffix = `\n${FORMAT_END_MARKER}\n}`
+			break
+		case 'importSpecifierList':
+			prefix = `import { ${FORMAT_START_MARKER}`
+			suffix = `${FORMAT_END_MARKER} } from '__partial_module';`
+			break
+		case 'exportSpecifierList':
+			prefix = `export { ${FORMAT_START_MARKER}`
+			suffix = `${FORMAT_END_MARKER} } from '__partial_module';`
+			break
 	}
 	return { code: `${prefix}${code}${suffix}`, sourceStart: prefix.length }
 }

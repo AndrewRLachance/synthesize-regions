@@ -12,6 +12,9 @@ import {
 	InputPortSchema,
 	PartialTemplateArtifactSchema,
 	RawCodePolicySchema,
+	REGION_KIND_VALUES,
+	REGION_SYNTAX_ENGINE_VERSION,
+	RegionKindSchema,
 	SynthesisGraphSchema,
 	SynthesisDiagnosticSchema,
 	TemplateSummarySchema,
@@ -35,6 +38,12 @@ const fragment = {
 } as const
 
 describe('canonical graph contracts', () => {
+	it('publishes every exact region syntax context', () => {
+		expect(REGION_SYNTAX_ENGINE_VERSION).toBe(1)
+		for (const kind of REGION_KIND_VALUES) expect(checkContract(RegionKindSchema, kind)).toBe(true)
+		expect(checkContract(RegionKindSchema, 'methodBody')).toBe(false)
+	})
+
 	it('requires an explicit artifact completion discriminator', () => {
 		expect(checkContract(CompleteTemplateArtifactSchema, fragment)).toBe(false)
 		expect(checkContract(CompleteTemplateArtifactSchema, { ...fragment, complete: true })).toBe(true)

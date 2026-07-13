@@ -6,6 +6,7 @@ import {
   UnusedReplacementError
 } from "../core/errors.js";
 import { enforceSecurityPolicy } from "../validation/securityPolicy.js";
+import { isFragmentCollectionReplacement } from "./collection.js";
 import {
   createProject,
   createSourceFile,
@@ -13,7 +14,9 @@ import {
   validateIdentifierName,
   validateRawExpressionSyntax,
   validateRawExpressionSuffixSyntax,
-  validateRawStatementSyntax
+  validateRawStatementSyntax,
+  validateRawTypedSyntax,
+  validateRawTypedSyntaxCollection
 } from "../validation/ast.js";
 import {
   expressionReplacementKinds,
@@ -176,6 +179,17 @@ export function isCompatibleReplacement(expectedKind: MarkerExpectedKind, replac
       return replacement.kind === "expressionSuffix";
     case "statement":
       return replacement.kind === "statement";
+    case "type": return replacement.kind === "type";
+    case "typeMember": return replacement.kind === "typeMember";
+    case "typeParameter": return replacement.kind === "typeParameter";
+    case "parameter": return replacement.kind === "parameter";
+    case "constructorParameter": return replacement.kind === "constructorParameter";
+    case "heritageType": return replacement.kind === "heritageType";
+    case "declaration": return replacement.kind === "declaration";
+    case "classMember": return replacement.kind === "classMember";
+    case "enumMember": return replacement.kind === "enumMember";
+    case "importSpecifier": return replacement.kind === "importSpecifier";
+    case "exportSpecifier": return replacement.kind === "exportSpecifier";
     case "array":
       return replacement.kind === "array";
     case "object":
@@ -222,6 +236,29 @@ function validateReplacementSyntaxAndSecurity(
       validateRawStatementSyntax(replacement.code, options, { id: region.id });
       const project = createProject(options);
       const sourceFile = createSourceFile(project, `function __f() {\n${replacement.code}\n}`, "__security_statement__.ts");
+      enforceSecurityPolicy(sourceFile, options.securityPolicy, { id: region.id, bodyText: replacement.code });
+      return;
+    }
+    case "type":
+    case "typeMember":
+    case "typeParameter":
+    case "heritageType":
+    case "importSpecifier":
+    case "exportSpecifier":
+      if (isFragmentCollectionReplacement(replacement)) {
+        validateRawTypedSyntaxCollection(replacement.kind, replacement.code, options, { id: region.id });
+      } else {
+        validateRawTypedSyntax(replacement.kind, replacement.code, options, { id: region.id });
+      }
+      return;
+    case "parameter":
+    case "constructorParameter":
+    case "declaration":
+    case "classMember":
+    case "enumMember": {
+      const sourceFile = isFragmentCollectionReplacement(replacement)
+        ? validateRawTypedSyntaxCollection(replacement.kind, replacement.code, options, { id: region.id })
+        : validateRawTypedSyntax(replacement.kind, replacement.code, options, { id: region.id });
       enforceSecurityPolicy(sourceFile, options.securityPolicy, { id: region.id, bodyText: replacement.code });
       return;
     }
@@ -281,6 +318,17 @@ export function serializeReplacement(replacement: Replacement, options: Generate
     case "expressionSuffix":
       return replacement.code;
     case "statement":
+    case "type":
+    case "typeMember":
+    case "typeParameter":
+    case "parameter":
+    case "constructorParameter":
+    case "heritageType":
+    case "declaration":
+    case "classMember":
+    case "enumMember":
+    case "importSpecifier":
+    case "exportSpecifier":
       return replacement.code;
     case "array":
       return `[${replacement.elements.map(element => serializeReplacement(element, options, region)).join(", ")}]`;
@@ -310,8 +358,8 @@ function serializePropertyName(name: string): string {
 }
 
 function separatorForMany(expectedKind: MarkerExpectedKind): string {
-  if (expectedKind === "statement") return "\n";
-  if (expectedKind === "objectProperty") return ",\n";
+  if (["statement", "typeMember", "declaration", "classMember"].includes(expectedKind)) return "\n";
+  if (["objectProperty", "enumMember"].includes(expectedKind)) return ",\n";
   return ", ";
 }
 
@@ -321,7 +369,7 @@ function replacementKindOf(value: ReplacementValue): string {
 
 function applyLineIndentation(text: string, region: ReplacementRegion, sourceText: string): string {
   if (!text.includes("\n")) return text;
-  if (region.effectiveType !== "statement" && region.effectiveType !== "objectProperty") return text;
+  if (!["statement", "objectProperty", "typeMember", "declaration", "classMember", "enumMember"].includes(region.effectiveType)) return text;
   const lineStart = sourceText.lastIndexOf("\n", region.startCommentStart - 1) + 1;
   const prefix = sourceText.slice(lineStart, region.startCommentStart);
   const indent = prefix.match(/^[ \t]*/u)?.[0] ?? "";

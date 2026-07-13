@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import Ajv2020 from "ajv/dist/2020.js";
 import type { Replacement, ReplacementExpression, ReplacementMap, ReplacementValue } from "../src/index.js";
 
 const currentDir = fileURLToPath(new URL(".", import.meta.url));
@@ -19,7 +20,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isReplacementExpression(value: unknown): value is ReplacementExpression {
   if (!isReplacement(value)) return false;
-  return value.kind !== "statement" && value.kind !== "objectProperty" && value.kind !== "expressionSuffix";
+  return [
+    "identifier", "expression", "array", "object", "string", "number", "boolean", "null"
+  ].includes(value.kind);
 }
 
 function isReplacement(value: unknown): value is Replacement {
@@ -31,6 +34,17 @@ function isReplacement(value: unknown): value is Replacement {
     case "expression":
     case "expressionSuffix":
     case "statement":
+    case "type":
+    case "typeMember":
+    case "typeParameter":
+    case "parameter":
+    case "constructorParameter":
+    case "heritageType":
+    case "declaration":
+    case "classMember":
+    case "enumMember":
+    case "importSpecifier":
+    case "exportSpecifier":
       return typeof value.code === "string" && value.code.length > 0;
     case "array":
       return Array.isArray(value.elements) && value.elements.every(isReplacementExpression);
@@ -97,6 +111,18 @@ describe("ReplacementMap JSON Schema", () => {
       const replacements = JSON.parse(readFileSync(join(fixturesDir, fixtureName, "replacements.json"), "utf8"));
       expect(isReplacementMap(replacements), fixtureName).toBe(true);
     }
+  });
+
+  it("accepts every first-class type and declaration replacement", () => {
+    const kinds = [
+      "type", "typeMember", "typeParameter", "parameter", "constructorParameter",
+      "heritageType", "declaration", "classMember", "enumMember", "importSpecifier", "exportSpecifier"
+    ] as const;
+    const replacements = Object.fromEntries(kinds.map(kind => [kind, { kind, code: "placeholder" }]));
+    expect(isReplacementMap(replacements)).toBe(true);
+    const validate = new Ajv2020({ strict: true }).compile(readSchema());
+    expect(validate(replacements), JSON.stringify(validate.errors)).toBe(true);
+    expect(validate({ value: { kind: "type", code: "string", extra: true } })).toBe(false);
   });
 
   it("models the main rejected structural cases", () => {

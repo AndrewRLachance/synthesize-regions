@@ -87,6 +87,69 @@ export function wrapTemplateSource(sourceText: string, modeInput?: TemplateMode)
         suffix
       };
     }
+
+    case "type": {
+      const prefix = "type __partial = ";
+      const suffix = ";";
+      return { mode, originalText: sourceText, wrappedText: `${prefix}${sourceText}${suffix}`, prefix, suffix };
+    }
+
+    case "typeMemberList": {
+      const prefix = "interface __partial {\n";
+      const suffix = "\n}";
+      return { mode, originalText: sourceText, wrappedText: `${prefix}${sourceText}${suffix}`, prefix, suffix };
+    }
+
+    case "typeParameterList": {
+      const prefix = "type __partial<";
+      const suffix = "> = unknown;";
+      return { mode, originalText: sourceText, wrappedText: `${prefix}${sourceText}${suffix}`, prefix, suffix };
+    }
+
+    case "parameterList": {
+      const prefix = "declare function __partial(";
+      const suffix = "): void;";
+      return { mode, originalText: sourceText, wrappedText: `${prefix}${sourceText}${suffix}`, prefix, suffix };
+    }
+
+    case "constructorParameterList": {
+      const prefix = "class __Partial { constructor(";
+      const suffix = ") {} }";
+      return { mode, originalText: sourceText, wrappedText: `${prefix}${sourceText}${suffix}`, prefix, suffix };
+    }
+
+    case "heritageTypeList": {
+      const prefix = "interface __Partial extends ";
+      const suffix = " {}";
+      return { mode, originalText: sourceText, wrappedText: `${prefix}${sourceText}${suffix}`, prefix, suffix };
+    }
+
+    case "declarationList":
+      return { mode, originalText: sourceText, wrappedText: sourceText, prefix: "", suffix: "" };
+
+    case "classMemberList": {
+      const prefix = "class __Partial {\n";
+      const suffix = "\n}";
+      return { mode, originalText: sourceText, wrappedText: `${prefix}${sourceText}${suffix}`, prefix, suffix };
+    }
+
+    case "enumMemberList": {
+      const prefix = "enum __Partial {\n";
+      const suffix = "\n}";
+      return { mode, originalText: sourceText, wrappedText: `${prefix}${sourceText}${suffix}`, prefix, suffix };
+    }
+
+    case "importSpecifierList": {
+      const prefix = "import { ";
+      const suffix = " } from '__partial_module';";
+      return { mode, originalText: sourceText, wrappedText: `${prefix}${sourceText}${suffix}`, prefix, suffix };
+    }
+
+    case "exportSpecifierList": {
+      const prefix = "export { ";
+      const suffix = " } from '__partial_module';";
+      return { mode, originalText: sourceText, wrappedText: `${prefix}${sourceText}${suffix}`, prefix, suffix };
+    }
   }
 }
 

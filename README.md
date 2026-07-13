@@ -91,7 +91,18 @@ type MarkerExpectedKind =
   | "number"
   | "boolean"
   | "null"
-  | "objectProperty";
+  | "objectProperty"
+  | "type"
+  | "typeMember"
+  | "typeParameter"
+  | "parameter"
+  | "constructorParameter"
+  | "heritageType"
+  | "declaration"
+  | "classMember"
+  | "enumMember"
+  | "importSpecifier"
+  | "exportSpecifier";
 ```
 
 List markers require non-empty replacement arrays. `expressionSuffix[]` is not
@@ -110,6 +121,17 @@ type Replacement =
   | { kind: "expression"; code: string }
   | { kind: "expressionSuffix"; code: string }
   | { kind: "statement"; code: string }
+  | { kind: "type"; code: string }
+  | { kind: "typeMember"; code: string }
+  | { kind: "typeParameter"; code: string }
+  | { kind: "parameter"; code: string }
+  | { kind: "constructorParameter"; code: string }
+  | { kind: "heritageType"; code: string }
+  | { kind: "declaration"; code: string }
+  | { kind: "classMember"; code: string }
+  | { kind: "enumMember"; code: string }
+  | { kind: "importSpecifier"; code: string }
+  | { kind: "exportSpecifier"; code: string }
   | { kind: "array"; elements: ReplacementExpression[] }
   | { kind: "object"; properties: Record<string, ReplacementExpression> }
   | { kind: "objectProperty"; name: string; value: ReplacementExpression; computed?: boolean }
@@ -197,7 +219,18 @@ type TemplateMode =
   | { kind: "expression" }
   | { kind: "expressionSuffix" }
   | { kind: "statementList" }
-  | { kind: "objectPropertyList" };
+  | { kind: "objectPropertyList" }
+  | { kind: "type" }
+  | { kind: "typeMemberList" }
+  | { kind: "typeParameterList" }
+  | { kind: "parameterList" }
+  | { kind: "constructorParameterList" }
+  | { kind: "heritageTypeList" }
+  | { kind: "declarationList" }
+  | { kind: "classMemberList" }
+  | { kind: "enumMemberList" }
+  | { kind: "importSpecifierList" }
+  | { kind: "exportSpecifierList" };
 ```
 
 Expression fragment:
@@ -274,6 +307,38 @@ console.log(result.code);
 
 Partial templates still receive final validation inside their synthetic wrapper.
 Returned `ReplacementRegion` offsets remain relative to the original fragment.
+
+### Type and declaration contexts
+
+TypeScript type syntax and declaration substructures use exact AST contexts.
+For example, a `typeMember` fragment cannot flow into a `classMember` port, and
+a `parameter` cannot flow into a `constructorParameter` port without an
+explicit adapter template. Each replacement object contains exactly one AST
+item; `[]` markers and `fragmentCollectionPort()` provide ordered lists.
+
+```ts
+const members = generateWithReplacements(
+  `/** @TYPE typeMember[] id=members **/
+  old: unknown
+  /** @END **/`,
+  {
+    members: [
+      { kind: "typeMember", code: "readonly id: string" },
+      { kind: "typeMember", code: "name?: string" }
+    ]
+  },
+  { templateMode: { kind: "typeMemberList" } }
+);
+```
+
+The `declaration` kind accepts module-level imports, import-equals and named
+export declarations, plus variable, function, class, enum, namespace,
+type-alias, and interface declarations. It rejects control flow, bare
+expressions, returns, and export assignments. Erased-only type, type-member,
+type-parameter, heritage-type, import-specifier, and export-specifier fragments
+skip runtime-global security screening while still receiving syntax and raw-port
+policy validation. Runtime-capable declarations, class/enum members, and both
+parameter contexts retain the full security policy.
 
 ## Synthesis Graphs
 
@@ -410,7 +475,7 @@ the same catalog contract:
 ```ts
 const snapshot = registry.snapshot();
 const compiler = buildGraphCompiler(registry);
-const digest = snapshot.contractDigest; // c2_<sha256>
+const digest = snapshot.contractDigest; // c3_<sha256>
 const runner = createGraphRunner(snapshot, graph, {
   expectedCatalogDigest: digest
 });
@@ -432,7 +497,7 @@ later registry mutations do not alter an active session. A mismatched
 `expectedCatalogDigest` returns a `CatalogDigestMismatch` diagnostic; a runner
 transitions to `failed` for the same mismatch.
 
-The versioned `c2_` digest hashes normalized planner-facing summaries, including
+The versioned `c3_` digest hashes normalized planner-facing summaries, including
 versions, descriptions, inputs, defaulted port settings, policies, allowlists,
 canonical schemas, types, and outputs. Its payload also identifies the supported
 JSON Schema profile and the schema and TypeScript compatibility-engine versions.
@@ -877,6 +942,8 @@ replacement regions. The parser mode is normally inferred: expressions use
 `objectPropertyList`, and expression suffixes use `expressionSuffix`. Specify
 `mode=file` with `output=statement` for module-level declarations such as
 exports and imports. Other incompatible output/mode combinations are rejected.
+First-class type and declaration outputs infer their corresponding `type` or
+`*List` parser mode automatically.
 
 Boundaries cannot nest, but each boundary may contain any number of `@TYPE`
 replacement regions. Use `scanSourceTemplateBoundaries()` when only raw
@@ -986,7 +1053,8 @@ rules are still enforced by the API.
 
 ## Security Policy
 
-Raw `expression`, `expressionSuffix`, `statement`, and computed property-name
+Raw `expression`, `expressionSuffix`, `statement`, declaration, class-member,
+enum-member, parameter, constructor-parameter, and computed property-name
 replacements are parsed before insertion and checked against a security policy.
 
 The default policy forbids:

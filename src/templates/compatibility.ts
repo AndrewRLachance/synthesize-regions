@@ -11,6 +11,7 @@ import type {
   StrictOutputPort,
   StrictUnionPortInput,
   TypeDescriptor,
+  TypedSyntaxRegionKind,
   UnionInputPort
 } from "./graphTypes.js";
 import type { SupportedJsonSchema } from "./schemaTypes.js";
@@ -27,6 +28,7 @@ import {
   type TypeScriptTypeCompatibilityResult,
   type TypeScriptTypeIssue
 } from "./typeScriptCompatibility.js";
+import { defaultFragmentCollectionSeparator } from "./rendering.js";
 
 type StrictPortInput<T extends InputPort, P extends Omit<T, "kind">> =
   P & (Exclude<keyof P, keyof Omit<T, "kind">> extends never ? unknown : never);
@@ -281,7 +283,7 @@ export function validateJsonSchemaSubset(value: unknown, schema: unknown, path =
 }
 
 export function literalPort<const P extends Omit<LiteralInputPort, "kind">>(
-  port: StrictPortInput<LiteralInputPort, P>
+  port: P["regionKind"] extends TypedSyntaxRegionKind ? never : StrictPortInput<LiteralInputPort, P>
 ): LiteralInputPort & P & { readonly kind: "literal" } {
   return { ...port, kind: "literal" } as unknown as LiteralInputPort & P & { readonly kind: "literal" };
 }
@@ -369,7 +371,7 @@ export function summarizeInputPort(port: InputPort): InputPortSummary {
           ...(port.accepts.type ? { type: port.accepts.type } : {}),
           ...(port.accepts.sourceModelIds ? { sourceModelIds: port.accepts.sourceModelIds } : {})
         },
-        separator: port.separator ?? "\n",
+        separator: port.separator ?? defaultFragmentCollectionSeparator(port.regionKind),
         minItems: port.minItems ?? 0,
         ...(port.maxItems === undefined ? {} : { maxItems: port.maxItems })
       };

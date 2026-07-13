@@ -16,6 +16,17 @@ export type MarkerExpectedKindIdentifier = "identifier";
 export type MarkerExpectedKindExpression = "expression";
 export type MarkerExpectedKindStatement = "statement";
 export type MarkerExpectedKindExpressionSuffix = "expressionSuffix";
+export type MarkerExpectedKindType = "type";
+export type MarkerExpectedKindTypeMember = "typeMember";
+export type MarkerExpectedKindTypeParameter = "typeParameter";
+export type MarkerExpectedKindParameter = "parameter";
+export type MarkerExpectedKindConstructorParameter = "constructorParameter";
+export type MarkerExpectedKindHeritageType = "heritageType";
+export type MarkerExpectedKindDeclaration = "declaration";
+export type MarkerExpectedKindClassMember = "classMember";
+export type MarkerExpectedKindEnumMember = "enumMember";
+export type MarkerExpectedKindImportSpecifier = "importSpecifier";
+export type MarkerExpectedKindExportSpecifier = "exportSpecifier";
 
 /**
  * The syntactic category promised by a `@TYPE` marker or inferred from its
@@ -32,7 +43,18 @@ export type MarkerExpectedKind =
   | MarkerExpectedKindNumber
   | MarkerExpectedKindBoolean
   | MarkerExpectedKindNull
-  | MarkerExpectedKindObjectProperty;
+  | MarkerExpectedKindObjectProperty
+  | MarkerExpectedKindType
+  | MarkerExpectedKindTypeMember
+  | MarkerExpectedKindTypeParameter
+  | MarkerExpectedKindParameter
+  | MarkerExpectedKindConstructorParameter
+  | MarkerExpectedKindHeritageType
+  | MarkerExpectedKindDeclaration
+  | MarkerExpectedKindClassMember
+  | MarkerExpectedKindEnumMember
+  | MarkerExpectedKindImportSpecifier
+  | MarkerExpectedKindExportSpecifier;
 
 export type MarkerArityOne = "one";
 export type MarkerArityMany = "many";
@@ -107,6 +129,43 @@ export type ReplacementStatement = {
   code: string;
 };
 
+export type TypeCode = string;
+export type TypeMemberCode = string;
+export type TypeParameterCode = string;
+export type ParameterCode = string;
+export type ConstructorParameterCode = string;
+export type HeritageTypeCode = string;
+export type DeclarationCode = string;
+export type ClassMemberCode = string;
+export type EnumMemberCode = string;
+export type ImportSpecifierCode = string;
+export type ExportSpecifierCode = string;
+
+export type ReplacementType = { kind: "type"; code: TypeCode };
+export type ReplacementTypeMember = { kind: "typeMember"; code: TypeMemberCode };
+export type ReplacementTypeParameter = { kind: "typeParameter"; code: TypeParameterCode };
+export type ReplacementParameter = { kind: "parameter"; code: ParameterCode };
+export type ReplacementConstructorParameter = { kind: "constructorParameter"; code: ConstructorParameterCode };
+export type ReplacementHeritageType = { kind: "heritageType"; code: HeritageTypeCode };
+export type ReplacementDeclaration = { kind: "declaration"; code: DeclarationCode };
+export type ReplacementClassMember = { kind: "classMember"; code: ClassMemberCode };
+export type ReplacementEnumMember = { kind: "enumMember"; code: EnumMemberCode };
+export type ReplacementImportSpecifier = { kind: "importSpecifier"; code: ImportSpecifierCode };
+export type ReplacementExportSpecifier = { kind: "exportSpecifier"; code: ExportSpecifierCode };
+
+export type ReplacementTypedSyntax =
+  | ReplacementType
+  | ReplacementTypeMember
+  | ReplacementTypeParameter
+  | ReplacementParameter
+  | ReplacementConstructorParameter
+  | ReplacementHeritageType
+  | ReplacementDeclaration
+  | ReplacementClassMember
+  | ReplacementEnumMember
+  | ReplacementImportSpecifier
+  | ReplacementExportSpecifier;
+
 export type ReplacementObjectProperty = {
   kind: "objectProperty";
   name: string;
@@ -122,7 +181,8 @@ export type Replacement =
   | ReplacementExpression
   | ReplacementExpressionSuffix
   | ReplacementStatement
-  | ReplacementObjectProperty;
+  | ReplacementObjectProperty
+  | ReplacementTypedSyntax;
 
 export type SingleReplacement = Replacement;
 export type ManyReplacement = Replacement[];
@@ -171,6 +231,18 @@ export type TemplateModeObjectPropertyList = {
   kind: "objectPropertyList";
 };
 
+export type TemplateModeType = { kind: "type" };
+export type TemplateModeTypeMemberList = { kind: "typeMemberList" };
+export type TemplateModeTypeParameterList = { kind: "typeParameterList" };
+export type TemplateModeParameterList = { kind: "parameterList" };
+export type TemplateModeConstructorParameterList = { kind: "constructorParameterList" };
+export type TemplateModeHeritageTypeList = { kind: "heritageTypeList" };
+export type TemplateModeDeclarationList = { kind: "declarationList" };
+export type TemplateModeClassMemberList = { kind: "classMemberList" };
+export type TemplateModeEnumMemberList = { kind: "enumMemberList" };
+export type TemplateModeImportSpecifierList = { kind: "importSpecifierList" };
+export type TemplateModeExportSpecifierList = { kind: "exportSpecifierList" };
+
 /**
  * Context used to validate templates that are not complete TypeScript files.
  */
@@ -179,7 +251,18 @@ export type TemplateMode =
   | TemplateModeExpression
   | TemplateModeExpressionSuffix
   | TemplateModeStatementList
-  | TemplateModeObjectPropertyList;
+  | TemplateModeObjectPropertyList
+  | TemplateModeType
+  | TemplateModeTypeMemberList
+  | TemplateModeTypeParameterList
+  | TemplateModeParameterList
+  | TemplateModeConstructorParameterList
+  | TemplateModeHeritageTypeList
+  | TemplateModeDeclarationList
+  | TemplateModeClassMemberList
+  | TemplateModeEnumMemberList
+  | TemplateModeImportSpecifierList
+  | TemplateModeExportSpecifierList;
 
 export interface DiscoverOptions {
   /** Used in diagnostics and for ts-morph source-file identity. */
@@ -305,7 +388,18 @@ export const markerExpectedKinds = [
   "number",
   "boolean",
   "null",
-  "objectProperty"
+  "objectProperty",
+  "type",
+  "typeMember",
+  "typeParameter",
+  "parameter",
+  "constructorParameter",
+  "heritageType",
+  "declaration",
+  "classMember",
+  "enumMember",
+  "importSpecifier",
+  "exportSpecifier"
 ] as const satisfies readonly MarkerExpectedKind[];
 
 /**

@@ -87,7 +87,7 @@ key and set ordering for comparison, caching, planner contracts, and digests.
 `modelId` values. `defineTemplateCatalog()` creates an immutable authored
 catalog; registries and snapshots expose the `TemplateCatalogView` interface.
 
-**Catalog digest** — A versioned `c2_` SHA-256 checksum of normalized,
+**Catalog digest** — A versioned `c3_` SHA-256 checksum of normalized,
 planner-facing template contracts. It detects catalog drift without hashing
 template function source.
 
@@ -145,6 +145,10 @@ that contributed the affected code rather than only the final node.
 identity, ports, output contract, template function, invocation behavior, and
 summary. “TypeBox definition” instead means a named schema inside a TypeBox
 module.
+
+**Declaration fragment** — Exactly one permitted module-level TypeScript
+declaration with region kind `declaration`. Control-flow statements, expression
+statements, returns, and export assignments are not declaration fragments.
 
 **Descriptor** — Short for `TypeDescriptor`, unless explicitly described as an
 unresolved input descriptor or diagnostic descriptor.
@@ -316,7 +320,9 @@ entry. Duplicate physical regions may share one ID and receive the same
 replacement.
 
 **Marker kind** — The syntactic category declared by a marker. In graph APIs
-the equivalent term is region kind.
+the equivalent term is region kind. First-class type/declaration kinds preserve
+the exact TypeScript AST context rather than treating all erased syntax as a
+statement.
 
 **Many marker** — A low-level marker whose type uses `[]` and accepts a
 non-empty replacement array joined with a kind-specific separator.
@@ -435,9 +441,11 @@ marker ID, kind, arity, body, and offsets.
 **Region builder** — The callback passed to a graph template function. Calling
 `region(inputName, body?)` emits the correctly typed marker for that input port.
 
-**Region kind** — The TypeScript syntactic category at a graph port or fragment
-boundary: identifier, expression, expression suffix, statement, array, object,
-string, number, boolean, null, or object property.
+**Region kind** — The exact TypeScript syntactic category at a graph port or
+fragment boundary. In addition to expression and value-oriented kinds, the
+library supports type, type member, type parameter, parameter, constructor
+parameter, heritage type, declaration, class member, enum member, import
+specifier, and export specifier contexts.
 
 **Registry** — A mutable, validated `TemplateRegistry` supporting insert-only
 registration, atomic batch registration, explicit replacement, deterministic
@@ -561,8 +569,9 @@ source spans. It refers to a template's declared `modelId`.
 either completely or while preserving missing inputs as markers.
 
 **Template mode** — The parser wrapper context for a file, expression,
-expression suffix, statement list, or object-property list. Graph compilation
-derives it from artifact kind; caller overrides apply only to low-level APIs.
+expression suffix, statement list, object-property list, or one of the exact
+type/declaration contexts. Graph compilation derives it from artifact kind;
+caller overrides apply only to low-level APIs.
 
 **Template policy failure** — A failure classification indicating an invalid
 or contradictory template/catalog contract rather than a repairable graph or
@@ -578,6 +587,11 @@ channel, such as a digest mismatch or invalid semantic target configuration.
 **Transactional operation** — An operation whose rejected result preserves the
 previous graph, artifact, catalog, or runner state.
 
+**Type fragment** — Exactly one TypeScript type node with region kind `type`,
+such as a union, conditional, mapped, function, or import type. Its optional
+`TypeDescriptor` is author-declared metadata; JSON Schema is not inferred from
+the syntax.
+
 **Type descriptor** — Optional compatibility metadata containing a
 self-contained TypeScript type expression and/or supported JSON Schema.
 
@@ -588,6 +602,10 @@ expressions and cannot contain `any`.
 **TypeBox contract** — A runtime structural schema created with TypeBox and
 checked with TypeBox `Value` APIs. The project uses these contracts as the
 source for runtime guards and published JSON Schemas.
+
+**Typed syntax context** — One of the exact first-class type/declaration AST
+contexts. Compatibility is exact by region kind, so cross-context reuse
+requires an adapter template.
 
 ## U
 

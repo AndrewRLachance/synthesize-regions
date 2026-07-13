@@ -212,6 +212,9 @@ assert.equal(
 )
 assert.equal(packageModule.validateTypeScriptType('ReadonlyArray<string>').ok, true)
 assert.equal(packageModule.compareTypeScriptTypes('unknown', 'string').status, 'compatible')
+assert.equal(packageModule.REGION_SYNTAX_ENGINE_VERSION, 1)
+assert.ok(packageModule.REGION_KIND_VALUES.includes('type'))
+assert.ok(packageModule.REGION_KIND_VALUES.includes('exportSpecifier'))
 assert.equal(
 	packageModule.compareTypeDescriptors(
 		{ ts: 'string', schema: { type: 'string' } },
@@ -242,6 +245,15 @@ assert.equal(
 		{ value: { kind: 'number', value: 42 } }
 	).code.trim(),
 	'42'
+)
+const typeSource = '/** @TYPE type id=value **/ unknown /** @END **/'
+assert.equal(
+	packageModule.generateWithReplacements(
+		typeSource,
+		{ value: { kind: 'type', code: 'string | null' } },
+		{ templateMode: { kind: 'type' } }
+	).code.trim(),
+	'string | null'
 )
 
 const require = createRequire(import.meta.url)
@@ -293,6 +305,8 @@ async function runTypeScriptConsumerSmoke(
 import {
 	GENERATED_SOURCE_MAP_VERSION,
 	GENERATED_SOURCE_SPAN_KIND_VALUES,
+	REGION_KIND_VALUES,
+	REGION_SYNTAX_ENGINE_VERSION,
 	GeneratedSourceMapSchema,
 	checkContract,
 	compareJsonSchemas,
@@ -309,6 +323,7 @@ import {
 	type GeneratedSourceMap,
 	type GeneratedSourceSpan,
 	type JsonValue,
+	type ReplacementType,
 	type GraphCompilationResult,
 	type GraphRunnerAction,
 	type GraphRunnerState,
@@ -344,6 +359,8 @@ const semanticTarget: SemanticTargetFileContext = {
 }
 const semanticContext: GraphSemanticContext = { targetFile: semanticTarget }
 const sourceMapVersion: 1 = GENERATED_SOURCE_MAP_VERSION
+const regionSyntaxVersion: 1 = REGION_SYNTAX_ENGINE_VERSION
+const typeReplacement: ReplacementType = { kind: 'type', code: 'string | null' }
 const sourceSpanKinds: readonly ['node', 'input'] = GENERATED_SOURCE_SPAN_KIND_VALUES
 const sourceMapMatchesContract: boolean = checkContract(GeneratedSourceMapSchema, generatedSourceMap)
 const sourceMapGuarded: boolean = isGeneratedSourceMap(generatedSourceMap)
@@ -366,6 +383,9 @@ void descriptorComparison
 void generatedSourceMap
 void semanticContext
 void sourceMapVersion
+void regionSyntaxVersion
+void REGION_KIND_VALUES
+void typeReplacement
 void sourceSpanKinds
 void sourceMapMatchesContract
 void sourceMapGuarded
@@ -405,6 +425,8 @@ function fixtureForSchema(subpath: string): unknown {
 		case 'replacement-map.schema.json':
 			return {
 				answer: { kind: 'number', value: 42 },
+				type: { kind: 'type', code: 'string | null' },
+				member: { kind: 'typeMember', code: 'readonly id: string' },
 				statements: [
 					{ kind: 'statement', code: 'const answer = 42;' },
 					{ kind: 'statement', code: 'return answer;' }

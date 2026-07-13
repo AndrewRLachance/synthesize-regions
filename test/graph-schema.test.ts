@@ -13,6 +13,7 @@ import {
 	graphTemplateDefinitionToJsonSchema,
 	literalPort,
 	rawCodePort,
+	REGION_KIND_VALUES,
 	templateRegistryToSynthesisGraphJsonSchema,
 	unionPort
 } from '../src/index.js'
@@ -441,6 +442,23 @@ describe('published graph JSON Schemas', () => {
 	it('validates every authored graph input form, including recursive inline collection items', () => {
 		const { validate } = compilePublishedSchema('schemas/synthesis-graph.schema.json')
 		expectValid(validate, graphFixture)
+	})
+
+	it('publishes every first-class region kind across graph protocol schemas', () => {
+		const graphValidator = compilePublishedSchema('schemas/synthesis-graph.schema.json').validate
+		const summaryValidator = compilePublishedSchema('schemas/template-summary.schema.json').validate
+		const resultValidator = compilePublishedSchema('schemas/graph-compilation-result.schema.json').validate
+		for (const kind of REGION_KIND_VALUES) {
+			const graph = { nodes: [{ id: 'node', templateId: 'Template', inputs: {} }], finalNodeId: 'node', goal: { outputKind: kind } }
+			const summary = { modelId: 'Template', inputs: {}, output: { kind } }
+			const artifact = { code: 'placeholder', kind, source: { templateId: 'Template' }, complete: true }
+			expectValid(graphValidator, graph)
+			expectValid(summaryValidator, summary)
+			expectValid(resultValidator, {
+				kind: 'graphCompilation', mode: 'strict', ok: true,
+				finalArtifact: artifact, artifacts: { node: artifact }, diagnostics: []
+			})
+		}
 	})
 
 	it('rejects malformed graph inputs, missing fields, and additional properties', () => {

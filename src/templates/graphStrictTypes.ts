@@ -11,6 +11,7 @@ import type {
   RegionKind,
   SynthesisGraph,
   SynthesisGoal,
+  TypedSyntaxRegionKind,
   UnionInputPort
 } from "./graphCoreTypes.js";
 import type { SupportedJsonSchema } from "./schemaTypes.js";
@@ -83,7 +84,8 @@ type StrictUnionInputPort<T extends UnionInputPort> =
 
 /** Compile-time exact input-port shape used by template authoring helpers. */
 export type StrictInputPort<T extends InputPort> =
-  T extends LiteralInputPort ? T & ShallowExact<LiteralInputPort, T> :
+  T extends LiteralInputPort
+    ? T["regionKind"] extends TypedSyntaxRegionKind ? never : T & ShallowExact<LiteralInputPort, T> :
   T extends FragmentInputPort ? T & ShallowExact<FragmentInputPort, T> :
   T extends FragmentCollectionInputPort ? T & ShallowExact<FragmentCollectionInputPort, T> :
   T extends RawCodeInputPort ? T & ShallowExact<RawCodeInputPort, T> :

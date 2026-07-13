@@ -63,6 +63,8 @@ const DIRECTLY_ANNOTATABLE_EXPRESSION_KINDS = new Set<RegionKind>([
 	'null'
 ])
 
+const TYPE_ASSERTION_HELPER = 'type __SynthesizeRegionsAssertAssignable<Expected, Actual extends Expected> = Actual;'
+
 /**
  * Collect only semantic issues introduced by virtually inserting an artifact.
  *
@@ -78,7 +80,11 @@ export function validateVirtualSemanticTarget(
 	const targetEnd = targetFile.end ?? targetFile.start
 	validateTargetRange(targetText, targetFile.start, targetEnd)
 
-	const baseline = addPrelude(targetText, options.prelude)
+	const advertisedType = options.artifact.type?.ts?.trim()
+	const internalPrelude = options.artifact.kind === 'type' && advertisedType
+		? `${TYPE_ASSERTION_HELPER}\n${options.prelude ?? ''}`
+		: options.prelude
+	const baseline = addPrelude(targetText, internalPrelude)
 	if (baseline.insertedLength > 0 && targetFile.start < baseline.anchor && targetEnd > baseline.anchor) {
 		throw new RangeError('The semantic target range cannot cross the prelude insertion point.')
 	}
@@ -190,8 +196,13 @@ function buildCandidateSource(
 	const advertisedType = options.artifact.type?.ts?.trim()
 	const directlyAnnotated = advertisedType !== undefined && advertisedType.length > 0 &&
 		DIRECTLY_ANNOTATABLE_EXPRESSION_KINDS.has(options.artifact.kind)
-	const prefix = directlyAnnotated ? '(' : ''
-	const suffix = directlyAnnotated ? ` satisfies ${advertisedType})` : ''
+	const typeAnnotated = options.artifact.kind === 'type' && advertisedType !== undefined && advertisedType.length > 0
+	const prefix = directlyAnnotated
+		? '('
+		: typeAnnotated ? `__SynthesizeRegionsAssertAssignable<${advertisedType}, ` : ''
+	const suffix = directlyAnnotated
+		? ` satisfies ${advertisedType})`
+		: typeAnnotated ? '>' : ''
 	const replacement = `${prefix}${options.artifact.code}${suffix}`
 	const initialText = `${baselineText.slice(0, start)}${replacement}${baselineText.slice(end)}`
 	const initialArtifactStart = start + prefix.length

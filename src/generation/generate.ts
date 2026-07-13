@@ -223,5 +223,78 @@ function wrapTemplateSourceForFormatting(
         startMarker,
         endMarker
       };
+
+    case "type":
+      return {
+        wrappedText: `type __partial = ${startMarker}${sourceText}${endMarker};`,
+        startMarker,
+        endMarker
+      };
+
+    case "typeMemberList":
+      return {
+        wrappedText: `interface __partial {\n${startMarker}\n${sourceText}\n${endMarker}\n}`,
+        startMarker,
+        endMarker
+      };
+
+    case "typeParameterList":
+      return {
+        wrappedText: `type __partial<${startMarker}${sourceText}${endMarker}> = unknown;`,
+        startMarker,
+        endMarker
+      };
+
+    case "parameterList":
+      return {
+        wrappedText: `declare function __partial(${startMarker}${sourceText}${endMarker}): void;`,
+        startMarker,
+        endMarker
+      };
+
+    case "constructorParameterList":
+      return {
+        wrappedText: `class __Partial { constructor(${startMarker}${sourceText}${endMarker}) {} }`,
+        startMarker,
+        endMarker
+      };
+
+    case "heritageTypeList":
+      return {
+        wrappedText: `interface __Partial extends ${startMarker}${sourceText}${endMarker} {}`,
+        startMarker,
+        endMarker
+      };
+
+    case "declarationList":
+      return { wrappedText: `${startMarker}${sourceText}${endMarker}`, startMarker, endMarker };
+
+    case "classMemberList":
+      return {
+        wrappedText: `class __Partial {\n${startMarker}\n${sourceText}\n${endMarker}\n}`,
+        startMarker,
+        endMarker
+      };
+
+    case "enumMemberList":
+      return {
+        wrappedText: `enum __Partial {\n${startMarker}\n${sourceText}\n${endMarker}\n}`,
+        startMarker,
+        endMarker
+      };
+
+    case "importSpecifierList":
+      return {
+        wrappedText: `import { ${startMarker}${sourceText}${endMarker} } from '__partial_module';`,
+        startMarker,
+        endMarker
+      };
+
+    case "exportSpecifierList":
+      return {
+        wrappedText: `export { ${startMarker}${sourceText}${endMarker} } from '__partial_module';`,
+        startMarker,
+        endMarker
+      };
   }
 }

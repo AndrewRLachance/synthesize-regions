@@ -1798,3 +1798,74 @@ deferredCompatibilityCompiler.definePartialGraph({
   }],
   finalNodeId: "plannedFinal"
 });
+
+const FirstClassType = defineTemplate({
+  modelId: "FirstClassType",
+  inputs: {
+    value: rawCodePort({ regionKind: "type" })
+  },
+  output: { kind: "type", type: { ts: "string | number" } },
+  template: r => r("value", "unknown")
+});
+const TypeMemberConsumer = defineTemplate({
+  modelId: "TypeMemberConsumer",
+  inputs: {
+    member: fragmentPort({ regionKind: "typeMember", accepts: { outputKind: "typeMember" } })
+  },
+  output: { kind: "declaration" },
+  template: r => `interface Value { ${r("member", "value: unknown")} }`
+});
+const TypeConsumer = defineTemplate({
+  modelId: "TypeConsumer",
+  inputs: {
+    value: fragmentPort({ regionKind: "type", accepts: { outputKind: "type" } })
+  },
+  output: { kind: "type" },
+  template: r => `ReadonlyArray<${r("value", "unknown")}>`
+});
+
+// @ts-expect-error literal ports cannot target first-class type/declaration syntax.
+literalPort({ regionKind: "type" });
+
+const firstClassTypeCompiler = buildGraphCompiler([
+  FirstClassType,
+  TypeConsumer,
+  TypeMemberConsumer
+] as const);
+firstClassTypeCompiler.defineGraph({
+  nodes: [
+    {
+      id: "source",
+      templateId: "FirstClassType",
+      inputs: { value: { kind: "rawCode", code: "string" } }
+    },
+    {
+      id: "consumer",
+      templateId: "TypeConsumer",
+      inputs: { value: { $ref: "source" } }
+    }
+  ],
+  finalNodeId: "consumer",
+  goal: { outputKind: "type" }
+});
+firstClassTypeCompiler.definePartialGraph({
+  nodes: [{ id: "source", templateId: "FirstClassType", inputs: {} }],
+  finalNodeId: "source",
+  goal: { outputKind: "type" }
+});
+firstClassTypeCompiler.defineGraph({
+  nodes: [
+    {
+      id: "source",
+      templateId: "FirstClassType",
+      inputs: { value: { kind: "rawCode", code: "string" } }
+    },
+    {
+      id: "consumer",
+      templateId: "TypeMemberConsumer",
+      // @ts-expect-error exact region-kind compatibility rejects type fragments in typeMember ports.
+      inputs: { member: { $ref: "source" } }
+    }
+  ],
+  finalNodeId: "consumer"
+});

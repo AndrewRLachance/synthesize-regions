@@ -18,7 +18,7 @@ import {
   type TemplateMode
 } from "../core/types.js";
 import { offsetRegion, wrapTemplateSource } from "../templates/templateMode.js";
-import { createProject, createSourceFile, inferExpectedKind, validateRegionContext } from "../validation/ast.js";
+import { createProject, createSourceFile, inferExpectedKind, validateRegionContext, validateTemplateModeRoot } from "../validation/ast.js";
 
 /**
  * Discovers replacement regions, infers omitted marker kinds, and validates each
@@ -42,6 +42,10 @@ export function discoverReplacementRegions(sourceText: string, options: Discover
   for (const region of regions) {
     validateRegionContext(sourceFile, offsetRegion(region, offset));
   }
+  const hasEmptyTypedListMarker = regions.some(region =>
+    region.arity === "many" && region.bodyText.trim().length === 0
+  );
+  validateTemplateModeRoot(sourceFile, wrapped.mode, { bodyText: sourceText }, hasEmptyTypedListMarker);
 
   return regions;
 }
@@ -402,6 +406,17 @@ function templateModeForOutputKind(kind: MarkerExpectedKind): TemplateMode {
   if (kind === "expressionSuffix") return { kind: "expressionSuffix" };
   if (kind === "statement") return { kind: "statementList" };
   if (kind === "objectProperty") return { kind: "objectPropertyList" };
+  if (kind === "type") return { kind: "type" };
+  if (kind === "typeMember") return { kind: "typeMemberList" };
+  if (kind === "typeParameter") return { kind: "typeParameterList" };
+  if (kind === "parameter") return { kind: "parameterList" };
+  if (kind === "constructorParameter") return { kind: "constructorParameterList" };
+  if (kind === "heritageType") return { kind: "heritageTypeList" };
+  if (kind === "declaration") return { kind: "declarationList" };
+  if (kind === "classMember") return { kind: "classMemberList" };
+  if (kind === "enumMember") return { kind: "enumMemberList" };
+  if (kind === "importSpecifier") return { kind: "importSpecifierList" };
+  if (kind === "exportSpecifier") return { kind: "exportSpecifierList" };
   return { kind: "expression" };
 }
 
@@ -410,7 +425,18 @@ const templateModeKinds = [
   "expression",
   "expressionSuffix",
   "statementList",
-  "objectPropertyList"
+  "objectPropertyList",
+  "type",
+  "typeMemberList",
+  "typeParameterList",
+  "parameterList",
+  "constructorParameterList",
+  "heritageTypeList",
+  "declarationList",
+  "classMemberList",
+  "enumMemberList",
+  "importSpecifierList",
+  "exportSpecifierList"
 ] as const satisfies readonly TemplateMode["kind"][];
 
 function isOutputKindValidInTemplateMode(kind: MarkerExpectedKind, mode: TemplateMode): boolean {

@@ -12,7 +12,11 @@ import type { GraphRunnerState } from './runner.js'
 const RegionKindDefinition = Type.Union([
 	Type.Literal('identifier'), Type.Literal('expression'), Type.Literal('expressionSuffix'),
 	Type.Literal('statement'), Type.Literal('array'), Type.Literal('object'), Type.Literal('string'),
-	Type.Literal('number'), Type.Literal('boolean'), Type.Literal('null'), Type.Literal('objectProperty')
+	Type.Literal('number'), Type.Literal('boolean'), Type.Literal('null'), Type.Literal('objectProperty'),
+	Type.Literal('type'), Type.Literal('typeMember'), Type.Literal('typeParameter'),
+	Type.Literal('parameter'), Type.Literal('constructorParameter'), Type.Literal('heritageType'),
+	Type.Literal('declaration'), Type.Literal('classMember'), Type.Literal('enumMember'),
+	Type.Literal('importSpecifier'), Type.Literal('exportSpecifier')
 ])
 
 const TypeDescriptorDefinition = Type.Object({

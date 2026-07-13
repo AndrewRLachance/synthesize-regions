@@ -3,7 +3,7 @@ import { generateWithReplacements } from '../generation/generate.js'
 import { buildReplacementEdits } from '../replacements/serialize.js'
 import { discoverReplacementRegions } from '../regions/discovery.js'
 import { portRegionKind, summarizeInputPort, summarizeOutputPort } from './compatibility.js'
-import { templateModeForRegionKind } from './rendering.js'
+import { defaultFragmentCollectionSeparator, templateModeForRegionKind } from './rendering.js'
 import {
 	applySourceMappedTextEdits,
 	coverGeneratedSourceMapRoot,
@@ -149,6 +149,26 @@ function defaultPlaceholder(kind: RegionKind): string {
             return 'null'
         case 'objectProperty':
             return 'placeholder: undefined'
+        case 'type':
+            return 'unknown'
+        case 'typeMember':
+            return 'placeholder: unknown;'
+        case 'typeParameter':
+            return 'Placeholder'
+        case 'parameter':
+            return 'placeholder: unknown'
+        case 'constructorParameter':
+            return 'private placeholder: unknown'
+        case 'heritageType':
+            return 'Placeholder'
+        case 'declaration':
+            return 'type Placeholder = unknown;'
+        case 'classMember':
+            return 'placeholder: unknown;'
+        case 'enumMember':
+        case 'importSpecifier':
+        case 'exportSpecifier':
+            return 'Placeholder'
     }
 }
 
@@ -222,7 +242,9 @@ function partialChildInputs(inputs: Record<string, ResolvedGraphInput>): Unresol
 function partialArtifactReplacementCode(input: ResolvedGraphInput): string | undefined {
     if (input.kind === 'fragment' && input.fragment.complete === false) return input.fragment.code
     if (input.kind === 'fragmentCollection' && input.fragments.some(fragment => fragment.complete === false)) {
-        return input.fragments.map(fragment => fragment.code).join(input.port.separator ?? '\n')
+        return input.fragments.map(fragment => fragment.code).join(
+            input.port.separator ?? defaultFragmentCollectionSeparator(input.port.regionKind)
+        )
     }
     return undefined
 }
@@ -236,7 +258,10 @@ function nestedInputSourceMap(
 		return sourceMappedFragment(input.fragment, renderedCode).sourceMap
 	}
 	if (input?.kind === 'fragmentCollection') {
-		const joined = sourceMappedFragmentCollection(input.fragments, input.port.separator ?? '\n')
+		const joined = sourceMappedFragmentCollection(
+			input.fragments,
+			input.port.separator ?? defaultFragmentCollectionSeparator(input.port.regionKind)
+		)
 		return remapGeneratedSourceMap(joined.code, renderedCode, joined.sourceMap)
 	}
 	return undefined

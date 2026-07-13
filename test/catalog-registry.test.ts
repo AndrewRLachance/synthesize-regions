@@ -273,7 +273,7 @@ describe('template catalog digests', () => {
 
 		expect(templateCatalogDigest([...canonical].reverse())).toBe(templateCatalogDigest(reordered))
 		expect(createTemplateRegistry(canonical).contractDigest).toBe(templateCatalogDigest(canonical))
-		expect(templateCatalogDigest(canonical)).toMatch(/^c2_[a-f0-9]{64}$/u)
+		expect(templateCatalogDigest(canonical)).toMatch(/^c3_[a-f0-9]{64}$/u)
 	})
 
 	it('canonicalizes schema ordering, legacy aliases, and surrounding TypeScript whitespace', () => {

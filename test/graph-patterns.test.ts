@@ -12,6 +12,8 @@ import {
   isSynthesisGraph,
   isTemplateArtifactResult,
   partialTemplateArtifactPattern,
+  REGION_KIND_VALUES,
+  regionKindPattern,
   strictSynthesisGraphPattern,
   synthesisGraphPattern,
   templateArtifactCompleteSuccessPattern,
@@ -26,6 +28,11 @@ const fragment = {
 } as const;
 
 describe("graph ts-pattern matchers", () => {
+  it("matches every exact region syntax context", () => {
+    for (const kind of REGION_KIND_VALUES) expect(isMatching(regionKindPattern, kind)).toBe(true);
+    expect(isMatching(regionKindPattern, "methodBody")).toBe(false);
+  });
+
   it("matches strict graph compilation results deeply", () => {
     const result = {
       kind: "graphCompilation",

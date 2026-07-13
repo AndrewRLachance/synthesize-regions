@@ -62,7 +62,18 @@ export const regionKindPattern: P.Pattern<RegionKind> = P.union(
 	'number',
 	'boolean',
 	'null',
-	'objectProperty'
+	'objectProperty',
+	'type',
+	'typeMember',
+	'typeParameter',
+	'parameter',
+	'constructorParameter',
+	'heritageType',
+	'declaration',
+	'classMember',
+	'enumMember',
+	'importSpecifier',
+	'exportSpecifier'
 ) satisfies P.Pattern<RegionKind>
 
 /** Runtime `ts-pattern` pattern for graph type metadata. */

@@ -1,9 +1,11 @@
 import { P } from "ts-pattern"
 import { Node, SyntaxKind, ts } from "ts-morph"
-import type { ReplacementMap, Replacement, MarkerExpectedKind, ReplacementExpression, ReplacementExpressionSuffix, ReplacementObjectProperty, ReplacementStatement, ReplacementValue } from "../core/types.js"
+import type { ReplacementMap, Replacement, MarkerExpectedKind, ReplacementExpression, ReplacementExpressionSuffix, ReplacementObjectProperty, ReplacementStatement, ReplacementTypedSyntax, ReplacementValue } from "../core/types.js"
+import { markFragmentCollectionReplacement } from "../replacements/collection.js"
 import { createProject, createSourceFile } from "../validation/ast.js"
 import { validateJsonValueAgainstSchema } from "./schemaCompatibility.js"
 import type { ResolvedGraphInput } from "./graphTypes.js"
+import { defaultFragmentCollectionSeparator } from "./rendering.js"
 
 /**
  * Template input contract: each key describes the accepted runtime input shape
@@ -265,6 +267,18 @@ function replacementFromFragment(input: Extract<ResolvedGraphInput, { kind: 'fra
       return { kind: 'expressionSuffix', code }
     case 'statement':
       return { kind: 'statement', code }
+    case 'type':
+    case 'typeMember':
+    case 'typeParameter':
+    case 'parameter':
+    case 'constructorParameter':
+    case 'heritageType':
+    case 'declaration':
+    case 'classMember':
+    case 'enumMember':
+    case 'importSpecifier':
+    case 'exportSpecifier':
+      return { kind: input.port.regionKind, code }
     case 'array':
     case 'object':
     case 'string':
@@ -290,6 +304,18 @@ function replacementFromRawCode(input: Extract<ResolvedGraphInput, { kind: 'rawC
       return { kind: 'expressionSuffix', code: input.code }
     case 'statement':
       return { kind: 'statement', code: input.code }
+    case 'type':
+    case 'typeMember':
+    case 'typeParameter':
+    case 'parameter':
+    case 'constructorParameter':
+    case 'heritageType':
+    case 'declaration':
+    case 'classMember':
+    case 'enumMember':
+    case 'importSpecifier':
+    case 'exportSpecifier':
+      return { kind: input.port.regionKind, code: input.code }
     case 'array':
     case 'object':
     case 'string':
@@ -333,16 +359,18 @@ export function graphInputsToReplacementMap(inputs: Record<string, ResolvedGraph
         result[key] = replacementFromFragment(input)
         break
       case 'fragmentCollection':
-        result[key] = replacementFromFragment({
+        result[key] = markFragmentCollectionReplacement(replacementFromFragment({
           kind: 'fragment',
           fragment: {
-            code: input.fragments.map(fragment => fragment.code).join(input.port.separator ?? '\n'),
+            code: input.fragments.map(fragment => fragment.code).join(
+              input.port.separator ?? defaultFragmentCollectionSeparator(input.port.regionKind)
+            ),
             kind: input.port.regionKind,
             source: { templateId: '__fragmentCollection' },
             complete: true
           },
           port: { kind: 'fragment', regionKind: input.port.regionKind, accepts: input.port.accepts }
-        })
+        }) as Replacement)
         break
       case 'rawCode':
         result[key] = replacementFromRawCode(input)
@@ -859,6 +887,29 @@ export const statementReplacementSchema = oneOf<ReplacementStatement>(
   ]
 )
 
+function typedCodeReplacementSchema<
+  const K extends ReplacementTypedSyntax['kind']
+>(kind: K): Schema<Extract<Replacement, { kind: K }>> {
+  return oneOf(
+    `${kind} replacement`,
+    [
+      transform(
+        objectSchema(`Replacement${kind}`, {
+          kind: literalSchema(kind),
+          code: stringSchema
+        }),
+        `Replacement${kind}`,
+        value => ({ kind, code: value.code }) as Extract<Replacement, { kind: K }>
+      ),
+      transform(
+        stringSchema,
+        `${kind} code`,
+        code => ({ kind, code }) as Extract<Replacement, { kind: K }>
+      )
+    ]
+  )
+}
+
 export const objectPropertyReplacementSchema = oneOf<ReplacementObjectProperty>(
   'objectProperty replacement',
   [
@@ -1107,5 +1158,16 @@ export const markerReplacementSchemas = {
   number: numberMarkerReplacementSchema,
   boolean: booleanMarkerReplacementSchema,
   null: nullMarkerReplacementSchema,
-  objectProperty: objectPropertyReplacementValueSchema
+  objectProperty: objectPropertyReplacementValueSchema,
+  type: oneOrMany('type replacement value', typedCodeReplacementSchema('type')),
+  typeMember: oneOrMany('typeMember replacement value', typedCodeReplacementSchema('typeMember')),
+  typeParameter: oneOrMany('typeParameter replacement value', typedCodeReplacementSchema('typeParameter')),
+  parameter: oneOrMany('parameter replacement value', typedCodeReplacementSchema('parameter')),
+  constructorParameter: oneOrMany('constructorParameter replacement value', typedCodeReplacementSchema('constructorParameter')),
+  heritageType: oneOrMany('heritageType replacement value', typedCodeReplacementSchema('heritageType')),
+  declaration: oneOrMany('declaration replacement value', typedCodeReplacementSchema('declaration')),
+  classMember: oneOrMany('classMember replacement value', typedCodeReplacementSchema('classMember')),
+  enumMember: oneOrMany('enumMember replacement value', typedCodeReplacementSchema('enumMember')),
+  importSpecifier: oneOrMany('importSpecifier replacement value', typedCodeReplacementSchema('importSpecifier')),
+  exportSpecifier: oneOrMany('exportSpecifier replacement value', typedCodeReplacementSchema('exportSpecifier'))
 } satisfies Record<MarkerExpectedKind, Schema<ReplacementValue>>

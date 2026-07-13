@@ -9,6 +9,7 @@ import {
 	type SupportedJsonSchema
 } from './schemaTypes.js'
 import { TYPESCRIPT_COMPATIBILITY_ENGINE_VERSION } from './typeScriptCompatibility.js'
+import { REGION_SYNTAX_ENGINE_VERSION } from './graphCoreTypes.js'
 import { assertTemplateCatalogValid, TemplateCatalogValidationError } from './catalogValidation.js'
 import type {
 	GraphTemplateDefinition,
@@ -18,7 +19,7 @@ import type {
 	TypeDescriptor
 } from './graphTypes.js'
 
-const CATALOG_DIGEST_VERSION = 2
+const CATALOG_DIGEST_VERSION = 3
 
 function sortedUnique(values: readonly string[] | undefined): string[] {
 	return [...new Set(values ?? [])].sort()
@@ -146,6 +147,7 @@ export function templateSummaryContractDigest(summaries: readonly TemplateSummar
 		'template-catalog-contract',
 		CATALOG_DIGEST_VERSION,
 		{
+			regionSyntaxEngineVersion: REGION_SYNTAX_ENGINE_VERSION,
 			jsonSchemaDialect: JSON_SCHEMA_DIALECT_URI,
 			jsonSchemaProfileVersion: SUPPORTED_JSON_SCHEMA_VERSION,
 			jsonSchemaCompatibilityEngineVersion: JSON_SCHEMA_COMPATIBILITY_ENGINE_VERSION,

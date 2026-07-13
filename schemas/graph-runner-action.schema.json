@@ -393,6 +393,50 @@
         {
           "const": "objectProperty",
           "type": "string"
+        },
+        {
+          "const": "type",
+          "type": "string"
+        },
+        {
+          "const": "typeMember",
+          "type": "string"
+        },
+        {
+          "const": "typeParameter",
+          "type": "string"
+        },
+        {
+          "const": "parameter",
+          "type": "string"
+        },
+        {
+          "const": "constructorParameter",
+          "type": "string"
+        },
+        {
+          "const": "heritageType",
+          "type": "string"
+        },
+        {
+          "const": "declaration",
+          "type": "string"
+        },
+        {
+          "const": "classMember",
+          "type": "string"
+        },
+        {
+          "const": "enumMember",
+          "type": "string"
+        },
+        {
+          "const": "importSpecifier",
+          "type": "string"
+        },
+        {
+          "const": "exportSpecifier",
+          "type": "string"
         }
       ]
     },
@@ -663,6 +707,50 @@
         },
         {
           "const": "objectProperty",
+          "type": "string"
+        },
+        {
+          "const": "type",
+          "type": "string"
+        },
+        {
+          "const": "typeMember",
+          "type": "string"
+        },
+        {
+          "const": "typeParameter",
+          "type": "string"
+        },
+        {
+          "const": "parameter",
+          "type": "string"
+        },
+        {
+          "const": "constructorParameter",
+          "type": "string"
+        },
+        {
+          "const": "heritageType",
+          "type": "string"
+        },
+        {
+          "const": "declaration",
+          "type": "string"
+        },
+        {
+          "const": "classMember",
+          "type": "string"
+        },
+        {
+          "const": "enumMember",
+          "type": "string"
+        },
+        {
+          "const": "importSpecifier",
+          "type": "string"
+        },
+        {
+          "const": "exportSpecifier",
           "type": "string"
         }
       ]

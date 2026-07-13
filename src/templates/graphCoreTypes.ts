@@ -4,6 +4,9 @@ import type { SupportedJsonSchema } from './schemaTypes.js'
 /** Syntactic region kind accepted by graph ports and generated fragments. */
 export type RegionKind = MarkerExpectedKind
 
+/** Version of the parser-wrapper and AST-context contract for region kinds. */
+export const REGION_SYNTAX_ENGINE_VERSION = 1 as const
+
 /** Runtime list of supported graph region kinds, aligned with `RegionKind`. */
 export const REGION_KIND_VALUES = [
 	'identifier',
@@ -16,8 +19,27 @@ export const REGION_KIND_VALUES = [
 	'number',
 	'boolean',
 	'null',
-	'objectProperty'
+	'objectProperty',
+	'type',
+	'typeMember',
+	'typeParameter',
+	'parameter',
+	'constructorParameter',
+	'heritageType',
+	'declaration',
+	'classMember',
+	'enumMember',
+	'importSpecifier',
+	'exportSpecifier'
 ] as const satisfies readonly RegionKind[]
+
+/** Region kinds that carry TypeScript code rather than JSON literal values. */
+export const TYPED_SYNTAX_REGION_KIND_VALUES = [
+	'type', 'typeMember', 'typeParameter', 'parameter', 'constructorParameter',
+	'heritageType', 'declaration', 'classMember', 'enumMember', 'importSpecifier', 'exportSpecifier'
+] as const satisfies readonly RegionKind[]
+
+export type TypedSyntaxRegionKind = typeof TYPED_SYNTAX_REGION_KIND_VALUES[number]
 
 /** Built-in diagnostic codes emitted by catalog, graph, artifact, and runner APIs. */
 export const BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES = [

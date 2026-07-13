@@ -1,4 +1,5 @@
 import { SynthesizeRegionsError } from '../core/errors.js'
+import { TYPED_SYNTAX_REGION_KIND_VALUES } from './graphTypes.js'
 import type {
 	FragmentCollectionInputPort,
 	FragmentInputPort,
@@ -406,6 +407,15 @@ function validatePort(
 			validateTypeDescriptor(port.type, template, inputName, `${path}.type`, context)
 			break
 		case 'literal':
+			if (TYPED_SYNTAX_REGION_KIND_VALUES.includes(port.regionKind as never)) {
+				context.diagnostics.push(diagnostic(
+					'IncompatibleInputKind',
+					'Literal ports cannot feed first-class type or declaration syntax regions.',
+					template,
+					`${path}.regionKind`,
+					{ inputName, expected: 'rawCode, fragment, fragmentCollection, or union', actual: port.regionKind }
+				))
+			}
 			validateSchema(port.schema, template, inputName, `${path}.schema`, context)
 			break
 	}

@@ -2,7 +2,13 @@ import type { ReplacementRegion, TemplateMode } from '../core/types.js'
 import { buildReplacementEdits } from '../replacements/serialize.js'
 import { discoverReplacementRegions } from '../regions/discovery.js'
 import { wrapTemplateSource } from './templateMode.js'
-import { assertFinalValid, createProject, createSourceFile, structuredSemanticDiagnostics } from '../validation/ast.js'
+import {
+	assertFinalValid,
+	createProject,
+	createSourceFile,
+	structuredSemanticDiagnostics,
+	validateRawTypedSyntax
+} from '../validation/ast.js'
 import { graphInputsToReplacementMap } from './converter.js'
 import { canonicalizeJson, createCompilationScope, createUnresolvedInputId } from './artifactIdentity.js'
 import { validateTemplateArtifactIntegrity } from './artifactIntegrity.js'
@@ -40,6 +46,7 @@ import type {
 	TemplateRegistrySnapshot,
 	UnresolvedTemplateInput
 } from './graphTypes.js'
+import { TYPED_SYNTAX_REGION_KIND_VALUES } from './graphTypes.js'
 import {
 	compareTypeDescriptors,
 	fragmentPortOutputKind,
@@ -49,7 +56,7 @@ import {
 } from './compatibility.js'
 import { validateJsonValueAgainstSchema } from './schemaCompatibility.js'
 import { createTemplateRegistry } from './registry.js'
-import { templateModeForRegionKind } from './rendering.js'
+import { defaultFragmentCollectionSeparator, templateModeForRegionKind } from './rendering.js'
 import { validateVirtualSemanticTarget } from './semanticTarget.js'
 import {
 	applySourceMappedTextEdits,
@@ -218,6 +225,13 @@ const __partial: ${advertisedType} = __partialCandidate;`
 		return { mode, originalText: artifact.code, prefix, suffix, wrappedText: `${prefix}${artifact.code}${suffix}` }
 	}
 
+	if (mode.kind === 'type') {
+		const prefix = `type __SynthesisAssertAssignable<Expected, Actual extends Expected> = Actual;
+type __SynthesisChecked = __SynthesisAssertAssignable<${advertisedType}, `
+		const suffix = '>;'
+		return { mode, originalText: artifact.code, prefix, suffix, wrappedText: `${prefix}${artifact.code}${suffix}` }
+	}
+
 	return wrapTemplateSource(artifact.code, mode)
 }
 
@@ -317,6 +331,14 @@ function validateArtifactSyntax(
 		const project = createProject(options)
 		const sourceFile = createSourceFile(project, wrapped.wrappedText, filePath)
 		assertFinalValid(sourceFile, filePath, false)
+		if (artifact.complete !== false && TYPED_SYNTAX_REGION_KIND_VALUES.includes(artifact.kind as never)) {
+			validateRawTypedSyntax(
+				artifact.kind,
+				artifact.code,
+				options,
+				artifact.id === undefined ? {} : { id: artifact.id }
+			)
+		}
 		return []
 	} catch (error) {
 		return [errorDiagnostic({
@@ -1005,7 +1027,9 @@ function partialArtifactsFromResolvedInput(input: ResolvedGraphInput): PartialTe
 function partialArtifactReplacementCode(input: ResolvedGraphInput): string | undefined {
 	if (input.kind === 'fragment' && input.fragment.complete === false) return input.fragment.code
 	if (input.kind === 'fragmentCollection' && input.fragments.some(fragment => fragment.complete === false)) {
-		return input.fragments.map(fragment => fragment.code).join(input.port.separator ?? '\n')
+		return input.fragments.map(fragment => fragment.code).join(
+			input.port.separator ?? defaultFragmentCollectionSeparator(input.port.regionKind)
+		)
 	}
 	return undefined
 }
@@ -1019,7 +1043,10 @@ function nestedResolvedInputSourceMap(
 		return sourceMappedFragment(input.fragment, renderedCode).sourceMap
 	}
 	if (input.kind === 'fragmentCollection') {
-		const joined = sourceMappedFragmentCollection(input.fragments, input.port.separator ?? '\n')
+		const joined = sourceMappedFragmentCollection(
+			input.fragments,
+			input.port.separator ?? defaultFragmentCollectionSeparator(input.port.regionKind)
+		)
 		return remapGeneratedSourceMap(joined.code, renderedCode, joined.sourceMap)
 	}
 	return undefined

@@ -40,6 +40,9 @@
           "$ref": "#/$defs/statementReplacement"
         },
         {
+          "$ref": "#/$defs/typedSyntaxReplacement"
+        },
+        {
           "$ref": "#/$defs/arrayReplacement"
         },
         {
@@ -137,6 +140,35 @@
       "properties": {
         "kind": {
           "const": "statement"
+        },
+        "code": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "typedSyntaxReplacement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "code"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "type",
+            "typeMember",
+            "typeParameter",
+            "parameter",
+            "constructorParameter",
+            "heritageType",
+            "declaration",
+            "classMember",
+            "enumMember",
+            "importSpecifier",
+            "exportSpecifier"
+          ]
         },
         "code": {
           "type": "string",
