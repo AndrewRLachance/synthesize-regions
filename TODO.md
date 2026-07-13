@@ -38,36 +38,36 @@ This roadmap prioritizes correctness and deterministic LLM repair behavior befor
 
 ## 4. Add typed graph patch actions and repair classification
 
-- [ ] Introduce schema-backed runner actions such as `addNode`, `removeNode`, `setInput`, `removeInput`, and `setFinalNode`.
-- [ ] Preserve `replaceGraph` as an escape hatch while favoring small, local mutations.
-- [ ] Add exported literal unions for diagnostic codes and repair-action kinds.
-- [ ] Classify failures as graph-repairable, artifact-fillable, template/policy failures, or terminal failures.
-- [ ] Allow corrected fills after a rejected fill instead of always transitioning permanently to `failed`.
-- [ ] Add `definePartialGraph()` or `StrictPartialSynthesisGraph` so incomplete LLM graphs retain catalog-aware validation.
-- [ ] Publish JSON Schemas for runner actions and state transitions.
+- [x] Introduce schema-backed runner actions such as `addNode`, `removeNode`, `setInput`, `removeInput`, and `setFinalNode`.
+- [x] Preserve `replaceGraph` as an escape hatch while favoring small, local mutations.
+- [x] Add exported literal unions for diagnostic codes and repair-action kinds.
+- [x] Classify failures as graph-repairable, artifact-fillable, template/policy failures, or terminal failures.
+- [x] Allow corrected fills after a rejected fill instead of always transitioning permanently to `failed`.
+- [x] Add `definePartialGraph()` or `StrictPartialSynthesisGraph` so incomplete LLM graphs retain catalog-aware validation.
+- [x] Publish JSON Schemas for runner actions and state transitions.
 
 **Done when:** an LLM can repair a graph through small validated actions without resending the entire graph or guessing whether a failure is retryable.
 
 ## 5. Replace ad hoc type and schema compatibility
 
-- [ ] Define and document a typed, supported JSON Schema dialect.
-- [ ] Reject unsupported schema keywords at template registration.
-- [ ] Use one implementation for literal validation, schema compatibility, final goals, and planner schema generation.
-- [ ] Replace handwritten TypeScript string comparison with cached compiler assignability or canonical compatibility IDs.
-- [ ] Decide whether `TypeDescriptor.ts` is enforceable or descriptive, and document that contract.
-- [ ] Extend strict graph typing to check declared type compatibility where finite literal metadata permits it.
-- [ ] Add tests for generics, nested unions, object required properties, tuples, bounds, and incompatible schemas.
+- [x] Define and document a typed, supported JSON Schema dialect.
+- [x] Reject unsupported schema keywords at template registration.
+- [x] Use one implementation for literal validation, schema compatibility, final goals, and planner schema generation.
+- [x] Replace handwritten TypeScript string comparison with cached compiler assignability or canonical compatibility IDs.
+- [x] Decide whether `TypeDescriptor.ts` is enforceable or descriptive, and document that contract.
+- [x] Extend strict graph typing to check declared type compatibility where finite literal metadata permits it.
+- [x] Add tests for generics, nested unions, object required properties, tuples, bounds, and incompatible schemas.
 
 **Done when:** compile-time checks, runtime checks, semantic validation, and exported schemas do not disagree about compatibility.
 
 ## 6. Map semantic diagnostics to contributing child nodes
 
-- [ ] Track generated source spans for every node and input during graph composition.
-- [ ] Preserve span mappings through fragment collections, formatting, and artifact filling.
-- [ ] Map TypeScript diagnostics to the deepest contributing `nodeId`, `templateId`, and `inputName`.
-- [ ] Support optional virtual insertion into a real target file for accurate local binding and import context.
-- [ ] Ensure graph compilation derives validation wrappers from each artifact kind rather than a caller-wide override.
-- [ ] Add nested-fragment, collection, formatted-output, and target-file attribution tests.
+- [x] Track generated source spans for every node and input during graph composition.
+- [x] Preserve span mappings through fragment collections, formatting, and artifact filling.
+- [x] Map TypeScript diagnostics to the deepest contributing `nodeId`, `templateId`, and `inputName`.
+- [x] Support optional virtual insertion into a real target file for accurate local binding and import context.
+- [x] Ensure graph compilation derives validation wrappers from each artifact kind rather than a caller-wide override.
+- [x] Add nested-fragment, collection, formatted-output, and target-file attribution tests.
 
 **Done when:** semantic errors identify the graph decision that produced the invalid code, rather than only the final node.
 

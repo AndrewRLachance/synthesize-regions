@@ -45,6 +45,7 @@ describe("graph ts-pattern matchers", () => {
       kind: "graphCompilation",
       mode: "strict",
       ok: false,
+      classification: "graphRepairable",
       diagnostics: [{
         stage: "type",
         code: "TypeScriptSemanticError",
@@ -254,6 +255,7 @@ describe("graph ts-pattern matchers", () => {
     const artifactFailure = {
       kind: "templateArtifact",
       ok: false,
+      classification: "artifactFillable",
       diagnostics: []
     } as const;
 

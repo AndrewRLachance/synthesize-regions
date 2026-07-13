@@ -4,9 +4,12 @@ import { fileURLToPath } from 'node:url'
 import type { TSchema } from '@sinclair/typebox'
 import {
 	GraphCompilationResultSchema,
+	GraphRunnerActionSchema,
+	GraphRunnerStateSchema,
 	SynthesisGraphSchema,
 	TemplateSummarySchema
 } from '../src/templates/graphContracts.js'
+import { SupportedJsonSchemaSchema } from '../src/templates/schemaContract.js'
 
 const draft202012 = 'https://json-schema.org/draft/2020-12/schema'
 const schemaBaseUrl = 'https://schemas.synthesize-regions.dev'
@@ -19,7 +22,15 @@ interface PublishedSchema {
 	readonly schema: TSchema
 }
 
+type JsonRecord = Record<string, unknown>
+
 const publishedSchemas: readonly PublishedSchema[] = [
+	{
+		fileName: 'supported-json-schema.schema.json',
+		title: 'synthesize-regions SupportedJsonSchema',
+		description: 'Closed, local-reference-only Draft 2020-12 profile used by synthesize-regions value and compatibility contracts.',
+		schema: SupportedJsonSchemaSchema
+	},
 	{
 		fileName: 'synthesis-graph.schema.json',
 		title: 'synthesize-regions SynthesisGraph',
@@ -37,8 +48,75 @@ const publishedSchemas: readonly PublishedSchema[] = [
 		title: 'synthesize-regions GraphCompilationResult',
 		description: 'Structural JSON Schema for strict and partial graph compilation results, including generated artifacts, unresolved inputs, and structured diagnostics.',
 		schema: GraphCompilationResultSchema
+	},
+	{
+		fileName: 'graph-runner-action.schema.json',
+		title: 'synthesize-regions GraphRunnerAction',
+		description: 'Structural JSON Schema for transactional graph patch actions, complete graph replacements, and partial-artifact fill actions accepted by GraphRunner.',
+		schema: GraphRunnerActionSchema
+	},
+	{
+		fileName: 'graph-runner-state.schema.json',
+		title: 'synthesize-regions GraphRunnerState',
+		description: 'Structural JSON Schema for GraphRunner transition outputs, including repair classifications, graph compilation failures, and generated artifacts.',
+		schema: GraphRunnerStateSchema
 	}
 ]
+
+function isRecord(value: unknown): value is JsonRecord {
+	return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function walkJson(value: unknown, visit: (record: JsonRecord) => void): void {
+	if (Array.isArray(value)) {
+		for (const item of value) walkJson(item, visit)
+		return
+	}
+	if (!isRecord(value)) return
+	visit(value)
+	for (const child of Object.values(value)) walkJson(child, visit)
+}
+
+/**
+ * TypeBox modules import every module definition and use relative `$id` refs.
+ * Published documents retain only reachable definitions and rewrite those refs
+ * to document-local JSON pointers so several package schemas can be loaded into
+ * one Ajv instance without duplicate identifier collisions.
+ */
+function localizeModuleDefinitions(schema: JsonRecord): JsonRecord {
+	const definitions = isRecord(schema.$defs) ? schema.$defs : undefined
+	if (!definitions) return schema
+
+	const reachable = new Set<string>()
+	const pending: string[] = []
+	const rootWithoutDefinitions = { ...schema }
+	delete rootWithoutDefinitions.$defs
+	walkJson(rootWithoutDefinitions, record => {
+		if (typeof record.$ref === 'string' && record.$ref in definitions) pending.push(record.$ref)
+	})
+
+	while (pending.length > 0) {
+		const name = pending.pop()!
+		if (reachable.has(name)) continue
+		reachable.add(name)
+		walkJson(definitions[name], record => {
+			if (typeof record.$ref === 'string' && record.$ref in definitions) pending.push(record.$ref)
+		})
+	}
+
+	const localizedDefinitions: JsonRecord = {}
+	for (const [name, definition] of Object.entries(definitions)) {
+		if (reachable.has(name)) localizedDefinitions[name] = definition
+	}
+	const localized = { ...rootWithoutDefinitions, $defs: localizedDefinitions }
+	walkJson(localized, record => {
+		if (typeof record.$ref === 'string' && record.$ref in definitions) {
+			record.$ref = `#/$defs/${record.$ref.replaceAll('~', '~0').replaceAll('/', '~1')}`
+		}
+		if ('$id' in record) delete record.$id
+	})
+	return localized
+}
 
 const createDocument = ({ fileName, title, description, schema }: PublishedSchema): Record<string, unknown> => {
 	const {
@@ -46,8 +124,9 @@ const createDocument = ({ fileName, title, description, schema }: PublishedSchem
 		$id: _id,
 		title: _title,
 		description: _description,
-		...body
+		...rawBody
 	} = schema as Record<string, unknown>
+	const body = localizeModuleDefinitions(JSON.parse(JSON.stringify(rawBody)) as JsonRecord)
 
 	const document = {
 		$schema: draft202012,

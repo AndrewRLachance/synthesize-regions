@@ -13,6 +13,7 @@ import {
 	graphTemplateDefinitionToJsonSchema,
 	literalPort,
 	rawCodePort,
+	templateRegistryToSynthesisGraphJsonSchema,
 	unionPort
 } from '../src/index.js'
 import type { SynthesisGraph } from '../src/index.js'
@@ -20,9 +21,12 @@ import type { SynthesisGraph } from '../src/index.js'
 const currentDir = fileURLToPath(new URL('.', import.meta.url))
 const rootDir = join(currentDir, '..')
 const publishedSchemaPaths = [
+	'schemas/supported-json-schema.schema.json',
 	'schemas/synthesis-graph.schema.json',
 	'schemas/template-summary.schema.json',
-	'schemas/graph-compilation-result.schema.json'
+	'schemas/graph-compilation-result.schema.json',
+	'schemas/graph-runner-action.schema.json',
+	'schemas/graph-runner-state.schema.json'
 ] as const
 
 function readJson(path: string): Record<string, unknown> {
@@ -229,6 +233,27 @@ const graphFixture = {
 	}
 } satisfies SynthesisGraph
 
+const mappedCompleteArtifact = {
+	id: 'mapped',
+	code: 'value',
+	kind: 'expression',
+	source: { templateId: 'MappedExpression' },
+	sourceMap: {
+		version: 1,
+		spans: [
+			{
+				kind: 'node', start: 0, end: 5, nestingDepth: 0,
+				nodeId: 'mapped', templateId: 'MappedExpression'
+			},
+			{
+				kind: 'input', start: 0, end: 5, nestingDepth: 1,
+				nodeId: 'mapped', templateId: 'MappedExpression', inputName: 'value'
+			}
+		]
+	},
+	complete: true
+} as const
+
 describe('published graph JSON Schemas', () => {
 	it('publishes and compiles each canonical schema as draft 2020-12', () => {
 		for (const path of publishedSchemaPaths) {
@@ -243,9 +268,174 @@ describe('published graph JSON Schemas', () => {
 		const exportsMap = packageJson.exports as Record<string, unknown>
 
 		expect(exportsMap['./schemas/replacement-map.schema.json']).toBe('./schemas/replacement-map.schema.json')
+		expect(exportsMap['./schemas/supported-json-schema.schema.json']).toBe('./schemas/supported-json-schema.schema.json')
 		expect(exportsMap['./schemas/synthesis-graph.schema.json']).toBe('./schemas/synthesis-graph.schema.json')
 		expect(exportsMap['./schemas/template-summary.schema.json']).toBe('./schemas/template-summary.schema.json')
 		expect(exportsMap['./schemas/graph-compilation-result.schema.json']).toBe('./schemas/graph-compilation-result.schema.json')
+		expect(exportsMap['./schemas/graph-runner-action.schema.json']).toBe('./schemas/graph-runner-action.schema.json')
+		expect(exportsMap['./schemas/graph-runner-state.schema.json']).toBe('./schemas/graph-runner-state.schema.json')
+	})
+
+	it('publishes the closed supported JSON Schema dialect', () => {
+		const { validate } = compilePublishedSchema('schemas/supported-json-schema.schema.json')
+		expectValid(validate, {
+			$defs: { item: { type: 'string', minLength: 1 } },
+			type: 'array',
+			prefixItems: [{ $ref: '#/$defs/item' }],
+			items: false,
+			minItems: 1,
+			maxItems: 1
+		})
+		expectInvalid(validate, { $ref: 'https://example.com/remote.json' })
+		expectInvalid(validate, { type: 'string', minLenght: 1 })
+		expectInvalid(validate, { definitions: { item: { type: 'string' } } })
+	})
+
+	it('validates every graph runner action and rejects malformed actions', () => {
+		const { validate } = compilePublishedSchema('schemas/graph-runner-action.schema.json')
+		const node = { id: 'source', templateId: 'Source', inputs: {} }
+		const graph = { nodes: [node], finalNodeId: 'source' }
+		const actions = [
+			{ kind: 'addNode', node },
+			{ kind: 'removeNode', nodeId: 'source' },
+			{
+				kind: 'setInput', nodeId: 'source', inputName: 'value',
+				input: {
+					kind: 'inline',
+					node: { id: 'inline', templateId: 'Inline', inputs: {} }
+				}
+			},
+			{ kind: 'removeInput', nodeId: 'source', inputName: 'value' },
+			{ kind: 'setFinalNode', nodeId: 'source' },
+			{ kind: 'setGoal', goal: { outputKind: 'expression' } },
+			{ kind: 'removeGoal' },
+			{ kind: 'replaceGraph', graph },
+			{ kind: 'fill', inputs: { value: { kind: 'literal', value: 42 } } }
+		]
+		for (const action of actions) expectValid(validate, action)
+
+		for (const action of [
+			{ kind: 'unknown' },
+			{ kind: 'setInput', nodeId: 'source', inputName: 'value' },
+			{ kind: 'removeNode' },
+			{ kind: 'removeGoal', unexpected: true }
+		]) expectInvalid(validate, action)
+	})
+
+	it('validates every classified graph runner state and rejects invalid channels', () => {
+		const { validate } = compilePublishedSchema('schemas/graph-runner-state.schema.json')
+		const graph = { nodes: [], finalNodeId: 'root' }
+		const diagnostic = {
+			stage: 'graph', code: 'UnknownTemplate', severity: 'error', message: 'Unknown template.'
+		}
+		const partialArtifact = {
+			id: 'root', code: '/* unresolved */', kind: 'expression',
+			source: { templateId: 'Root' }, complete: false,
+			unresolvedInputs: [{
+				id: 'value', inputName: 'value', nodeId: 'root', templateId: 'Root',
+				port: { kind: 'rawCode', regionKind: 'expression' }
+			}]
+		}
+		const completeArtifact = {
+			id: 'root', code: '42', kind: 'expression',
+			source: { templateId: 'Root' }, complete: true
+		}
+		const compilationFailure = {
+			kind: 'graphCompilation', mode: 'partial', ok: false,
+			classification: 'graphRepairable', diagnostics: [diagnostic]
+		}
+		const states = [
+			{ kind: 'ready', graph },
+			{
+				kind: 'needsGraphRepair', graph, result: compilationFailure,
+				diagnostics: [diagnostic], classification: 'graphRepairable'
+			},
+			{
+				kind: 'needsArtifactInputs', graph, artifact: partialArtifact,
+				diagnostics: [], classification: 'artifactFillable'
+			},
+			{ kind: 'complete', graph, artifact: completeArtifact, diagnostics: [] },
+			{ kind: 'failed', graph, diagnostics: [diagnostic], classification: 'terminalFailure' },
+			{ kind: 'failed', graph, diagnostics: [diagnostic], classification: 'templatePolicyFailure' }
+		]
+		for (const state of states) expectValid(validate, state)
+
+		expectInvalid(validate, {
+			kind: 'needsArtifactInputs', graph, artifact: partialArtifact,
+			diagnostics: [], classification: 'graphRepairable'
+		})
+		expectInvalid(validate, {
+			kind: 'needsGraphRepair', graph,
+			result: { ...compilationFailure, classification: 'terminalFailure' },
+			diagnostics: [diagnostic], classification: 'graphRepairable'
+		})
+		expectInvalid(validate, {
+			kind: 'failed', graph, diagnostics: [diagnostic], classification: 'artifactFillable'
+		})
+		expectInvalid(validate, { kind: 'ready', graph, unexpected: true })
+	})
+
+	it('publishes source-map v1 in compilation, action, and runner-state artifacts', () => {
+		const graph = { nodes: [], finalNodeId: 'mapped' }
+		const compilation = {
+			kind: 'graphCompilation', mode: 'strict', ok: true,
+			finalArtifact: mappedCompleteArtifact,
+			artifacts: { mapped: mappedCompleteArtifact },
+			diagnostics: []
+		}
+		const fillAction = {
+			kind: 'fill',
+			inputs: { value: { kind: 'fragment', fragment: mappedCompleteArtifact } }
+		}
+		const completeState = {
+			kind: 'complete', graph, artifact: mappedCompleteArtifact, diagnostics: []
+		}
+
+		expectValid(
+			compilePublishedSchema('schemas/graph-compilation-result.schema.json').validate,
+			compilation
+		)
+		expectValid(
+			compilePublishedSchema('schemas/graph-runner-action.schema.json').validate,
+			fillAction
+		)
+		expectValid(
+			compilePublishedSchema('schemas/graph-runner-state.schema.json').validate,
+			completeState
+		)
+
+		const compilationValidator = compilePublishedSchema(
+			'schemas/graph-compilation-result.schema.json'
+		).validate
+		for (const invalidSourceMap of [
+			{ version: 2, spans: [] },
+			{
+				version: 1,
+				spans: [{
+					kind: 'input', start: 0, end: 5, nestingDepth: 1,
+					nodeId: 'mapped', templateId: 'MappedExpression'
+				}]
+			},
+			{
+				version: 1,
+				spans: [{
+					kind: 'node', start: -1, end: 5, nestingDepth: 0,
+					nodeId: 'mapped', templateId: 'MappedExpression'
+				}]
+			},
+			{
+				version: 1,
+				spans: [{
+					kind: 'node', start: 0, end: 5, nestingDepth: 0,
+					nodeId: 'mapped', templateId: 'MappedExpression', unexpected: true
+				}]
+			}
+		]) {
+			expectInvalid(compilationValidator, {
+				...compilation,
+				finalArtifact: { ...mappedCompleteArtifact, sourceMap: invalidSourceMap }
+			})
+		}
 	})
 
 	it('validates every authored graph input form, including recursive inline collection items', () => {
@@ -437,6 +627,7 @@ describe('published graph JSON Schemas', () => {
 			kind: 'graphCompilation',
 			mode: 'strict',
 			ok: false,
+			classification: 'graphRepairable',
 			diagnostics: [{
 				stage: 'type',
 				code: 'TypeScriptSemanticError',
@@ -568,5 +759,62 @@ describe('published graph JSON Schemas', () => {
 			pattern: '^[^\\r\\n]*$'
 		})
 		expect(choice).toHaveProperty('anyOf')
+	})
+
+	it('keeps authored local references inside deterministic planner-schema resources', () => {
+		const LocalReferenceLiteral = defineTemplate({
+			modelId: 'LocalReferenceLiteral',
+			version: '1',
+			inputs: {
+				value: literalPort({
+					regionKind: 'expression',
+					schema: {
+						$defs: { nonempty: { type: 'string', minLength: 1 } },
+						$ref: '#/$defs/nonempty'
+					}
+				}),
+				choice: unionPort({
+					options: [
+						literalPort({
+							regionKind: 'expression',
+							schema: {
+								$defs: { selected: { const: 'left' } },
+								$ref: '#/$defs/selected'
+							}
+						}),
+						literalPort({
+							regionKind: 'expression',
+							schema: {
+								$defs: { selected: { const: 'right' } },
+								$ref: '#/$defs/selected'
+							}
+						})
+					]
+				})
+			},
+			output: { kind: 'expression' },
+			template: region => region('value')
+		})
+		const registry = createTemplateRegistry([LocalReferenceLiteral])
+		const firstSchema = templateRegistryToSynthesisGraphJsonSchema(registry)
+		const secondSchema = templateRegistryToSynthesisGraphJsonSchema(registry)
+		expect(secondSchema).toEqual(firstSchema)
+
+		const ajv = new Ajv2020({ allErrors: true, strict: true })
+		const validate = ajv.compile(firstSchema)
+		const graph = (value: unknown, choice: unknown) => ({
+			nodes: [{
+				id: 'local', templateId: 'LocalReferenceLiteral',
+				inputs: {
+					value: { kind: 'literal', value },
+					choice: { kind: 'literal', value: choice }
+				}
+			}],
+			finalNodeId: 'local'
+		})
+		expectValid(validate, graph('value', 'left'))
+		expectValid(validate, graph('value', 'right'))
+		expectInvalid(validate, graph('', 'left'))
+		expectInvalid(validate, graph('value', 'other'))
 	})
 })

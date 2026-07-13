@@ -1,17 +1,31 @@
 import { isMatching, P } from 'ts-pattern'
+import { isSupportedJsonSchemaContract } from './schemaContract.js'
+import type { SupportedJsonSchema } from './schemaTypes.js'
 import {
 	CompleteTemplateArtifactSchema,
+	GeneratedSourceMapSchema,
+	GeneratedSourceSpanSchema,
+	GraphPatchActionSchema,
+	GraphPatchResultSchema,
+	GraphRunnerActionSchema,
+	GraphRunnerStateSchema,
 	PartialTemplateArtifactSchema,
 	SynthesisGraphSchema,
 	checkContract
 } from './graphContracts.js'
+import type { GraphRunnerState } from './runner.js'
 import type {
 	CompleteTemplateArtifact,
 	FragmentInputPort,
 	FragmentCollectionInputPort,
 	GeneratedFragment,
+	GeneratedSourceMap,
+	GeneratedSourceSpan,
 	GraphCompilationResult,
+	GraphPatchAction,
+	GraphPatchResult,
 	GraphPartialCompilationResult,
+	GraphRunnerAction,
 	GraphTemplateDefinition,
 	InputPort,
 	LiteralInputPort,
@@ -22,6 +36,7 @@ import type {
 	RegionKind,
 	ResolvedGraphInput,
 	SynthesisDiagnostic,
+	SynthesisFailureClassification,
 	SynthesisGoal,
 	SynthesisGraph,
 	SynthesisInput,
@@ -51,9 +66,14 @@ export const regionKindPattern: P.Pattern<RegionKind> = P.union(
 ) satisfies P.Pattern<RegionKind>
 
 /** Runtime `ts-pattern` pattern for graph type metadata. */
+export const supportedJsonSchemaPattern: P.Pattern<SupportedJsonSchema> = P.when(
+	isSupportedJsonSchemaContract
+) satisfies P.Pattern<SupportedJsonSchema>
+
+/** Runtime `ts-pattern` pattern for graph type metadata. */
 export const typeDescriptorPattern: P.Pattern<TypeDescriptor> = {
 	ts: P.optional(P.string),
-	schema: P.optional(P._)
+	schema: P.optional(supportedJsonSchemaPattern)
 } satisfies P.Pattern<TypeDescriptor>
 
 /** Runtime `ts-pattern` pattern for planner-facing repair hints. */
@@ -61,6 +81,26 @@ export const synthesisRepairHintPattern: P.Pattern<SynthesisRepairHint> = {
 	kind: P.string,
 	message: P.string
 } satisfies P.Pattern<SynthesisRepairHint>
+
+/** Runtime pattern for contextual failure classifications. */
+export const synthesisFailureClassificationPattern: P.Pattern<SynthesisFailureClassification> = P.union(
+	'graphRepairable',
+	'artifactFillable',
+	'templatePolicyFailure',
+	'terminalFailure'
+) satisfies P.Pattern<SynthesisFailureClassification>
+
+const graphFailureClassificationPattern = P.union(
+	'graphRepairable',
+	'templatePolicyFailure',
+	'terminalFailure'
+)
+
+const artifactFailureClassificationPattern = P.union(
+	'artifactFillable',
+	'templatePolicyFailure',
+	'terminalFailure'
+)
 
 /** Runtime `ts-pattern` pattern for graph diagnostic objects. */
 export const synthesisDiagnosticPattern: P.Pattern<SynthesisDiagnostic> = {
@@ -90,6 +130,26 @@ const inputPortMetadataPattern = {
 
 type GuardPattern<T> = ReturnType<typeof P.when<unknown, (value: unknown) => value is T>>
 
+/** Runtime pattern for one persisted generated-source ownership span. */
+export const generatedSourceSpanPattern: GuardPattern<GeneratedSourceSpan> = P.when(
+	(value): value is GeneratedSourceSpan => checkContract(GeneratedSourceSpanSchema, value)
+)
+
+/** Runtime type guard for generated-source ownership spans. */
+export function isGeneratedSourceSpan(value: unknown): value is GeneratedSourceSpan {
+	return checkContract(GeneratedSourceSpanSchema, value)
+}
+
+/** Runtime pattern for a versioned persisted generated-source map. */
+export const generatedSourceMapPattern: GuardPattern<GeneratedSourceMap> = P.when(
+	(value): value is GeneratedSourceMap => checkContract(GeneratedSourceMapSchema, value)
+)
+
+/** Runtime type guard for persisted generated-source maps. */
+export function isGeneratedSourceMap(value: unknown): value is GeneratedSourceMap {
+	return checkContract(GeneratedSourceMapSchema, value)
+}
+
 type GeneratedFragmentDiscriminatingObjectPattern = {
 	code: P.Pattern<string>
 	kind: P.Pattern<RegionKind>
@@ -118,6 +178,7 @@ type GraphCompilationFailureObjectPattern = {
 	kind: 'graphCompilation'
 	mode: 'strict'
 	ok: false
+	classification: P.Pattern<'graphRepairable' | 'templatePolicyFailure' | 'terminalFailure'>
 	diagnostics: P.Pattern<SynthesisDiagnostic[]>
 	partialArtifacts?: P.Pattern<Record<string, TemplateArtifact> | undefined>
 }
@@ -139,6 +200,7 @@ type GraphPartialCompilationFailureObjectPattern = {
 	kind: 'graphCompilation'
 	mode: 'partial'
 	ok: false
+	classification: P.Pattern<'graphRepairable' | 'templatePolicyFailure' | 'terminalFailure'>
 	diagnostics: P.Pattern<SynthesisDiagnostic[]>
 	partialArtifacts?: P.Pattern<Record<string, TemplateArtifact> | undefined>
 }
@@ -157,6 +219,7 @@ type TemplateArtifactCompleteSuccess = Extract<TemplateArtifactResult, { ok: tru
 type TemplateArtifactFailureObjectPattern = {
 	kind: 'templateArtifact'
 	ok: false
+	classification: P.Pattern<'artifactFillable' | 'templatePolicyFailure' | 'terminalFailure'>
 	diagnostics: P.Pattern<SynthesisDiagnostic[]>
 }
 
@@ -164,7 +227,7 @@ type TemplateArtifactFailureObjectPattern = {
 export const literalInputPortPattern: P.Pattern<LiteralInputPort> = {
 	kind: 'literal',
 	regionKind: regionKindPattern,
-	schema: P.optional(P._),
+	schema: P.optional(supportedJsonSchemaPattern),
 	...inputPortMetadataPattern
 } satisfies P.Pattern<LiteralInputPort>
 
@@ -234,7 +297,7 @@ export function isInputPort(value: unknown): value is InputPort {
 export const outputPortPattern: P.Pattern<OutputPort> = {
 	kind: regionKindPattern,
 	type: P.optional(typeDescriptorPattern),
-	schema: P.optional(P._),
+	schema: P.optional(supportedJsonSchemaPattern),
 	description: P.optional(P.string)
 } satisfies P.Pattern<OutputPort>
 
@@ -258,8 +321,9 @@ export const generatedFragmentPattern: P.Pattern<GeneratedFragment> = {
 	kind: regionKindPattern,
 	source: generatedFragmentSourcePattern,
 	type: P.optional(typeDescriptorPattern),
-	schema: P.optional(P._),
+	schema: P.optional(supportedJsonSchemaPattern),
 	provenance: P.optional(generatedFragmentProvenancePattern),
+	sourceMap: P.optional(generatedSourceMapPattern),
 	diagnostics: P.optional(synthesisDiagnosticsPattern)
 } satisfies P.Pattern<GeneratedFragment>
 
@@ -385,7 +449,7 @@ export const resolvedGraphInputPattern: P.Pattern<ResolvedGraphInput> = P.union(
 export const synthesisGoalPattern: P.Pattern<SynthesisGoal> = {
 	outputKind: P.optional(regionKindPattern),
 	type: P.optional(typeDescriptorPattern),
-	schema: P.optional(P._)
+	schema: P.optional(supportedJsonSchemaPattern)
 } satisfies P.Pattern<SynthesisGoal>
 
 /** Runtime `ts-pattern` pattern for authored literal graph inputs. */
@@ -494,6 +558,46 @@ export function isSynthesisGraph(value: unknown): value is SynthesisGraph {
 	return isMatching(synthesisGraphPattern, value)
 }
 
+/** Runtime pattern for one immutable graph patch action. */
+export const graphPatchActionPattern: GuardPattern<GraphPatchAction> = P.when(
+	(value): value is GraphPatchAction => checkContract(GraphPatchActionSchema, value)
+)
+
+/** Runtime type guard for immutable graph patch actions. */
+export function isGraphPatchAction(value: unknown): value is GraphPatchAction {
+	return checkContract(GraphPatchActionSchema, value)
+}
+
+/** Runtime pattern for any explicit action accepted by `GraphRunner.advance()`. */
+export const graphRunnerActionPattern: GuardPattern<GraphRunnerAction> = P.when(
+	(value): value is GraphRunnerAction => checkContract(GraphRunnerActionSchema, value)
+)
+
+/** Runtime type guard for graph runner actions. */
+export function isGraphRunnerAction(value: unknown): value is GraphRunnerAction {
+	return checkContract(GraphRunnerActionSchema, value)
+}
+
+/** Runtime pattern for transactional graph patch results. */
+export const graphPatchResultPattern: GuardPattern<GraphPatchResult> = P.when(
+	(value): value is GraphPatchResult => checkContract(GraphPatchResultSchema, value)
+)
+
+/** Runtime type guard for transactional graph patch results. */
+export function isGraphPatchResult(value: unknown): value is GraphPatchResult {
+	return checkContract(GraphPatchResultSchema, value)
+}
+
+/** Runtime pattern for graph runner transition outputs. */
+export const graphRunnerStatePattern: GuardPattern<GraphRunnerState> = P.when(
+	(value): value is GraphRunnerState => checkContract(GraphRunnerStateSchema, value)
+)
+
+/** Runtime type guard for graph runner transition outputs. */
+export function isGraphRunnerState(value: unknown): value is GraphRunnerState {
+	return checkContract(GraphRunnerStateSchema, value)
+}
+
 /** Return true when a value is a string-keyed map whose values pass a guard. */
 function recordResultWithValues<TValue>(
 	value: unknown,
@@ -534,6 +638,7 @@ const graphCompilationFailureShapePattern: P.Pattern<Extract<GraphCompilationRes
 	kind: 'graphCompilation',
 	mode: 'strict',
 	ok: false,
+	classification: graphFailureClassificationPattern,
 	diagnostics: synthesisDiagnosticsPattern,
 	partialArtifacts: P.optional(templateArtifactRecordPattern)
 } satisfies P.Pattern<Extract<GraphCompilationResult, { ok: false }>>
@@ -580,6 +685,7 @@ const graphPartialCompilationFailureShapePattern: P.Pattern<Extract<GraphPartial
 	kind: 'graphCompilation',
 	mode: 'partial',
 	ok: false,
+	classification: graphFailureClassificationPattern,
 	diagnostics: synthesisDiagnosticsPattern,
 	partialArtifacts: P.optional(templateArtifactRecordPattern)
 } satisfies P.Pattern<Extract<GraphPartialCompilationResult, { ok: false }>>
@@ -630,6 +736,7 @@ export const templateArtifactCompleteSuccessPattern: GuardPattern<TemplateArtifa
 const templateArtifactFailureShapePattern: P.Pattern<Extract<TemplateArtifactResult, { ok: false }>> = {
 	kind: 'templateArtifact',
 	ok: false,
+	classification: artifactFailureClassificationPattern,
 	diagnostics: synthesisDiagnosticsPattern
 } satisfies P.Pattern<Extract<TemplateArtifactResult, { ok: false }>>
 

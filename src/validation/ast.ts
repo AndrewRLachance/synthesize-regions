@@ -52,18 +52,26 @@ export interface StructuredTypeScriptDiagnostic {
   code: number;
   category: "error" | "warning" | "suggestion" | "message";
   message: string;
+  /** Source-file identity reported by TypeScript, when available. */
+  filePath?: string;
   start?: number;
+  /** Diagnostic width in UTF-16 code units, when available. */
+  length?: number;
 }
 
 /** Collect semantic diagnostics without flattening away compiler codes and locations. */
 export function structuredSemanticDiagnostics(sourceFile: SourceFile): StructuredTypeScriptDiagnostic[] {
   return sourceFile.getProject().getProgram().getSemanticDiagnostics(sourceFile).map(diagnostic => {
     const start = diagnostic.getStart();
+    const length = diagnostic.getLength();
+    const diagnosticSourceFile = diagnostic.getSourceFile();
     return {
       code: diagnostic.getCode(),
       category: diagnosticCategoryName(diagnostic.getCategory()),
       message: ts.flattenDiagnosticMessageText(diagnostic.compilerObject.messageText, "\n"),
-      ...(start === undefined ? {} : { start })
+      ...(diagnosticSourceFile === undefined ? {} : { filePath: diagnosticSourceFile.getFilePath() }),
+      ...(start === undefined ? {} : { start }),
+      ...(length === undefined ? {} : { length })
     };
   });
 }

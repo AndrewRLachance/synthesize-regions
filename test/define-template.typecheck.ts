@@ -3,6 +3,7 @@ import {
   compileGraph,
   createTemplateRegistry,
   defineGraph,
+  definePartialGraph,
   defineTemplateCatalog,
   defineTemplate,
   fragmentCollectionPort,
@@ -1120,3 +1121,680 @@ const widenedRecursiveNodes: SynthesisGraph["nodes"] = [{
   } } }
 }];
 recursiveCompiler.defineGraph({ nodes: widenedRecursiveNodes, finalNodeId: "wide" });
+
+const partialMissingInputsAndTargetsGraph = {
+  nodes: [
+    {
+      id: "incompleteSource",
+      templateId: "NumberLiteral",
+      inputs: {}
+    },
+    {
+      id: "incompleteConsumer",
+      templateId: "ExpressionConsumer",
+      inputs: { source: { $ref: "plannedSource" } }
+    }
+  ],
+  finalNodeId: "plannedFinal"
+} as const;
+
+const partialMissingInputsAndTargets = definePartialGraph(
+  recursiveGraphTemplates,
+  partialMissingInputsAndTargetsGraph
+);
+const partialGraphIsStillRuntimeGraph: SynthesisGraph = partialMissingInputsAndTargets;
+void partialGraphIsStillRuntimeGraph;
+
+recursiveCompiler.definePartialGraph({
+  nodes: [{
+    id: "partialInlineOuter",
+    templateId: "ExpressionConsumer",
+    inputs: {
+      source: {
+        kind: "inline",
+        node: {
+          id: "partialInlineSource",
+          templateId: "NumberLiteral",
+          inputs: {}
+        }
+      }
+    }
+  }],
+  finalNodeId: "partialInlineOuter"
+});
+
+compileGraph({
+  nodes: [{
+    id: "partialCollection",
+    templateId: "StatementCollection",
+    inputs: {
+      statements: {
+        kind: "fragmentCollection",
+        items: [
+          {
+            kind: "inline",
+            node: { id: "partialInlineStatement", templateId: "StatementTemplate", inputs: {} }
+          },
+          { $ref: "plannedStatement" }
+        ]
+      }
+    }
+  }],
+  finalNodeId: "partialCollection"
+}, recursiveGraphTemplates, { mode: "partial" });
+
+compileGraph(partialMissingInputsAndTargets, recursiveGraphTemplates, { mode: "partial" });
+recursiveCompiler(partialMissingInputsAndTargets, { mode: "partial" });
+
+// @ts-expect-error strict defineGraph still requires complete inputs and existing refs/final IDs.
+defineGraph(recursiveGraphTemplates, partialMissingInputsAndTargetsGraph);
+// @ts-expect-error strict compiler graph authoring does not accept the incomplete graph.
+recursiveCompiler.defineGraph(partialMissingInputsAndTargetsGraph);
+// @ts-expect-error strict authored-catalog compilation retains complete graph checks.
+compileGraph(partialMissingInputsAndTargetsGraph, recursiveGraphTemplates);
+
+const partialUnknownTemplate = {
+  nodes: [{ id: "unknown", templateId: "MissingTemplate", inputs: {} }],
+  finalNodeId: "unknown"
+} as const;
+// @ts-expect-error partial graphs still require every authored template ID to exist.
+definePartialGraph(recursiveGraphTemplates, partialUnknownTemplate);
+
+const partialRecursiveUnknownTemplate = {
+  nodes: [{
+    id: "partialUnknownInlineOuter",
+    templateId: "ExpressionConsumer",
+    inputs: {
+      source: {
+        kind: "inline",
+        node: { id: "partialUnknownInline", templateId: "MissingTemplate", inputs: {} }
+      }
+    }
+  }],
+  finalNodeId: "partialUnknownInlineOuter"
+} as const;
+// @ts-expect-error recursively inline partial nodes must select a known template.
+recursiveCompiler.definePartialGraph(partialRecursiveUnknownTemplate);
+
+const partialExtraInput = {
+  nodes: [{
+    id: "extra",
+    templateId: "NumberLiteral",
+    inputs: { extra: { kind: "literal", value: 1 } }
+  }],
+  finalNodeId: "extra"
+} as const;
+// @ts-expect-error supplied partial inputs must be declared by the selected template.
+compileGraph(partialExtraInput, recursiveGraphTemplates, { mode: "partial" });
+
+const partialWrongInputKind = {
+  nodes: [{
+    id: "wrongInputKind",
+    templateId: "NumberLiteral",
+    inputs: { value: { kind: "rawCode", code: "1" } }
+  }],
+  finalNodeId: "wrongInputKind"
+} as const;
+// @ts-expect-error supplied partial inputs retain their concrete port shape checks.
+definePartialGraph(recursiveGraphTemplates, partialWrongInputKind);
+
+const partialKnownWrongReference = {
+  nodes: [
+    {
+      id: "knownStatement",
+      templateId: "StatementTemplate",
+      inputs: {}
+    },
+    {
+      id: "knownBadConsumer",
+      templateId: "ExpressionConsumer",
+      inputs: { source: { $ref: "knownStatement" } }
+    }
+  ],
+  finalNodeId: "knownBadConsumer"
+} as const;
+// @ts-expect-error known partial ref targets must satisfy the consumer output kind.
+recursiveCompiler.definePartialGraph(partialKnownWrongReference);
+
+const partialKnownDisallowedSource = {
+  nodes: [
+    {
+      id: "knownRaw",
+      templateId: "InlineRawExpression",
+      inputs: {}
+    },
+    {
+      id: "knownAllowlistedConsumer",
+      templateId: "AllowNumberLiteralOnly",
+      inputs: { source: { kind: "ref", nodeId: "knownRaw" } }
+    }
+  ],
+  finalNodeId: "knownAllowlistedConsumer"
+} as const;
+// @ts-expect-error known partial ref targets must satisfy source-model allowlists.
+compileGraph(partialKnownDisallowedSource, recursiveGraphTemplates, { mode: "partial" });
+
+const partialCollectionKnownWrongReference = {
+  nodes: [
+    { id: "knownCollectionExpression", templateId: "NumberLiteral", inputs: {} },
+    {
+      id: "knownBadCollection",
+      templateId: "StatementCollection",
+      inputs: {
+        statements: {
+          kind: "fragmentCollection",
+          items: [{ $ref: "knownCollectionExpression" }]
+        }
+      }
+    }
+  ],
+  finalNodeId: "knownBadCollection"
+} as const;
+// @ts-expect-error known partial collection refs must satisfy kind and source constraints.
+definePartialGraph(recursiveGraphTemplates, partialCollectionKnownWrongReference);
+
+const partialDuplicateIds = {
+  nodes: [
+    { id: "partialDuplicate", templateId: "NumberLiteral", inputs: {} },
+    { id: "partialDuplicate", templateId: "NumberLiteral", inputs: {} }
+  ],
+  finalNodeId: "partialDuplicate"
+} as const;
+// @ts-expect-error partial graphs retain global node-ID uniqueness.
+recursiveCompiler.definePartialGraph(partialDuplicateIds);
+
+const partialDuplicateInlineId = {
+  nodes: [
+    { id: "partialInlineDuplicate", templateId: "NumberLiteral", inputs: {} },
+    {
+      id: "partialInlineContainer",
+      templateId: "ExpressionConsumer",
+      inputs: {
+        source: {
+          kind: "inline",
+          node: { id: "partialInlineDuplicate", templateId: "NumberLiteral", inputs: {} }
+        }
+      }
+    }
+  ],
+  finalNodeId: "partialInlineContainer"
+} as const;
+// @ts-expect-error top-level and recursively inline partial nodes share one ID namespace.
+compileGraph(partialDuplicateInlineId, recursiveGraphTemplates, { mode: "partial" });
+
+const partialBadInlineProducer = {
+  nodes: [{
+    id: "partialBadInlineOuter",
+    templateId: "ExpressionConsumer",
+    inputs: {
+      source: {
+        kind: "inline",
+        node: { id: "partialBadInline", templateId: "StatementTemplate", inputs: {} }
+      }
+    }
+  }],
+  finalNodeId: "partialBadInlineOuter"
+} as const;
+// @ts-expect-error partial inline producers must remain compatible with their containing port.
+definePartialGraph(recursiveGraphTemplates, partialBadInlineProducer);
+
+const widenedPartialNodes: SynthesisGraph["nodes"] = [{
+  id: "widenedPartial",
+  templateId: "MissingAtCompileTime",
+  inputs: {}
+}];
+recursiveCompiler.definePartialGraph({ nodes: widenedPartialNodes, finalNodeId: "plannedFinal" });
+
+// Finite schema/type metadata is checked conservatively during strict graph authoring.
+const StaticNumberProducer = defineTemplate({
+  modelId: "StaticNumberProducer",
+  inputs: {},
+  output: {
+    kind: "expression",
+    type: { ts: "number", schema: { type: "number" } }
+  },
+  template: () => "1"
+});
+
+const StaticIntegerArrayProducer = defineTemplate({
+  modelId: "StaticIntegerArrayProducer",
+  inputs: {},
+  output: {
+    kind: "expression",
+    type: {
+      ts: "readonly number[]",
+      schema: { type: "array", items: { type: "integer" } }
+    }
+  },
+  template: () => "[1]"
+});
+
+const StaticStringProducer = defineTemplate({
+  modelId: "StaticStringProducer",
+  inputs: {},
+  output: {
+    kind: "expression",
+    type: { ts: "string", schema: { type: "string" } }
+  },
+  template: () => "'value'"
+});
+
+const StaticUntypedProducer = defineTemplate({
+  modelId: "StaticUntypedProducer",
+  inputs: {},
+  output: { kind: "expression" },
+  template: () => "undefined"
+});
+
+const StaticObjectWithoutRequiredProducer = defineTemplate({
+  modelId: "StaticObjectWithoutRequiredProducer",
+  inputs: {},
+  output: {
+    kind: "expression",
+    type: {
+      schema: {
+        type: "object",
+        properties: { id: { type: "number" } },
+        additionalProperties: false
+      }
+    }
+  },
+  template: () => "({})"
+});
+
+const StaticTupleProducer = defineTemplate({
+  modelId: "StaticTupleProducer",
+  inputs: {},
+  output: {
+    kind: "expression",
+    type: {
+      schema: {
+        type: "array",
+        prefixItems: [{ type: "number" }, { type: "string" }],
+        items: false
+      }
+    }
+  },
+  template: () => "[1, 'value']"
+});
+
+const StaticNumberConsumer = defineTemplate({
+  modelId: "StaticNumberConsumer",
+  inputs: {
+    source: fragmentPort({
+      regionKind: "expression",
+      accepts: { type: { ts: "number", schema: { type: "number" } } }
+    })
+  },
+  output: { kind: "expression" },
+  template: r => r("source")
+});
+
+const StaticUnknownTsConsumer = defineTemplate({
+  modelId: "StaticUnknownTsConsumer",
+  inputs: {
+    source: fragmentPort({
+      regionKind: "expression",
+      accepts: { type: { ts: "unknown" } }
+    })
+  },
+  output: { kind: "expression" },
+  template: r => r("source")
+});
+
+const StaticNumberArrayCollection = defineTemplate({
+  modelId: "StaticNumberArrayCollection",
+  inputs: {
+    sources: {
+      kind: "fragmentCollection",
+      regionKind: "expression",
+      accepts: {
+        type: { schema: { type: "array", items: { type: "number" } } }
+      }
+    }
+  },
+  output: { kind: "expression" },
+  template: r => `[${r("sources")}]`
+});
+
+const StaticRequiredObjectConsumer = defineTemplate({
+  modelId: "StaticRequiredObjectConsumer",
+  inputs: {
+    source: {
+      kind: "fragment",
+      regionKind: "expression",
+      accepts: {
+        type: {
+          schema: {
+            type: "object",
+            properties: { id: { type: "number" } },
+            required: ["id"],
+            additionalProperties: false
+          }
+        }
+      }
+    }
+  },
+  output: { kind: "expression" },
+  template: r => r("source")
+});
+
+const StaticNumberTupleConsumer = defineTemplate({
+  modelId: "StaticNumberTupleConsumer",
+  inputs: {
+    source: {
+      kind: "fragment",
+      regionKind: "expression",
+      accepts: {
+        type: {
+          schema: {
+            type: "array",
+            prefixItems: [{ type: "number" }, { type: "number" }],
+            items: false
+          }
+        }
+      }
+    }
+  },
+  output: { kind: "expression" },
+  template: r => r("source")
+});
+
+const StaticLiteralConsumer = defineTemplate({
+  modelId: "StaticLiteralConsumer",
+  inputs: {
+    value: {
+      kind: "literal",
+      regionKind: "expression",
+      schema: {
+        anyOf: [
+          { anyOf: [{ type: "number" }, { type: "string" }] },
+          { type: "boolean" }
+        ]
+      }
+    },
+    object: {
+      kind: "literal",
+      regionKind: "object",
+      schema: {
+        type: "object",
+        properties: { id: { type: "number" } },
+        required: ["id"],
+        additionalProperties: false
+      }
+    },
+    tuple: {
+      kind: "literal",
+      regionKind: "array",
+      schema: {
+        type: "array",
+        prefixItems: [{ type: "number" }, { type: "string" }],
+        items: false
+      }
+    }
+  },
+  output: { kind: "expression" },
+  template: () => "undefined"
+});
+
+const compatibilityTemplates = defineTemplateCatalog([
+  StaticNumberProducer,
+  StaticIntegerArrayProducer,
+  StaticStringProducer,
+  StaticUntypedProducer,
+  StaticObjectWithoutRequiredProducer,
+  StaticTupleProducer,
+  StaticNumberConsumer,
+  StaticUnknownTsConsumer,
+  StaticNumberArrayCollection,
+  StaticRequiredObjectConsumer,
+  StaticNumberTupleConsumer,
+  StaticLiteralConsumer
+]);
+const compatibilityCompiler = buildGraphCompiler(compatibilityTemplates);
+
+compatibilityCompiler.defineGraph({
+  nodes: [
+    { id: "number", templateId: "StaticNumberProducer", inputs: {} },
+    {
+      id: "consumer",
+      templateId: "StaticNumberConsumer",
+      inputs: { source: { $ref: "number" } }
+    }
+  ],
+  finalNodeId: "consumer",
+  goal: { outputKind: "expression" }
+});
+
+compatibilityCompiler.defineGraph({
+  nodes: [
+    { id: "string", templateId: "StaticStringProducer", inputs: {} },
+    {
+      id: "unknownConsumer",
+      templateId: "StaticUnknownTsConsumer",
+      inputs: { source: { $ref: "string" } }
+    }
+  ],
+  finalNodeId: "unknownConsumer"
+});
+
+const staticallyWrongPrimitiveRef = {
+  nodes: [
+    { id: "string", templateId: "StaticStringProducer", inputs: {} },
+    {
+      id: "consumer",
+      templateId: "StaticNumberConsumer",
+      inputs: { source: { $ref: "string" } }
+    }
+  ],
+  finalNodeId: "consumer"
+} as const;
+// @ts-expect-error finite producer schemas must be subsets of fragment contracts.
+compatibilityCompiler.defineGraph(staticallyWrongPrimitiveRef);
+
+const staticallyMissingTypeMetadata = {
+  nodes: [
+    { id: "untyped", templateId: "StaticUntypedProducer", inputs: {} },
+    {
+      id: "consumer",
+      templateId: "StaticNumberConsumer",
+      inputs: { source: { $ref: "untyped" } }
+    }
+  ],
+  finalNodeId: "consumer"
+} as const;
+// @ts-expect-error a typed fragment contract requires corresponding producer metadata.
+compatibilityCompiler.defineGraph(staticallyMissingTypeMetadata);
+
+const staticallyWrongInlineProducer = {
+  nodes: [{
+    id: "consumer",
+    templateId: "PatternSchemaConsumer",
+    inputs: {
+      source: {
+        kind: "inline",
+        node: { id: "inlineString", templateId: "StaticStringProducer", inputs: {} }
+      }
+    }
+  }],
+  finalNodeId: "consumer"
+} as const;
+// @ts-expect-error inline producers use the same finite compatibility proof as refs.
+compatibilityCompiler.defineGraph(staticallyWrongInlineProducer);
+
+const staticallyWrongCollectionProducer = {
+  nodes: [
+    { id: "string", templateId: "StaticStringProducer", inputs: {} },
+    {
+      id: "collection",
+      templateId: "StaticNumberArrayCollection",
+      inputs: {
+        sources: { kind: "fragmentCollection", items: [{ $ref: "string" }] }
+      }
+    }
+  ],
+  finalNodeId: "collection"
+} as const;
+// @ts-expect-error collection items are checked independently against their fragment contract.
+compatibilityCompiler.defineGraph(staticallyWrongCollectionProducer);
+
+const staticallyMissingRequiredObjectProperty = {
+  nodes: [
+    { id: "object", templateId: "StaticObjectWithoutRequiredProducer", inputs: {} },
+    {
+      id: "consumer",
+      templateId: "StaticRequiredObjectConsumer",
+      inputs: { source: { $ref: "object" } }
+    }
+  ],
+  finalNodeId: "consumer"
+} as const;
+// @ts-expect-error producer object schemas must guarantee consumer-required properties.
+compatibilityCompiler.defineGraph(staticallyMissingRequiredObjectProperty);
+
+const staticallyWrongTupleItem = {
+  nodes: [
+    { id: "tuple", templateId: "StaticTupleProducer", inputs: {} },
+    {
+      id: "consumer",
+      templateId: "StaticNumberTupleConsumer",
+      inputs: { source: { $ref: "tuple" } }
+    }
+  ],
+  finalNodeId: "consumer"
+} as const;
+// @ts-expect-error finite prefixItems tuples are compared position by position.
+compatibilityCompiler.defineGraph(staticallyWrongTupleItem);
+
+const staticallyWrongLiteralInputs = {
+  nodes: [{
+    id: "literal",
+    templateId: "StaticLiteralConsumer",
+    inputs: {
+      value: { kind: "literal", value: { invalid: true } },
+      object: { kind: "literal", value: {} },
+      tuple: { kind: "literal", value: [1, 2] }
+    }
+  }],
+  finalNodeId: "literal"
+} as const;
+// @ts-expect-error finite literal values are rejected when incompatibility is provable.
+compatibilityCompiler.defineGraph(staticallyWrongLiteralInputs);
+
+const staticallyWrongFinalGoal = {
+  nodes: [{ id: "string", templateId: "StaticStringProducer", inputs: {} }],
+  finalNodeId: "string",
+  goal: { outputKind: "expression", type: { schema: { type: "number" } } }
+} as const;
+// @ts-expect-error known final goals participate in finite schema compatibility.
+compatibilityCompiler.defineGraph(staticallyWrongFinalGoal);
+
+const partialStaticallyWrongRef = {
+  nodes: [
+    { id: "string", templateId: "StaticStringProducer", inputs: {} },
+    {
+      id: "consumer",
+      templateId: "StaticNumberConsumer",
+      inputs: { source: { $ref: "string" } }
+    }
+  ],
+  finalNodeId: "plannedFinal"
+} as const;
+// @ts-expect-error partial graphs still reject known, provably incompatible targets.
+compatibilityCompiler.definePartialGraph(partialStaticallyWrongRef);
+
+// Different arbitrary TypeScript strings are deferred to the runtime compiler checker.
+const TsOnlyNumberConsumer = defineTemplate({
+  modelId: "TsOnlyNumberConsumer",
+  inputs: {
+    source: fragmentPort({
+      regionKind: "expression",
+      accepts: { type: { ts: "number" } }
+    })
+  },
+  output: { kind: "expression" },
+  template: r => r("source")
+});
+const tsDeferredCompiler = buildGraphCompiler([
+  StaticStringProducer,
+  TsOnlyNumberConsumer
+] as const);
+tsDeferredCompiler.defineGraph({
+  nodes: [
+    { id: "string", templateId: "StaticStringProducer", inputs: {} },
+    {
+      id: "consumer",
+      templateId: "TsOnlyNumberConsumer",
+      inputs: { source: { $ref: "string" } }
+    }
+  ],
+  finalNodeId: "consumer"
+});
+
+type WidenedSupportedSchema = NonNullable<Extract<InputPort, { kind: "literal" }>["schema"]>;
+const widenedCompatibilitySchema: WidenedSupportedSchema = { type: "string" };
+const WidenedSchemaProducer = defineTemplate({
+  modelId: "WidenedSchemaProducer",
+  inputs: {},
+  output: { kind: "expression", type: { schema: widenedCompatibilitySchema } },
+  template: () => "'value'"
+});
+const WidenedSchemaConsumer = defineTemplate({
+  modelId: "WidenedSchemaConsumer",
+  inputs: {
+    source: {
+      kind: "fragment",
+      regionKind: "expression",
+      accepts: { type: { schema: widenedCompatibilitySchema } }
+    }
+  },
+  output: { kind: "expression" },
+  template: r => r("source")
+});
+const PatternSchemaConsumer = defineTemplate({
+  modelId: "PatternSchemaConsumer",
+  inputs: {
+    source: fragmentPort({
+      regionKind: "expression",
+      accepts: { type: { schema: { type: "string", pattern: "^[a-z]+$" } } }
+    })
+  },
+  output: { kind: "expression" },
+  template: r => r("source")
+});
+const deferredCompatibilityCompiler = buildGraphCompiler([
+  WidenedSchemaProducer,
+  WidenedSchemaConsumer,
+  StaticStringProducer,
+  PatternSchemaConsumer
+] as const);
+deferredCompatibilityCompiler.defineGraph({
+  nodes: [
+    { id: "widened", templateId: "WidenedSchemaProducer", inputs: {} },
+    {
+      id: "consumer",
+      templateId: "WidenedSchemaConsumer",
+      inputs: { source: { $ref: "widened" } }
+    }
+  ],
+  finalNodeId: "consumer"
+});
+deferredCompatibilityCompiler.defineGraph({
+  nodes: [
+    { id: "string", templateId: "StaticStringProducer", inputs: {} },
+    {
+      id: "consumer",
+      templateId: "PatternSchemaConsumer",
+      inputs: { source: { $ref: "string" } }
+    }
+  ],
+  finalNodeId: "consumer"
+});
+deferredCompatibilityCompiler.definePartialGraph({
+	  nodes: [{
+	    id: "consumer",
+	    templateId: "WidenedSchemaConsumer",
+	    inputs: { source: { $ref: "plannedProducer" } }
+  }],
+  finalNodeId: "plannedFinal"
+});

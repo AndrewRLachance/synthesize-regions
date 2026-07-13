@@ -1,13 +1,26 @@
 import { SynthesizeRegionsError } from '../core/errors.js'
 import type { ReplacementRegion } from '../core/types.js'
 import { discoverReplacementRegions } from '../regions/discovery.js'
-import { portRegionKind } from './compatibility.js'
-import { TemplateArtifactSchema, checkContract } from './graphContracts.js'
+import {
+	compareTypeDescriptors,
+	portRegionKind,
+	resolveEffectiveTypeDescriptor,
+	type TypeDescriptorCompatibilityIssue
+} from './compatibility.js'
+import { GENERATED_SOURCE_MAP_VERSION } from './graphCoreTypes.js'
+import {
+	GeneratedSourceMapSchema,
+	GeneratedSourceSpanSchema,
+	TemplateArtifactSchema,
+	checkContract
+} from './graphContracts.js'
 import type {
 	SynthesisDiagnostic,
 	TemplateArtifact,
+	TypeDescriptor,
 	UnresolvedTemplateInput
 } from './graphTypes.js'
+import type { SupportedJsonSchema } from './schemaTypes.js'
 import { templateModeForRegionKind } from './rendering.js'
 
 /** Add artifact identity to an integrity diagnostic when the value provides it. */
@@ -28,6 +41,281 @@ function integrityDiagnostic(
 		...artifactIdentity(artifact),
 		severity: 'error'
 	}
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function safeArtifactIdentity(value: unknown): Pick<SynthesisDiagnostic, 'nodeId' | 'templateId'> {
+	if (!isRecord(value)) return {}
+	const source = isRecord(value.source) ? value.source : undefined
+	return {
+		...(typeof value.id === 'string' ? { nodeId: value.id } : {}),
+		...(typeof source?.templateId === 'string' ? { templateId: source.templateId } : {})
+	}
+}
+
+function metadataIssueCode(code: string): string {
+	switch (code) {
+		case 'UnsupportedJsonSchemaKeyword': return 'UnsupportedSchemaKeyword'
+		case 'UnresolvedJsonSchemaReference': return 'UnresolvedLocalSchemaReference'
+		case 'UnsupportedJsonSchemaReference': return 'InvalidJsonSchema'
+		default: return code
+	}
+}
+
+function metadataDiagnostic(
+	value: unknown,
+	issue: TypeDescriptorCompatibilityIssue,
+	path: string,
+	inputName?: string
+): SynthesisDiagnostic {
+	let relative = issue.path.replace(/^(?:actual|expected)\.?/u, '')
+	if (path === 'schema' || path.endsWith('.schema')) relative = relative.replace(/^schema\.?/u, '')
+	const issuePath = issue.code === 'ConflictingSchemaMetadata' && path === 'type'
+		? 'schema'
+		: relative ? `${path}.${relative}` : path
+	return {
+		stage: 'type',
+		code: metadataIssueCode(issue.code),
+		severity: 'error',
+		message: issue.message,
+		...safeArtifactIdentity(value),
+		...(inputName === undefined ? {} : { inputName }),
+		path: issuePath,
+		...(issue.expected === undefined ? {} : { expected: issue.expected }),
+		...(issue.actual === undefined ? {} : { actual: issue.actual }),
+		...(issue.compilerCode === undefined ? {} : { compilerCode: issue.compilerCode }),
+		...(issue.compilerCategory === undefined ? {} : { compilerCategory: issue.compilerCategory }),
+		...(issue.line === undefined ? {} : { line: issue.line }),
+		...(issue.column === undefined ? {} : { column: issue.column })
+	}
+}
+
+function descriptorDiagnostics(
+	value: unknown,
+	descriptor: unknown,
+	path: string,
+	inputName?: string
+): SynthesisDiagnostic[] {
+	const persistedDescriptor = persistedTypeDescriptor(descriptor)
+	if (!persistedDescriptor) return []
+	const comparison = compareTypeDescriptors(persistedDescriptor, undefined)
+	return comparison.status === 'invalid'
+		? comparison.issues.map(issue => metadataDiagnostic(value, issue, path, inputName))
+		: []
+}
+
+/** Narrow persisted descriptor data enough that validation itself cannot throw. */
+function persistedTypeDescriptor(value: unknown): TypeDescriptor | undefined {
+	if (!isRecord(value)) return undefined
+	if (value.ts !== undefined && typeof value.ts !== 'string') return undefined
+	return value as TypeDescriptor
+}
+
+function policyDiagnostic(
+	value: unknown,
+	code: string,
+	message: string,
+	path: string,
+	inputName: string,
+	actual?: unknown
+): SynthesisDiagnostic {
+	return {
+		stage: 'policy', code, severity: 'error', message,
+		...safeArtifactIdentity(value), inputName, path,
+		...(actual === undefined ? {} : { actual })
+	}
+}
+
+/** Recursively validate planner-facing metadata persisted on one unresolved port. */
+function portMetadataDiagnostics(
+	value: unknown,
+	port: unknown,
+	path: string,
+	inputName: string
+): SynthesisDiagnostic[] {
+	const diagnostics: SynthesisDiagnostic[] = []
+	if (!isRecord(port) || typeof port.kind !== 'string') return diagnostics
+	switch (port.kind) {
+		case 'literal':
+			if (port.schema !== undefined) {
+				diagnostics.push(...descriptorDiagnostics(value, { schema: port.schema }, `${path}.schema`, inputName))
+			}
+			break
+		case 'fragment':
+		case 'fragmentCollection': {
+			const accepts = isRecord(port.accepts) ? port.accepts : undefined
+			diagnostics.push(...descriptorDiagnostics(value, accepts?.type, `${path}.accepts.type`, inputName))
+			if (port.kind === 'fragmentCollection') {
+				const minItems = port.minItems ?? 0
+				if (typeof minItems !== 'number' || !Number.isInteger(minItems) || minItems < 0) {
+					diagnostics.push(policyDiagnostic(value, 'InvalidCollectionMinimum', 'Collection minItems must be a non-negative integer.', `${path}.minItems`, inputName, port.minItems))
+				}
+				if (port.maxItems !== undefined && (typeof port.maxItems !== 'number' || !Number.isInteger(port.maxItems) || port.maxItems < 0)) {
+					diagnostics.push(policyDiagnostic(value, 'InvalidCollectionMaximum', 'Collection maxItems must be a non-negative integer.', `${path}.maxItems`, inputName, port.maxItems))
+				} else if (typeof port.maxItems === 'number' && typeof minItems === 'number' && Number.isInteger(minItems) && port.maxItems < minItems) {
+					diagnostics.push(policyDiagnostic(value, 'InvalidCollectionBounds', 'Collection maxItems must be greater than or equal to minItems.', path, inputName, { minItems, maxItems: port.maxItems }))
+				}
+			}
+			break
+		}
+		case 'rawCode': {
+			diagnostics.push(...descriptorDiagnostics(value, port.type, `${path}.type`, inputName))
+			const policy = isRecord(port.policy) ? port.policy : undefined
+			if (policy?.maxLength !== undefined
+				&& (typeof policy.maxLength !== 'number' || !Number.isInteger(policy.maxLength) || policy.maxLength < 0)) {
+				diagnostics.push(policyDiagnostic(value, 'InvalidRawCodePolicy', 'Raw-code maxLength must be a non-negative integer.', `${path}.policy.maxLength`, inputName, policy.maxLength))
+			}
+			const forbiddenPatterns = Array.isArray(policy?.forbiddenPatterns) ? policy.forbiddenPatterns : []
+			for (const [index, pattern] of forbiddenPatterns.entries()) {
+				if (typeof pattern !== 'string') continue
+				try { new RegExp(pattern, 'u') } catch {
+					diagnostics.push(policyDiagnostic(value, 'InvalidRawCodePolicy', 'Raw-code forbiddenPatterns must contain valid regular expressions.', `${path}.policy.forbiddenPatterns[${index}]`, inputName, pattern))
+				}
+			}
+			break
+		}
+		case 'union': {
+			if (!Array.isArray(port.options)) break
+			if (port.options.length === 0) {
+				diagnostics.push(policyDiagnostic(value, 'EmptyUnionPort', 'Union ports must include at least one option.', `${path}.options`, inputName, port.options))
+				break
+			}
+			const regionKinds = new Set<string>()
+			let regionKindsKnown = true
+			for (const option of port.options) {
+				const optionKinds = persistedPortRegionKinds(option)
+				if (!optionKinds) {
+					regionKindsKnown = false
+					break
+				}
+				for (const kind of optionKinds) regionKinds.add(kind)
+			}
+			if (regionKindsKnown && regionKinds.size > 1) {
+				diagnostics.push(policyDiagnostic(value, 'MixedUnionRegionKinds', 'Every concrete union option must use the same region kind.', `${path}.options`, inputName, [...regionKinds]))
+			}
+			port.options.forEach((option, index) => diagnostics.push(...portMetadataDiagnostics(value, option, `${path}.options[${index}]`, inputName)))
+			break
+		}
+	}
+	return diagnostics
+}
+
+/** Read concrete region kinds without trusting an unvalidated persisted port. */
+function persistedPortRegionKinds(port: unknown): string[] | undefined {
+	if (!isRecord(port)) return undefined
+	if (port.kind !== 'union') return typeof port.regionKind === 'string' ? [port.regionKind] : undefined
+	if (!Array.isArray(port.options)) return undefined
+	const kinds: string[] = []
+	for (const option of port.options) {
+		const optionKinds = persistedPortRegionKinds(option)
+		if (!optionKinds) return undefined
+		kinds.push(...optionKinds)
+	}
+	return kinds
+}
+
+/** Validate the versioned source ownership ranges persisted with an artifact. */
+function generatedSourceMapDiagnostics(value: Record<string, unknown>): SynthesisDiagnostic[] {
+	if (value.sourceMap === undefined) return []
+
+	const diagnostic = (
+		message: string,
+		path: string,
+		expected: unknown,
+		actual: unknown
+	): SynthesisDiagnostic => ({
+		stage: 'template',
+		code: 'InvalidGeneratedSourceMap',
+		severity: 'error',
+		message,
+		...safeArtifactIdentity(value),
+		path,
+		expected,
+		actual
+	})
+
+	if (!isRecord(value.sourceMap)) {
+		return [diagnostic(
+			'Artifact sourceMap must satisfy the GeneratedSourceMap contract.',
+			'sourceMap',
+			'GeneratedSourceMap',
+			value.sourceMap
+		)]
+	}
+
+	const sourceMap = value.sourceMap
+	const diagnostics: SynthesisDiagnostic[] = []
+	if (!checkContract(GeneratedSourceMapSchema, sourceMap)) {
+		diagnostics.push(diagnostic(
+			'Artifact sourceMap must satisfy the GeneratedSourceMap contract.',
+			'sourceMap',
+			{ version: GENERATED_SOURCE_MAP_VERSION, spans: 'GeneratedSourceSpan[]' },
+			sourceMap
+		))
+	}
+
+	if (!Array.isArray(sourceMap.spans)) return diagnostics
+	const codeLength = typeof value.code === 'string' ? value.code.length : undefined
+	for (const [index, span] of sourceMap.spans.entries()) {
+		const path = `sourceMap.spans[${index}]`
+		if (!checkContract(GeneratedSourceSpanSchema, span)) {
+			diagnostics.push(diagnostic(
+				'Generated source span must satisfy its closed node or input contract.',
+				path,
+				'GeneratedSourceSpan',
+				span
+			))
+			continue
+		}
+
+		if (span.end < span.start) {
+			diagnostics.push(diagnostic(
+				'Generated source span end must be greater than or equal to start.',
+				`${path}.end`,
+				{ minimum: span.start },
+				span.end
+			))
+		}
+		if (codeLength !== undefined && (span.start > codeLength || span.end > codeLength)) {
+			diagnostics.push(diagnostic(
+				'Generated source span must remain within artifact code.',
+				path,
+				{ start: 0, end: codeLength },
+				{ start: span.start, end: span.end }
+			))
+		}
+	}
+
+	return diagnostics
+}
+
+/** Validate artifact output aliases and all recursively persisted input-port metadata. */
+function artifactMetadataDiagnostics(value: unknown): SynthesisDiagnostic[] {
+	if (!isRecord(value)) return []
+	const diagnostics: SynthesisDiagnostic[] = generatedSourceMapDiagnostics(value)
+	const rawType = persistedTypeDescriptor(value.type)
+	const rawSchema = value.schema as SupportedJsonSchema | undefined
+	const output = resolveEffectiveTypeDescriptor(rawType, rawSchema)
+	if (!output.ok) {
+		const path = rawType?.schema === undefined && rawSchema !== undefined ? 'schema' : 'type'
+		diagnostics.push(...output.issues.map(issue => metadataDiagnostic(value, issue, path)))
+	}
+
+	if (Array.isArray(value.unresolvedInputs)) {
+		for (const [index, unresolved] of value.unresolvedInputs.entries()) {
+			if (!isRecord(unresolved) || !isRecord(unresolved.port) || typeof unresolved.inputName !== 'string') continue
+			diagnostics.push(...portMetadataDiagnostics(
+				value,
+				unresolved.port,
+				`unresolvedInputs[${index}].port`,
+				unresolved.inputName
+			))
+		}
+	}
+	return diagnostics
 }
 
 /** Convert a marker/discovery exception into serialization-safe diagnostic data. */
@@ -64,6 +352,7 @@ function regionsById(regions: readonly ReplacementRegion[]): Map<string, Replace
  * those occurrences.
  */
 export function validateTemplateArtifactIntegrity(value: unknown): SynthesisDiagnostic[] {
+	const metadataDiagnostics = artifactMetadataDiagnostics(value)
 	const partialWithOnlyEmptyInputList = typeof value === 'object' && value !== null
 		&& 'complete' in value && value.complete === false
 		&& 'unresolvedInputs' in value && Array.isArray(value.unresolvedInputs)
@@ -78,7 +367,7 @@ export function validateTemplateArtifactIntegrity(value: unknown): SynthesisDiag
 		}]
 	})
 	if (!checkContract(TemplateArtifactSchema, value) && !validExceptForEmptyInputList) {
-		return [{
+		return [...metadataDiagnostics, {
 			stage: 'template',
 			code: 'MalformedTemplateArtifact',
 			severity: 'error',
@@ -97,7 +386,7 @@ export function validateTemplateArtifactIntegrity(value: unknown): SynthesisDiag
 		})
 	} catch (error) {
 		const metadata = error instanceof SynthesizeRegionsError ? error.metadata : undefined
-		return [integrityDiagnostic(artifact, {
+		return [...metadataDiagnostics, integrityDiagnostic(artifact, {
 			stage: 'region',
 			code: 'MalformedArtifactMarkers',
 			message: error instanceof Error ? error.message : 'Template artifact markers could not be discovered.',
@@ -110,9 +399,9 @@ export function validateTemplateArtifactIntegrity(value: unknown): SynthesisDiag
 
 	const markerGroups = regionsById(regions)
 	if (artifact.complete === true) {
-		if (markerGroups.size === 0) return []
+		if (markerGroups.size === 0) return metadataDiagnostics
 		const firstRegion = regions[0]
-		return [integrityDiagnostic(artifact, {
+		return [...metadataDiagnostics, integrityDiagnostic(artifact, {
 			stage: 'region',
 			code: 'CompleteArtifactContainsMarkers',
 			message: 'A complete template artifact must not contain unresolved marker regions.',
@@ -123,7 +412,7 @@ export function validateTemplateArtifactIntegrity(value: unknown): SynthesisDiag
 		})]
 	}
 
-	const diagnostics: SynthesisDiagnostic[] = []
+	const diagnostics: SynthesisDiagnostic[] = [...metadataDiagnostics]
 	if (artifact.unresolvedInputs.length === 0) {
 		diagnostics.push(integrityDiagnostic(artifact, {
 			stage: 'input',

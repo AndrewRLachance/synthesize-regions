@@ -13,6 +13,9 @@ describe('published schema generation', () => {
 
 		expect(Object.keys(documents).sort()).toEqual([
 			'schemas/graph-compilation-result.schema.json',
+			'schemas/graph-runner-action.schema.json',
+			'schemas/graph-runner-state.schema.json',
+			'schemas/supported-json-schema.schema.json',
 			'schemas/synthesis-graph.schema.json',
 			'schemas/template-summary.schema.json'
 		])

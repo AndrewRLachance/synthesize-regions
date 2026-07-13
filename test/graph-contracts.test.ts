@@ -1,13 +1,31 @@
 import { describe, expect, it } from 'vitest'
 import {
+	BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES,
 	CompleteTemplateArtifactSchema,
+	GeneratedSourceMapSchema,
+	GeneratedSourceSpanSchema,
 	GraphCompilationResultSchema,
+	GraphPatchActionSchema,
+	GraphPatchResultSchema,
+	GraphRunnerActionSchema,
+	GraphRunnerStateSchema,
 	InputPortSchema,
 	PartialTemplateArtifactSchema,
 	RawCodePolicySchema,
 	SynthesisGraphSchema,
+	SynthesisDiagnosticSchema,
 	TemplateSummarySchema,
-	checkContract
+	checkContract,
+	isGraphPatchAction,
+	isGraphPatchResult,
+	isGraphRunnerAction,
+	isGraphRunnerState,
+	isGeneratedSourceMap,
+	isGeneratedSourceSpan,
+	type BuiltInSynthesisDiagnosticCode,
+	type GeneratedSourceMap,
+	type GeneratedSourceSpan,
+	type SynthesisDiagnostic
 } from '../src/index.js'
 
 const fragment = {
@@ -34,6 +52,39 @@ describe('canonical graph contracts', () => {
 				port: { kind: 'rawCode', regionKind: 'expression' }
 			}]
 		})).toBe(true)
+	})
+
+	it('validates closed, versioned generated source maps', () => {
+		const nodeSpan: GeneratedSourceSpan = {
+			kind: 'node', start: 0, end: 5, nestingDepth: 0,
+			nodeId: 'source', templateId: 'Source'
+		}
+		const inputSpan: GeneratedSourceSpan = {
+			kind: 'input', start: 1, end: 4, nestingDepth: 1,
+			nodeId: 'source', templateId: 'Source', inputName: 'value'
+		}
+		const sourceMap: GeneratedSourceMap = { version: 1, spans: [nodeSpan, inputSpan] }
+
+		expect(checkContract(GeneratedSourceSpanSchema, nodeSpan)).toBe(true)
+		expect(checkContract(GeneratedSourceSpanSchema, inputSpan)).toBe(true)
+		expect(checkContract(GeneratedSourceMapSchema, sourceMap)).toBe(true)
+		expect(isGeneratedSourceSpan(inputSpan)).toBe(true)
+		expect(isGeneratedSourceMap(sourceMap)).toBe(true)
+		expect(checkContract(CompleteTemplateArtifactSchema, {
+			...fragment, complete: true, sourceMap
+		})).toBe(true)
+
+		for (const invalid of [
+			{ version: 2, spans: [] },
+			{ version: 1, spans: [{ ...nodeSpan, start: -1 }] },
+			{ version: 1, spans: [{ ...nodeSpan, nestingDepth: 0.5 }] },
+			{ version: 1, spans: [{ ...inputSpan, inputName: undefined }] },
+			{ version: 1, spans: [{ ...nodeSpan, unexpected: true }] },
+			{ version: 1, spans: [], unexpected: true }
+		]) {
+			expect(checkContract(GeneratedSourceMapSchema, invalid)).toBe(false)
+			expect(isGeneratedSourceMap(invalid)).toBe(false)
+		}
 	})
 
 	it('validates recursive authored graphs', () => {
@@ -69,8 +120,124 @@ describe('canonical graph contracts', () => {
 			compilerCode: 2322, compilerCategory: 'error', line: 2, column: 7
 		}
 		expect(checkContract(GraphCompilationResultSchema, {
-			kind: 'graphCompilation', mode: 'strict', ok: false, diagnostics: [diagnostic]
+			kind: 'graphCompilation', mode: 'strict', ok: false,
+			classification: 'graphRepairable', diagnostics: [diagnostic]
 		})).toBe(true)
+	})
+
+	it('exports unique built-in diagnostic codes without closing custom diagnostics', () => {
+		const builtIn: BuiltInSynthesisDiagnosticCode = 'GraphPatchTargetNotFound'
+		const custom: SynthesisDiagnostic = {
+			stage: 'graph',
+			code: 'ProducerDefinedDiagnostic',
+			severity: 'warning',
+			message: 'A producer-specific diagnostic remains valid.'
+		}
+
+		expect(BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES).toContain(builtIn)
+		expect(BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES).toContain('InvalidGeneratedSourceMap')
+		expect(BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES).toContain('InvalidSemanticTarget')
+		expect(new Set(BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES).size)
+			.toBe(BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES.length)
+		expect(checkContract(SynthesisDiagnosticSchema, custom)).toBe(true)
+	})
+
+	it('validates every graph patch and runner action variant', () => {
+		const node = { id: 'source', templateId: 'Source', inputs: {} }
+		const graph = { nodes: [node], finalNodeId: 'source' }
+		const patchActions = [
+			{ kind: 'addNode', node },
+			{ kind: 'removeNode', nodeId: 'source' },
+			{ kind: 'setInput', nodeId: 'source', inputName: 'value', input: { kind: 'literal', value: 1 } },
+			{ kind: 'removeInput', nodeId: 'source', inputName: 'value' },
+			{ kind: 'setFinalNode', nodeId: 'source' },
+			{ kind: 'setGoal', goal: { outputKind: 'expression' } },
+			{ kind: 'removeGoal' }
+		] as const
+
+		for (const action of patchActions) {
+			expect(checkContract(GraphPatchActionSchema, action)).toBe(true)
+			expect(checkContract(GraphRunnerActionSchema, action)).toBe(true)
+			expect(isGraphPatchAction(action)).toBe(true)
+			expect(isGraphRunnerAction(action)).toBe(true)
+		}
+		expect(checkContract(GraphRunnerActionSchema, { kind: 'replaceGraph', graph })).toBe(true)
+		expect(checkContract(GraphRunnerActionSchema, {
+			kind: 'fill', inputs: { value: { kind: 'rawCode', code: '1 + 1' } }
+		})).toBe(true)
+
+		for (const invalid of [
+			{ kind: 'unknown' },
+			{ kind: 'setInput', nodeId: 'source', inputName: 'value' },
+			{ kind: 'removeGoal', unexpected: true }
+		]) {
+			expect(checkContract(GraphRunnerActionSchema, invalid)).toBe(false)
+			expect(isGraphRunnerAction(invalid)).toBe(false)
+		}
+	})
+
+	it('validates atomic patch results and classified runner states', () => {
+		const graph = { nodes: [], finalNodeId: 'root' }
+		const diagnostic = {
+			stage: 'graph', code: 'GraphPatchTargetNotFound', severity: 'error', message: 'Missing node.'
+		}
+		const partialArtifact = {
+			...fragment,
+			complete: false,
+			unresolvedInputs: [{
+				id: 'value', inputName: 'value', templateId: 'Source',
+				port: { kind: 'rawCode', regionKind: 'expression' }
+			}]
+		}
+		const completeArtifact = { ...fragment, complete: true }
+		const graphFailure = {
+			kind: 'graphCompilation', mode: 'partial', ok: false,
+			classification: 'graphRepairable', diagnostics: [diagnostic]
+		}
+
+		const successfulPatch = {
+			kind: 'graphPatch', ok: true, graph, diagnostics: []
+		} as const
+		const failedPatch = {
+			kind: 'graphPatch', ok: false, graph,
+			classification: 'graphRepairable', diagnostics: [diagnostic]
+		} as const
+		expect(checkContract(GraphPatchResultSchema, successfulPatch)).toBe(true)
+		expect(checkContract(GraphPatchResultSchema, failedPatch)).toBe(true)
+		expect(isGraphPatchResult(successfulPatch)).toBe(true)
+		expect(isGraphPatchResult(failedPatch)).toBe(true)
+
+		const states = [
+			{ kind: 'ready', graph },
+			{
+				kind: 'needsGraphRepair', graph, result: graphFailure,
+				diagnostics: [diagnostic], classification: 'graphRepairable'
+			},
+			{
+				kind: 'needsArtifactInputs', graph, artifact: partialArtifact,
+				diagnostics: [], classification: 'artifactFillable'
+			},
+			{ kind: 'complete', graph, artifact: completeArtifact, diagnostics: [] },
+			{ kind: 'failed', graph, diagnostics: [diagnostic], classification: 'terminalFailure' },
+			{ kind: 'failed', graph, diagnostics: [diagnostic], classification: 'templatePolicyFailure' }
+		]
+		for (const state of states) {
+			expect(checkContract(GraphRunnerStateSchema, state)).toBe(true)
+			expect(isGraphRunnerState(state)).toBe(true)
+		}
+
+		expect(checkContract(GraphRunnerStateSchema, {
+			kind: 'needsGraphRepair', graph, result: graphFailure,
+			diagnostics: [diagnostic], classification: 'artifactFillable'
+		})).toBe(false)
+		expect(checkContract(GraphRunnerStateSchema, {
+			kind: 'needsGraphRepair', graph,
+			result: { ...graphFailure, classification: 'terminalFailure' },
+			diagnostics: [diagnostic], classification: 'graphRepairable'
+		})).toBe(false)
+		expect(checkContract(GraphRunnerStateSchema, {
+			kind: 'failed', graph, diagnostics: [diagnostic], classification: 'graphRepairable'
+		})).toBe(false)
 	})
 
 	it('requires nonnegative integer raw-code and collection bounds', () => {

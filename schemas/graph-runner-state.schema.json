@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.synthesize-regions.dev/graph-compilation-result.schema.json",
-  "title": "synthesize-regions GraphCompilationResult",
-  "description": "Structural JSON Schema for strict and partial graph compilation results, including generated artifacts, unresolved inputs, and structured diagnostics.",
-  "$ref": "#/$defs/GraphCompilationResult",
+  "$id": "https://schemas.synthesize-regions.dev/graph-runner-state.schema.json",
+  "title": "synthesize-regions GraphRunnerState",
+  "description": "Structural JSON Schema for GraphRunner transition outputs, including repair classifications, graph compilation failures, and generated artifacts.",
+  "$ref": "#/$defs/GraphRunnerState",
   "$defs": {
     "JsonValue": {
       "anyOf": [
@@ -348,6 +348,277 @@
         }
       ]
     },
+    "GraphRegionKind": {
+      "anyOf": [
+        {
+          "const": "identifier",
+          "type": "string"
+        },
+        {
+          "const": "expression",
+          "type": "string"
+        },
+        {
+          "const": "expressionSuffix",
+          "type": "string"
+        },
+        {
+          "const": "statement",
+          "type": "string"
+        },
+        {
+          "const": "array",
+          "type": "string"
+        },
+        {
+          "const": "object",
+          "type": "string"
+        },
+        {
+          "const": "string",
+          "type": "string"
+        },
+        {
+          "const": "number",
+          "type": "string"
+        },
+        {
+          "const": "boolean",
+          "type": "string"
+        },
+        {
+          "const": "null",
+          "type": "string"
+        },
+        {
+          "const": "objectProperty",
+          "type": "string"
+        }
+      ]
+    },
+    "GraphTypeDescriptor": {
+      "additionalProperties": false,
+      "type": "object",
+      "properties": {
+        "ts": {
+          "type": "string"
+        },
+        "schema": {
+          "$ref": "#/$defs/SupportedJsonSchema"
+        }
+      }
+    },
+    "SynthesisInput": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "const": "literal",
+              "type": "string"
+            },
+            "value": {}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "nodeId"
+          ],
+          "properties": {
+            "kind": {
+              "const": "ref",
+              "type": "string"
+            },
+            "nodeId": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "code"
+          ],
+          "properties": {
+            "kind": {
+              "const": "rawCode",
+              "type": "string"
+            },
+            "code": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "items"
+          ],
+          "properties": {
+            "kind": {
+              "const": "fragmentCollection",
+              "type": "string"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "nodeId"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "ref",
+                        "type": "string"
+                      },
+                      "nodeId": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "additionalProperties": false,
+                    "type": "object",
+                    "required": [
+                      "$ref"
+                    ],
+                    "properties": {
+                      "$ref": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "additionalProperties": false,
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "node"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "inline",
+                        "type": "string"
+                      },
+                      "node": {
+                        "$ref": "#/$defs/SynthesisNode"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "$ref"
+          ],
+          "properties": {
+            "$ref": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "node"
+          ],
+          "properties": {
+            "kind": {
+              "const": "inline",
+              "type": "string"
+            },
+            "node": {
+              "$ref": "#/$defs/SynthesisNode"
+            }
+          }
+        }
+      ]
+    },
+    "SynthesisNode": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "id",
+        "templateId",
+        "inputs"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "templateId": {
+          "type": "string"
+        },
+        "inputs": {
+          "type": "object",
+          "patternProperties": {
+            "^(.*)$": {
+              "$ref": "#/$defs/SynthesisInput"
+            }
+          }
+        }
+      }
+    },
+    "SynthesisGoal": {
+      "additionalProperties": false,
+      "type": "object",
+      "properties": {
+        "outputKind": {
+          "$ref": "#/$defs/GraphRegionKind"
+        },
+        "type": {
+          "$ref": "#/$defs/GraphTypeDescriptor"
+        },
+        "schema": {
+          "$ref": "#/$defs/SupportedJsonSchema"
+        }
+      }
+    },
+    "SynthesisGraph": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "nodes",
+        "finalNodeId"
+      ],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SynthesisNode"
+          }
+        },
+        "finalNodeId": {
+          "type": "string"
+        },
+        "goal": {
+          "$ref": "#/$defs/SynthesisGoal"
+        }
+      }
+    },
     "CompilationRegionKind": {
       "anyOf": [
         {
@@ -435,22 +706,6 @@
           }
         }
       }
-    },
-    "GraphCompilationFailureClassification": {
-      "anyOf": [
-        {
-          "const": "graphRepairable",
-          "type": "string"
-        },
-        {
-          "const": "templatePolicyFailure",
-          "type": "string"
-        },
-        {
-          "const": "terminalFailure",
-          "type": "string"
-        }
-      ]
     },
     "SynthesisRepairHint": {
       "additionalProperties": true,
@@ -1053,145 +1308,7 @@
         }
       ]
     },
-    "StrictGraphCompilationSuccess": {
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind",
-        "mode",
-        "ok",
-        "finalArtifact",
-        "artifacts",
-        "diagnostics"
-      ],
-      "properties": {
-        "kind": {
-          "const": "graphCompilation",
-          "type": "string"
-        },
-        "mode": {
-          "const": "strict",
-          "type": "string"
-        },
-        "ok": {
-          "const": true,
-          "type": "boolean"
-        },
-        "finalArtifact": {
-          "$ref": "#/$defs/CompleteTemplateArtifact"
-        },
-        "artifacts": {
-          "type": "object",
-          "patternProperties": {
-            "^(.*)$": {
-              "$ref": "#/$defs/CompleteTemplateArtifact"
-            }
-          }
-        },
-        "diagnostics": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/SynthesisDiagnostic"
-          }
-        }
-      }
-    },
-    "StrictGraphCompilationFailure": {
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind",
-        "mode",
-        "ok",
-        "classification",
-        "diagnostics"
-      ],
-      "properties": {
-        "kind": {
-          "const": "graphCompilation",
-          "type": "string"
-        },
-        "mode": {
-          "const": "strict",
-          "type": "string"
-        },
-        "ok": {
-          "const": false,
-          "type": "boolean"
-        },
-        "classification": {
-          "$ref": "#/$defs/GraphCompilationFailureClassification"
-        },
-        "diagnostics": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/SynthesisDiagnostic"
-          }
-        },
-        "partialArtifacts": {
-          "type": "object",
-          "patternProperties": {
-            "^(.*)$": {
-              "$ref": "#/$defs/CompleteTemplateArtifact"
-            }
-          }
-        }
-      }
-    },
-    "StrictGraphCompilationResult": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/StrictGraphCompilationSuccess"
-        },
-        {
-          "$ref": "#/$defs/StrictGraphCompilationFailure"
-        }
-      ]
-    },
-    "PartialGraphCompilationSuccess": {
-      "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "kind",
-        "mode",
-        "ok",
-        "finalArtifact",
-        "artifacts",
-        "diagnostics"
-      ],
-      "properties": {
-        "kind": {
-          "const": "graphCompilation",
-          "type": "string"
-        },
-        "mode": {
-          "const": "partial",
-          "type": "string"
-        },
-        "ok": {
-          "const": true,
-          "type": "boolean"
-        },
-        "finalArtifact": {
-          "$ref": "#/$defs/TemplateArtifact"
-        },
-        "artifacts": {
-          "type": "object",
-          "patternProperties": {
-            "^(.*)$": {
-              "$ref": "#/$defs/TemplateArtifact"
-            }
-          }
-        },
-        "diagnostics": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/SynthesisDiagnostic"
-          }
-        }
-      }
-    },
-    "PartialGraphCompilationFailure": {
+    "GraphRepairablePartialCompilationFailure": {
       "additionalProperties": false,
       "type": "object",
       "required": [
@@ -1215,7 +1332,8 @@
           "type": "boolean"
         },
         "classification": {
-          "$ref": "#/$defs/GraphCompilationFailureClassification"
+          "const": "graphRepairable",
+          "type": "string"
         },
         "diagnostics": {
           "type": "array",
@@ -1233,23 +1351,155 @@
         }
       }
     },
-    "PartialGraphCompilationResult": {
+    "GraphRunnerState": {
       "anyOf": [
         {
-          "$ref": "#/$defs/PartialGraphCompilationSuccess"
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "graph"
+          ],
+          "properties": {
+            "kind": {
+              "const": "ready",
+              "type": "string"
+            },
+            "graph": {
+              "$ref": "#/$defs/SynthesisGraph"
+            }
+          }
         },
         {
-          "$ref": "#/$defs/PartialGraphCompilationFailure"
-        }
-      ]
-    },
-    "GraphCompilationResult": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/StrictGraphCompilationResult"
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "graph",
+            "result",
+            "diagnostics",
+            "classification"
+          ],
+          "properties": {
+            "kind": {
+              "const": "needsGraphRepair",
+              "type": "string"
+            },
+            "graph": {
+              "$ref": "#/$defs/SynthesisGraph"
+            },
+            "result": {
+              "$ref": "#/$defs/GraphRepairablePartialCompilationFailure"
+            },
+            "diagnostics": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SynthesisDiagnostic"
+              }
+            },
+            "classification": {
+              "const": "graphRepairable",
+              "type": "string"
+            }
+          }
         },
         {
-          "$ref": "#/$defs/PartialGraphCompilationResult"
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "graph",
+            "artifact",
+            "diagnostics",
+            "classification"
+          ],
+          "properties": {
+            "kind": {
+              "const": "needsArtifactInputs",
+              "type": "string"
+            },
+            "graph": {
+              "$ref": "#/$defs/SynthesisGraph"
+            },
+            "artifact": {
+              "$ref": "#/$defs/PartialTemplateArtifact"
+            },
+            "diagnostics": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SynthesisDiagnostic"
+              }
+            },
+            "classification": {
+              "const": "artifactFillable",
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "graph",
+            "artifact",
+            "diagnostics"
+          ],
+          "properties": {
+            "kind": {
+              "const": "complete",
+              "type": "string"
+            },
+            "graph": {
+              "$ref": "#/$defs/SynthesisGraph"
+            },
+            "artifact": {
+              "$ref": "#/$defs/CompleteTemplateArtifact"
+            },
+            "diagnostics": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SynthesisDiagnostic"
+              }
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "graph",
+            "diagnostics",
+            "classification"
+          ],
+          "properties": {
+            "kind": {
+              "const": "failed",
+              "type": "string"
+            },
+            "graph": {
+              "$ref": "#/$defs/SynthesisGraph"
+            },
+            "diagnostics": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SynthesisDiagnostic"
+              }
+            },
+            "classification": {
+              "anyOf": [
+                {
+                  "const": "templatePolicyFailure",
+                  "type": "string"
+                },
+                {
+                  "const": "terminalFailure",
+                  "type": "string"
+                }
+              ]
+            }
+          }
         }
       ]
     }

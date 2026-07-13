@@ -11,9 +11,12 @@
       "import": "./dist/index.js"
     },
     "./schemas/replacement-map.schema.json": "./schemas/replacement-map.schema.json",
+    "./schemas/supported-json-schema.schema.json": "./schemas/supported-json-schema.schema.json",
     "./schemas/synthesis-graph.schema.json": "./schemas/synthesis-graph.schema.json",
     "./schemas/template-summary.schema.json": "./schemas/template-summary.schema.json",
     "./schemas/graph-compilation-result.schema.json": "./schemas/graph-compilation-result.schema.json",
+    "./schemas/graph-runner-action.schema.json": "./schemas/graph-runner-action.schema.json",
+    "./schemas/graph-runner-state.schema.json": "./schemas/graph-runner-state.schema.json",
     "./builders": {
       "types": "./dist/builders.d.ts",
       "import": "./dist/builders.js"
@@ -37,6 +40,7 @@
   },
   "dependencies": {
     "@sinclair/typebox": "^0.34.51",
+    "ajv": "^8.20.0",
     "ts-morph": "^25.0.1",
     "ts-pattern": "^5.9.0",
     "type-fest": "^5.8.0",
@@ -44,7 +48,6 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
-    "ajv": "^8.20.0",
     "tsx": "^4.19.2",
     "vitest": "^2.1.8"
   }

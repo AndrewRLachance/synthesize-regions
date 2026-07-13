@@ -273,6 +273,48 @@ describe('template catalog digests', () => {
 
 		expect(templateCatalogDigest([...canonical].reverse())).toBe(templateCatalogDigest(reordered))
 		expect(createTemplateRegistry(canonical).contractDigest).toBe(templateCatalogDigest(canonical))
+		expect(templateCatalogDigest(canonical)).toMatch(/^c2_[a-f0-9]{64}$/u)
+	})
+
+	it('canonicalizes schema ordering, legacy aliases, and surrounding TypeScript whitespace', () => {
+		const canonical = defineTemplate({
+			modelId: 'CanonicalMetadata',
+			inputs: {
+				value: literalPort({
+					regionKind: 'expression',
+					schema: {
+						type: ['string', 'null'],
+						anyOf: [{ const: 'value' }, { type: 'null' }]
+					}
+				})
+			},
+			output: {
+				kind: 'expression',
+				type: { ts: 'string | null', schema: { type: ['string', 'null'] } }
+			},
+			template: region => region('value')
+		})
+		const reorderedAndLegacy = defineTemplate({
+			modelId: 'CanonicalMetadata',
+			inputs: {
+				value: literalPort({
+					regionKind: 'expression',
+					schema: {
+						anyOf: [{ type: 'null' }, { const: 'value' }],
+						type: ['null', 'string']
+					}
+				})
+			},
+			output: {
+				kind: 'expression',
+				type: { ts: '  string | null  ' },
+				schema: { type: ['null', 'string'] }
+			},
+			template: region => region('value')
+		})
+
+		expect(templateCatalogDigest([reorderedAndLegacy]))
+			.toBe(templateCatalogDigest([canonical]))
 	})
 
 	it('changes for planner-facing versions, descriptions, ports, policies, schemas, types, sources, and outputs', () => {
@@ -418,6 +460,7 @@ describe('catalog capture in graph sessions', () => {
 		const mismatch = compileGraph(graph, registry, { expectedCatalogDigest: 'c1_stale' })
 		expect(mismatch.ok).toBe(false)
 		if (!mismatch.ok) {
+			expect(mismatch.classification).toBe('terminalFailure')
 			expect(mismatch.diagnostics).toMatchObject([{
 				stage: 'template',
 				code: 'CatalogDigestMismatch',

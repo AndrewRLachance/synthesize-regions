@@ -39,6 +39,10 @@ try {
 	const packedManifest = await readJson<PackageManifest>(join(packedPackageDirectory, 'package.json'))
 
 	assert.equal(packedManifest.name, sourceManifest.name, 'The packed package name differs from the source manifest.')
+	assert.ok(
+		packedManifest.dependencies?.ajv,
+		'Ajv must be published as a runtime dependency because schema validation is part of the root API.'
+	)
 	await verifyManifestTargets(packedPackageDirectory, packedManifest)
 
 	const schemaSubpaths = getJsonExportSubpaths(packedManifest)
@@ -161,10 +165,7 @@ function getJsonExportSubpaths(manifest: PackageManifest): string[] {
 }
 
 async function linkInstalledDependencies(nodeModulesDirectory: string, manifest: PackageManifest): Promise<void> {
-	const dependencyNames = new Set([
-		...Object.keys(manifest.dependencies ?? {}),
-		...Object.keys(manifest.devDependencies ?? {})
-	])
+	const dependencyNames = new Set(Object.keys(manifest.dependencies ?? {}))
 
 	for (const dependencyName of [...dependencyNames].sort()) {
 		const source = join(projectRoot, 'node_modules', ...dependencyName.split('/'))
@@ -196,6 +197,35 @@ const packageName = ${JSON.stringify(packageName)}
 const fixtures = JSON.parse(process.env.PACKAGE_SMOKE_SCHEMA_FIXTURES ?? '[]')
 const packageModule = await import(packageName)
 assert.ok(Object.keys(packageModule).length > 0, 'The package root did not expose any runtime exports.')
+
+const supported = { type: 'array', items: { type: 'integer' }, minItems: 1 }
+assert.equal(packageModule.validateSupportedJsonSchema(supported).ok, true)
+assert.equal(packageModule.validateJsonValueAgainstSchema([1, 2], supported).ok, true)
+assert.equal(packageModule.validateJsonValueAgainstSchema([], supported).ok, false)
+assert.equal(
+	packageModule.compareJsonSchemas({ type: 'integer' }, { type: 'number' }).compatibility,
+	'compatible'
+)
+assert.equal(packageModule.validateTypeScriptType('ReadonlyArray<string>').ok, true)
+assert.equal(packageModule.compareTypeScriptTypes('unknown', 'string').status, 'compatible')
+assert.equal(
+	packageModule.compareTypeDescriptors(
+		{ ts: 'string', schema: { type: 'string' } },
+		{ ts: 'string | number', schema: { type: ['string', 'number'] } }
+	).status,
+	'compatible'
+)
+const sourceMap = {
+	version: packageModule.GENERATED_SOURCE_MAP_VERSION,
+	spans: [{
+		kind: 'input', start: 0, end: 5, nestingDepth: 1,
+		nodeId: 'mapped', templateId: 'MappedExpression', inputName: 'value'
+	}]
+}
+assert.deepEqual(packageModule.GENERATED_SOURCE_SPAN_KIND_VALUES, ['node', 'input'])
+assert.equal(packageModule.isGeneratedSourceMap(sourceMap), true)
+assert.equal(packageModule.checkContract(packageModule.GeneratedSourceMapSchema, sourceMap), true)
+assert.equal(packageModule.isGeneratedSourceMap({ version: 2, spans: [] }), false)
 
 const require = createRequire(import.meta.url)
 const { default: Ajv2020 } = await import('ajv/dist/2020.js')
@@ -243,16 +273,80 @@ async function runTypeScriptConsumerSmoke(
 	).join('\n')
 
 	await writeFile(join(consumerDirectory, 'consumer.ts'), `
-import type { GraphCompilationResult, SynthesisGraph, TemplateSummary } from ${JSON.stringify(packageName)}
+import {
+	GENERATED_SOURCE_MAP_VERSION,
+	GENERATED_SOURCE_SPAN_KIND_VALUES,
+	GeneratedSourceMapSchema,
+	checkContract,
+	compareJsonSchemas,
+	compareTypeDescriptors,
+	compareTypeScriptTypes,
+	validateJsonValueAgainstSchema,
+	validateSupportedJsonSchema,
+	validateTypeScriptType,
+	isGeneratedSourceMap,
+	type TypeDescriptorComparisonResult,
+	type GeneratedSourceMap,
+	type GeneratedSourceSpan,
+	type JsonValue,
+	type GraphCompilationResult,
+	type GraphRunnerAction,
+	type GraphRunnerState,
+	type GraphSemanticContext,
+	type SemanticTargetFileContext,
+	type SupportedJsonSchema,
+	type SynthesisGraph,
+	type TemplateSummary
+} from ${JSON.stringify(packageName)}
 ${schemaImports}
 
 const graph: SynthesisGraph = ${JSON.stringify(graph, null, 2)}
 const summary: TemplateSummary = ${JSON.stringify(summary, null, 2)}
 const result: GraphCompilationResult = ${JSON.stringify(result, null, 2)}
+const runnerAction: GraphRunnerAction = ${JSON.stringify(fixtureForSchema('./schemas/graph-runner-action.schema.json'), null, 2)}
+const runnerState: GraphRunnerState = ${JSON.stringify(fixtureForSchema('./schemas/graph-runner-state.schema.json'), null, 2)}
+const supportedSchema: SupportedJsonSchema = ${JSON.stringify(fixtureForSchema('./schemas/supported-json-schema.schema.json'), null, 2)}
+const jsonValue: JsonValue = { values: [1, 'two', null] }
+const descriptorComparison: TypeDescriptorComparisonResult = compareTypeDescriptors(
+	{ ts: 'string', schema: { type: 'string' } },
+	{ ts: 'string | number', schema: { type: ['string', 'number'] } }
+)
+const generatedSourceSpan: GeneratedSourceSpan = {
+	kind: 'input', start: 0, end: 5, nestingDepth: 1,
+	nodeId: 'mapped', templateId: 'MappedExpression', inputName: 'value'
+}
+const generatedSourceMap: GeneratedSourceMap = {
+	version: GENERATED_SOURCE_MAP_VERSION,
+	spans: [generatedSourceSpan]
+}
+const semanticTarget: SemanticTargetFileContext = {
+	filePath: '/virtual/consumer.ts', start: 0, sourceText: 'PLACEHOLDER'
+}
+const semanticContext: GraphSemanticContext = { targetFile: semanticTarget }
+const sourceMapVersion: 1 = GENERATED_SOURCE_MAP_VERSION
+const sourceSpanKinds: readonly ['node', 'input'] = GENERATED_SOURCE_SPAN_KIND_VALUES
+const sourceMapMatchesContract: boolean = checkContract(GeneratedSourceMapSchema, generatedSourceMap)
+const sourceMapGuarded: boolean = isGeneratedSourceMap(generatedSourceMap)
 
 void graph
 void summary
 void result
+void runnerAction
+void runnerState
+void supportedSchema
+void jsonValue
+void descriptorComparison
+void generatedSourceMap
+void semanticContext
+void sourceMapVersion
+void sourceSpanKinds
+void sourceMapMatchesContract
+void sourceMapGuarded
+void compareJsonSchemas
+void compareTypeScriptTypes
+void validateJsonValueAgainstSchema
+void validateSupportedJsonSchema
+void validateTypeScriptType
 void [${schemaFixtures.map((_, index) => `schema${index}`).join(', ')}]
 `, 'utf8')
 
@@ -286,6 +380,18 @@ function fixtureForSchema(subpath: string): unknown {
 					{ kind: 'statement', code: 'const answer = 42;' },
 					{ kind: 'statement', code: 'return answer;' }
 				]
+			}
+
+		case 'supported-json-schema.schema.json':
+			return {
+				$defs: {
+					identifier: { type: 'string', minLength: 1 }
+				},
+				type: 'array',
+				prefixItems: [{ $ref: '#/$defs/identifier' }],
+				items: false,
+				minItems: 1,
+				maxItems: 1
 			}
 
 		case 'synthesis-graph.schema.json':
@@ -379,27 +485,60 @@ function fixtureForSchema(subpath: string): unknown {
 			}
 
 		case 'graph-compilation-result.schema.json':
+			const compilationArtifact = mappedArtifactFixture()
 			return {
 				kind: 'graphCompilation',
 				mode: 'strict',
-				ok: false,
-				diagnostics: [{
-					stage: 'type',
-					code: 'TypeScriptSemanticError',
-					severity: 'error',
-					message: "Type 'string' is not assignable to type 'number'.",
-					nodeId: 'root',
-					templateId: 'RootTemplate',
-					path: 'generated.ts',
-					compilerCode: 2322,
-					compilerCategory: 'error',
-					line: 1,
-					column: 7
-				}]
+				ok: true,
+				finalArtifact: compilationArtifact,
+				artifacts: { mapped: compilationArtifact },
+				diagnostics: []
+			}
+
+		case 'graph-runner-action.schema.json':
+			return {
+				kind: 'fill',
+				inputs: {
+					value: { kind: 'fragment', fragment: mappedArtifactFixture() }
+				}
+			}
+
+		case 'graph-runner-state.schema.json':
+			return {
+				kind: 'complete',
+				graph: {
+					nodes: [],
+					finalNodeId: 'mapped'
+				},
+				artifact: mappedArtifactFixture(),
+				diagnostics: []
 			}
 
 		default:
 			throw new Error(`No packed-package smoke fixture is defined for ${subpath}.`)
+	}
+}
+
+function mappedArtifactFixture(): unknown {
+	return {
+		id: 'mapped',
+		code: 'value',
+		kind: 'expression',
+		source: { templateId: 'MappedExpression' },
+		sourceMap: {
+			version: 1,
+			spans: [
+				{
+					kind: 'node', start: 0, end: 5, nestingDepth: 0,
+					nodeId: 'mapped', templateId: 'MappedExpression'
+				},
+				{
+					kind: 'input', start: 0, end: 5, nestingDepth: 1,
+					nodeId: 'mapped', templateId: 'MappedExpression', inputName: 'value'
+				}
+			]
+		},
+		complete: true
 	}
 }
 

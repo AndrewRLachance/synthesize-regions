@@ -13,173 +13,238 @@ import type {
   TypeDescriptor,
   UnionInputPort
 } from "./graphTypes.js";
-import type { Exact } from "type-fest";
+import type { SupportedJsonSchema } from "./schemaTypes.js";
+import {
+  compareJsonSchemas,
+  validateJsonValueAgainstSchema,
+  validateSupportedJsonSchema,
+  type SchemaComparisonResult,
+  type SupportedJsonSchemaIssue
+} from "./schemaCompatibility.js";
+import {
+  compareTypeScriptTypes,
+  validateTypeScriptType,
+  type TypeScriptTypeCompatibilityResult,
+  type TypeScriptTypeIssue
+} from "./typeScriptCompatibility.js";
 
 type StrictPortInput<T extends InputPort, P extends Omit<T, "kind">> =
-  P & Exact<Omit<T, "kind">, P>;
+  P & (Exclude<keyof P, keyof Omit<T, "kind">> extends never ? unknown : never);
+
+/** Stable result values returned by descriptor compatibility checks. */
+export const TYPE_DESCRIPTOR_COMPATIBILITY_STATUS_VALUES = [
+  "compatible",
+  "incompatible",
+  "indeterminate",
+  "invalid"
+] as const;
+
+export type TypeDescriptorCompatibilityStatus =
+  typeof TYPE_DESCRIPTOR_COMPATIBILITY_STATUS_VALUES[number];
+
+export interface TypeDescriptorCompatibilityIssue {
+  readonly code: string;
+  readonly message: string;
+  readonly path: string;
+  readonly expected?: unknown;
+  readonly actual?: unknown;
+  readonly compilerCode?: number;
+  readonly compilerCategory?: "error" | "warning" | "suggestion" | "message";
+  readonly line?: number;
+  readonly column?: number;
+}
+
+export interface TypeDescriptorCompatibilityResult {
+  readonly status: TypeDescriptorCompatibilityStatus;
+  readonly issues: readonly TypeDescriptorCompatibilityIssue[];
+  readonly typeScript?: TypeScriptTypeCompatibilityResult;
+  readonly schema?: SchemaComparisonResult;
+}
+
+/** Public comparison-result name used by package consumers. */
+export type TypeDescriptorComparisonResult = TypeDescriptorCompatibilityResult;
+
+export type EffectiveTypeDescriptorResult =
+  | { readonly ok: true; readonly type?: TypeDescriptor }
+  | {
+      readonly ok: false;
+      readonly reason: "invalid" | "conflict";
+      readonly type?: TypeDescriptor;
+      readonly issues: readonly TypeDescriptorCompatibilityIssue[];
+    };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function schemaType(schema: unknown): string | undefined {
-  return isRecord(schema) && typeof schema.type === "string" ? schema.type : undefined;
+function typeScriptIssues(
+  issues: readonly TypeScriptTypeIssue[],
+  side: "actual" | "expected"
+): TypeDescriptorCompatibilityIssue[] {
+  return issues.map(issue => ({
+    ...issue,
+    path: `${side}.${issue.path}`
+  }));
 }
 
-function schemaTypes(schema: unknown): string[] {
-  if (!isRecord(schema)) return [];
-  if (typeof schema.type === "string") return [schema.type];
-  if (Array.isArray(schema.type)) return schema.type.filter((item): item is string => typeof item === "string");
-  return [];
+function schemaIssues(
+  issues: readonly SupportedJsonSchemaIssue[],
+  side: "actual" | "expected"
+): TypeDescriptorCompatibilityIssue[] {
+  return issues.map(issue => ({
+    code: issue.code,
+    message: issue.message,
+    path: `${side}.${issue.path}`,
+    ...(issue.actual === undefined ? {} : { actual: issue.actual })
+  }));
 }
 
-function valuesEqual(left: unknown, right: unknown): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
-}
-
-function schemaConstCompatible(expected: unknown, actual: unknown): boolean {
-  if (!isRecord(expected) || !Object.prototype.hasOwnProperty.call(expected, "const")) return true;
-  if (!isRecord(actual) || !Object.prototype.hasOwnProperty.call(actual, "const")) return false;
-  return valuesEqual(expected.const, actual.const);
-}
-
-function schemaEnumCompatible(expected: unknown, actual: unknown): boolean {
-  if (!isRecord(expected) || !Array.isArray(expected.enum)) return true;
-  if (!isRecord(actual) || !Array.isArray(actual.enum)) return false;
-  const expectedValues = expected.enum as unknown[];
-  const actualValues = actual.enum as unknown[];
-  return actualValues.every(actualValue => expectedValues.some(expectedValue => valuesEqual(expectedValue, actualValue)));
-}
-
-function schemasCompatible(expected: unknown, actual: unknown): boolean {
-  if (expected === undefined) return true;
-  if (actual === undefined) return false;
-
-  if (isRecord(expected) && Array.isArray(expected.anyOf)) {
-    return expected.anyOf.some(option => schemasCompatible(option, actual));
+function validateDescriptor(
+  descriptor: TypeDescriptor | undefined,
+  side: "actual" | "expected"
+): TypeDescriptorCompatibilityIssue[] {
+  if (!descriptor) return [];
+  const issues: TypeDescriptorCompatibilityIssue[] = [];
+  if (!isRecord(descriptor)) {
+    return [{
+      code: "InvalidTypeScriptType",
+      message: "A type descriptor must be an object.",
+      path: side,
+      actual: descriptor
+    }];
   }
-
-  if (isRecord(expected) && Array.isArray(expected.oneOf)) {
-    return expected.oneOf.some(option => schemasCompatible(option, actual));
-  }
-
-  if (isRecord(actual) && Array.isArray(actual.anyOf)) {
-    return actual.anyOf.every(option => schemasCompatible(expected, option));
-  }
-
-  if (isRecord(actual) && Array.isArray(actual.oneOf)) {
-    return actual.oneOf.every(option => schemasCompatible(expected, option));
-  }
-
-  if (!schemaConstCompatible(expected, actual) || !schemaEnumCompatible(expected, actual)) return false;
-
-  const expectedTypes = schemaTypes(expected);
-  const actualTypes = schemaTypes(actual);
-
-  if (expectedTypes.length === 0) return false;
-  if (actualTypes.length === 0) return false;
-  if (!actualTypes.every(actualType => expectedTypes.includes(actualType))) return false;
-
-  if (expectedTypes.includes("array")) {
-    const expectedItems = isRecord(expected) ? expected.items : undefined;
-    const actualItems = isRecord(actual) ? actual.items : undefined;
-    return expectedItems === undefined || schemasCompatible(expectedItems, actualItems);
-  }
-
-  if (expectedTypes.includes("object")) {
-    const expectedProperties = isRecord(expected) && isRecord(expected.properties) ? expected.properties : undefined;
-    const actualProperties = isRecord(actual) && isRecord(actual.properties) ? actual.properties : undefined;
-    if (!expectedProperties) return true;
-    if (!actualProperties) return false;
-
-    for (const [key, expectedProperty] of Object.entries(expectedProperties)) {
-      if (!schemasCompatible(expectedProperty, actualProperties[key])) return false;
+  if (descriptor.ts !== undefined) {
+    if (typeof descriptor.ts !== "string") {
+      issues.push({
+        code: "InvalidTypeScriptType",
+        message: "TypeDescriptor.ts must be a string.",
+        path: `${side}.ts`,
+        actual: descriptor.ts
+      });
+    } else {
+      const validation = validateTypeScriptType(descriptor.ts, "ts");
+      if (!validation.ok) issues.push(...typeScriptIssues(validation.issues, side));
     }
-    return true;
   }
-
-  return actualTypes.every(actualType => ["string", "number", "integer", "boolean", "null"].includes(actualType));
+  if (descriptor.schema !== undefined) {
+    const validation = validateSupportedJsonSchema(descriptor.schema, "schema");
+    if (!validation.ok) issues.push(...schemaIssues(validation.issues, side));
+  }
+  return issues;
 }
 
-function splitTopLevelUnion(value: string): string[] {
-  const parts: string[] = [];
-  let depth = 0;
-  let current = "";
+/**
+ * Compare a producer descriptor (`actual`) to a consumer descriptor (`expected`).
+ * Invalid metadata dominates incompatibility, which dominates indeterminacy.
+ */
+export function compareTypeDescriptors(
+  actual: TypeDescriptor | undefined,
+  expected: TypeDescriptor | undefined
+): TypeDescriptorCompatibilityResult {
+  const validationIssues = [
+    ...validateDescriptor(actual, "actual"),
+    ...validateDescriptor(expected, "expected")
+  ];
+  if (validationIssues.length > 0) return { status: "invalid", issues: validationIssues };
 
-  for (const char of value) {
-    if (char === "<" || char === "(") depth += 1;
-    if (char === ">" || char === ")") depth -= 1;
+  const typeScript = compareTypeScriptTypes(expected?.ts, actual?.ts);
+  const issues: TypeDescriptorCompatibilityIssue[] = [];
+  if (typeScript.status === "invalid") {
+    issues.push(...typeScriptIssues(typeScript.issues, "expected"));
+  } else if (typeScript.status === "incompatible") {
+    issues.push({
+      code: "TypeScriptTypeMismatch",
+      message: typeScript.reason === "missingActualType"
+        ? "The producer does not advertise the TypeScript type required by the consumer."
+        : "The producer TypeScript type is not assignable to the consumer type.",
+      path: "ts",
+      expected: typeScript.expected,
+      actual: typeScript.actual
+    });
+  }
 
-    if (char === "|" && depth === 0) {
-      parts.push(current.trim());
-      current = "";
-      continue;
+  let schema: SchemaComparisonResult | undefined;
+  if (expected?.schema !== undefined) {
+    if (actual?.schema === undefined) {
+      issues.push({
+        code: "JsonSchemaMismatch",
+        message: "The producer does not advertise the JSON Schema required by the consumer.",
+        path: "schema",
+        expected: expected.schema
+      });
+    } else {
+      schema = compareJsonSchemas(actual.schema, expected.schema);
+      issues.push(...schema.issues.map(issue => ({ ...issue, path: `schema${issue.path === "$" ? "" : issue.path.slice(1)}` })));
     }
-
-    current += char;
   }
 
-  if (current.trim()) parts.push(current.trim());
-  return parts;
-}
-
-function normalizeTsType(value: string): string {
-  return value.trim().replace(/\s+/g, " ");
-}
-
-function stripOuterParens(value: string): string {
-  let current = normalizeTsType(value);
-  while (current.startsWith("(") && current.endsWith(")")) {
-    current = normalizeTsType(current.slice(1, -1));
+  if (typeScript.status === "invalid") return { status: "invalid", issues, typeScript, ...(schema ? { schema } : {}) };
+  if (typeScript.status === "incompatible" || (expected?.schema !== undefined && actual?.schema === undefined)
+    || schema?.compatibility === "incompatible") {
+    return { status: "incompatible", issues, typeScript, ...(schema ? { schema } : {}) };
   }
-  return current;
-}
-
-function arrayElementType(value: string): string | undefined {
-  const normalized = stripOuterParens(value).replace(/^readonly\s+/u, "");
-  if (normalized.endsWith("[]")) return normalized.slice(0, -2).trim();
-
-  const arrayMatch = normalized.match(/^(?:ReadonlyArray|Array)<(.+)>$/u);
-  return arrayMatch?.[1]?.trim();
-}
-
-function tsTypeCompatible(expected: string | undefined, actual: string | undefined): boolean {
-  if (!expected) return true;
-  const normalizedExpected = stripOuterParens(expected);
-  if (normalizedExpected === "unknown" || normalizedExpected === "any") return true;
-  if (!actual) return false;
-
-  const normalizedActual = stripOuterParens(actual);
-  if (normalizedExpected === normalizedActual) return true;
-
-  const expectedUnion = splitTopLevelUnion(normalizedExpected);
-  if (expectedUnion.length > 1) {
-    return expectedUnion.some(option => tsTypeCompatible(option, normalizedActual));
+  if (schema?.compatibility === "indeterminate") {
+    return { status: "indeterminate", issues, typeScript, schema };
   }
+  return { status: "compatible", issues, typeScript, ...(schema ? { schema } : {}) };
+}
 
-  const actualUnion = splitTopLevelUnion(normalizedActual);
-  if (actualUnion.length > 1) {
-    return actualUnion.every(option => tsTypeCompatible(normalizedExpected, option));
+/**
+ * Resolve the deprecated standalone schema alias into `TypeDescriptor.schema`.
+ * When both declarations are present they must be provably equivalent.
+ */
+export function resolveEffectiveTypeDescriptor(
+  type: TypeDescriptor | undefined,
+  legacySchema: SupportedJsonSchema | undefined
+): EffectiveTypeDescriptorResult {
+  const authoredTypeIssues = validateDescriptor(type, "actual");
+  if (authoredTypeIssues.length > 0) {
+    return {
+      ok: false,
+      reason: "invalid",
+      ...(isRecord(type) ? { type: type as TypeDescriptor } : {}),
+      issues: authoredTypeIssues
+    };
+  }
+  const effective = legacySchema === undefined || type?.schema !== undefined
+    ? type
+    : { ...(type ?? {}), schema: legacySchema };
+  const validationIssues = effective === type ? [] : validateDescriptor(effective, "actual");
+  if (legacySchema !== undefined && type?.schema !== undefined) {
+    const aliasValidation = validateSupportedJsonSchema(legacySchema, "schema");
+    if (!aliasValidation.ok) validationIssues.push(...schemaIssues(aliasValidation.issues, "actual"));
+  }
+  if (validationIssues.length > 0) {
+    return { ok: false, reason: "invalid", ...(effective ? { type: effective } : {}), issues: validationIssues };
   }
 
-  const expectedElement = arrayElementType(normalizedExpected);
-  const actualElement = arrayElementType(normalizedActual);
-  if (expectedElement !== undefined) {
-    return actualElement !== undefined && tsTypeCompatible(expectedElement, actualElement);
+  if (type?.schema !== undefined && legacySchema !== undefined) {
+    const forward = compareJsonSchemas(type.schema, legacySchema);
+    const reverse = compareJsonSchemas(legacySchema, type.schema);
+    if (forward.compatibility !== "compatible" || reverse.compatibility !== "compatible") {
+      return {
+        ok: false,
+        reason: "conflict",
+        type,
+        issues: [{
+          code: "ConflictingSchemaMetadata",
+          message: "type.schema and the deprecated schema alias must describe equivalent value sets.",
+          path: "schema",
+          expected: type.schema,
+          actual: legacySchema
+        }]
+      };
+    }
   }
-
-  return false;
+  return { ok: true, ...(effective ? { type: effective } : {}) };
 }
 
+/** @deprecated Use `compareTypeDescriptors(actual, expected)` for structured results. */
 export function isTypeCompatible(
   expected: TypeDescriptor | undefined,
   actual: TypeDescriptor | undefined
 ): boolean {
-  if (!expected) return true;
-  if (expected.ts !== undefined && !tsTypeCompatible(expected.ts, actual?.ts)) return false;
-  if (expected.schema !== undefined && !schemasCompatible(expected.schema, actual?.schema)) return false;
-
-  return true;
+  return compareTypeDescriptors(actual, expected).status === "compatible";
 }
 
 export type SchemaValidationResult =
@@ -200,104 +265,19 @@ export type SchemaValidationResult =
       actual?: unknown;
     };
 
+/** @deprecated Use `validateJsonValueAgainstSchema()` for structured issues. */
 export function validateJsonSchemaSubset(value: unknown, schema: unknown, path = "$"): SchemaValidationResult {
   if (schema === undefined) return { ok: true };
-  if (!isRecord(schema)) {
-    return { ok: false, message: "Unsupported schema shape.", path, expected: schema, actual: value };
-  }
-
-  if (isRecord(schema) && Object.prototype.hasOwnProperty.call(schema, "const")) {
-    return valuesEqual(value, schema.const)
-      ? { ok: true }
-      : { ok: false, message: "Value does not match const.", path, expected: schema, actual: value };
-  }
-
-  if (isRecord(schema) && Array.isArray(schema.enum)) {
-    return schema.enum.some(item => valuesEqual(item, value))
-      ? { ok: true }
-      : { ok: false, message: "Value is not one of the allowed enum values.", path, expected: schema, actual: value };
-  }
-
-  if (isRecord(schema) && Array.isArray(schema.anyOf)) {
-    return schema.anyOf.some(option => validateJsonSchemaSubset(value, option, path).ok)
-      ? { ok: true }
-      : { ok: false, message: "Value does not match any allowed schema.", path, expected: schema, actual: value };
-  }
-
-  if (isRecord(schema) && Array.isArray(schema.oneOf)) {
-    const matches = schema.oneOf.filter(option => validateJsonSchemaSubset(value, option, path).ok);
-    return matches.length === 1
-      ? { ok: true }
-      : { ok: false, message: "Value must match exactly one allowed schema.", path, expected: schema, actual: value };
-  }
-
-  const types = schemaTypes(schema);
-  if (types.length === 0) {
-    return { ok: false, message: "Schema must include a string type.", path, expected: schema, actual: value };
-  }
-
-  if (types.length > 1) {
-    return types.some(type => validateJsonSchemaSubset(value, { ...schema, type }, path).ok)
-      ? { ok: true }
-      : { ok: false, message: "Value does not match any allowed schema type.", path, expected: schema, actual: value };
-  }
-
-  const type = types[0]!;
-
-  if (type === "null") {
-    return value === null
-      ? { ok: true }
-      : { ok: false, message: "Expected null.", path, expected: schema, actual: value };
-  }
-
-  if (type === "array") {
-    if (!Array.isArray(value)) {
-      return { ok: false, message: "Expected array.", path, expected: schema, actual: value };
-    }
-    if (schema.items === undefined) return { ok: true };
-    for (let index = 0; index < value.length; index += 1) {
-      const result = validateJsonSchemaSubset(value[index], schema.items, `${path}[${index}]`);
-      if (!result.ok) return result;
-    }
-    return { ok: true };
-  }
-
-  if (type === "object") {
-    if (!isRecord(value)) {
-      return { ok: false, message: "Expected object.", path, expected: schema, actual: value };
-    }
-    const properties = isRecord(schema.properties) ? schema.properties : undefined;
-    if (!properties) return { ok: true };
-    const required = Array.isArray(schema.required) ? schema.required.filter(item => typeof item === "string") : [];
-
-    for (const key of required) {
-      if (!Object.prototype.hasOwnProperty.call(value, key)) {
-        return { ok: false, message: `Missing required property ${key}.`, path: `${path}.${key}`, expected: schema, actual: undefined };
-      }
-    }
-
-    for (const [key, propertySchema] of Object.entries(properties)) {
-      if (Object.prototype.hasOwnProperty.call(value, key)) {
-        const result = validateJsonSchemaSubset(value[key], propertySchema, `${path}.${key}`);
-        if (!result.ok) return result;
-      }
-    }
-    return { ok: true };
-  }
-
-  if (type === "integer") {
-    return Number.isInteger(value)
-      ? { ok: true }
-      : { ok: false, message: "Expected integer.", path, expected: schema, actual: value };
-  }
-
-  if (["string", "number", "boolean"].includes(type)) {
-    return typeof value === type
-      ? { ok: true }
-      : { ok: false, message: `Expected ${type}.`, path, expected: schema, actual: value };
-  }
-
-  return { ok: false, message: `Unsupported schema type ${type}.`, path, expected: schema, actual: value };
+  const result = validateJsonValueAgainstSchema(value, schema, path);
+  if (result.ok) return { ok: true };
+  const issue = result.issues[0];
+  return {
+    ok: false,
+    message: issue?.message ?? "Value does not satisfy the JSON Schema.",
+    path: issue?.path ?? path,
+    expected: schema,
+    actual: value
+  };
 }
 
 export function literalPort<const P extends Omit<LiteralInputPort, "kind">>(

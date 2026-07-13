@@ -3,7 +3,22 @@ import { generateWithReplacements } from '../generation/generate.js'
 import { buildReplacementEdits } from '../replacements/serialize.js'
 import { discoverReplacementRegions } from '../regions/discovery.js'
 import { portRegionKind, summarizeInputPort, summarizeOutputPort } from './compatibility.js'
-import { applyReplacementEdits, templateModeForRegionKind } from './rendering.js'
+import { templateModeForRegionKind } from './rendering.js'
+import {
+	applySourceMappedTextEdits,
+	coverGeneratedSourceMapRoot,
+	emptyGeneratedSourceMap,
+	formatSourceMappedFragment,
+	inputGeneratedSourceSpan,
+	mergeGeneratedSourceMaps,
+	nodeGeneratedSourceMap,
+	remapGeneratedSourceMap,
+	shiftGeneratedSourceMap,
+	sourceMappedFragment,
+	sourceMappedFragmentCollection,
+	type GeneratedSourceIdentity,
+	type SourceMappedTextEdit
+} from './sourceSpans.js'
 
 import { isMatching } from 'ts-pattern'
 import {
@@ -17,6 +32,7 @@ import {
 } from './converter.js'
 import type {
 	GeneratedFragment,
+	GeneratedSourceMap,
 	GraphRegionBuilder,
 	GraphTemplateDefinition,
 	GraphTemplateInvocation,
@@ -29,6 +45,7 @@ import type {
 	StrictInputPortMap,
 	StrictOutputPort,
 	TemplateArtifact,
+	TypeDescriptor,
 	UnresolvedTemplateInput
 } from './graphTypes.js'
 
@@ -152,6 +169,13 @@ function fragmentSource<M extends string>(
     }
 }
 
+/** Resolve the deprecated output schema alias into the canonical descriptor. */
+function effectiveOutputType(output: OutputPort): TypeDescriptor | undefined {
+	if (output.schema === undefined) return output.type
+	if (output.type?.schema !== undefined) return output.type
+	return { ...(output.type ?? {}), schema: output.schema }
+}
+
 /** Build lineage metadata from resolved graph inputs. */
 function fragmentProvenance(
     invocation: GraphTemplateInvocation | GraphTemplatePartialInvocation
@@ -203,6 +227,66 @@ function partialArtifactReplacementCode(input: ResolvedGraphInput): string | und
     return undefined
 }
 
+/** Map nested fragment ownership into the serialized text used by one input. */
+function nestedInputSourceMap(
+	input: ResolvedGraphInput | undefined,
+	renderedCode: string
+): GeneratedSourceMap | undefined {
+	if (input?.kind === 'fragment') {
+		return sourceMappedFragment(input.fragment, renderedCode).sourceMap
+	}
+	if (input?.kind === 'fragmentCollection') {
+		const joined = sourceMappedFragmentCollection(input.fragments, input.port.separator ?? '\n')
+		return remapGeneratedSourceMap(joined.code, renderedCode, joined.sourceMap)
+	}
+	return undefined
+}
+
+/** Build the ownership map carried by one rendered template input. */
+function renderedInputSourceMap(
+	code: string,
+	identity: GeneratedSourceIdentity & { inputName: string },
+	input?: ResolvedGraphInput
+): GeneratedSourceMap {
+	const inputMap: GeneratedSourceMap = {
+		...emptyGeneratedSourceMap(),
+		spans: [inputGeneratedSourceSpan(0, code.length, identity, 1)]
+	}
+	const nested = nestedInputSourceMap(input, code)
+	return mergeGeneratedSourceMaps(
+		inputMap,
+		nested ? shiftGeneratedSourceMap(nested, 0, 2) : undefined
+	)
+}
+
+/** Attach node/input ownership to a set of already validated replacement edits. */
+function sourceMappedTemplateEdits(
+	edits: readonly { start: number; end: number; text: string; region: { id: string } }[],
+	invocation: GraphTemplateInvocation | GraphTemplatePartialInvocation,
+	modelId: string
+): SourceMappedTextEdit[] {
+	return edits.map(edit => {
+		const unresolved = 'unresolvedInputs' in invocation ? invocation.unresolvedInputs[edit.region.id] : undefined
+		const identity = unresolved
+			? {
+				...(unresolved.nodeId ? { nodeId: unresolved.nodeId } : {}),
+				templateId: unresolved.templateId,
+				inputName: unresolved.inputName
+			}
+			: {
+				...(invocation.nodeId ? { nodeId: invocation.nodeId } : {}),
+				templateId: modelId,
+				inputName: edit.region.id
+			}
+		return {
+			start: edit.start,
+			end: edit.end,
+			text: edit.text,
+			sourceMap: renderedInputSourceMap(edit.text, identity, invocation.inputs[edit.region.id])
+		}
+	})
+}
+
 /**
  * Define a typed template that can validate ergonomic input values, synthesize
  * marker replacements, and brand the generated output with its model ID.
@@ -229,7 +313,8 @@ export function defineTemplate<
     readonly pattern: S
     readonly template: (region: RegionBuilder<S>) => string
 } | GraphTemplateDefinitionInput<M, Record<string, InputPort>>): LegacyTemplateDefinition<S, O, M> | GraphTemplateDefinition<Record<string, InputPort>, M> {
-    if ('inputs' in definition) {
+	if ('inputs' in definition) {
+		const advertisedOutputType = effectiveOutputType(definition.output)
         const region: GraphRegionBuilder<Record<string, InputPort>> = (key, body) => {
             const port = definition.inputs[key]
             if (!port) {
@@ -260,22 +345,41 @@ export function defineTemplate<
                 const replacements = graphInputsToReplacementMap(invocation.inputs)
                 const generationOptions: GenerateOptions = {
                     ...(invocation.options ?? {}),
-                    templateMode: invocation.options?.templateMode ?? templateMode
+                    templateMode
                 }
                 const result = generateWithReplacements(
                     templateSource,
                     replacements,
                     generationOptions
                 )
+				const sourceEdits = buildReplacementEdits(result.regions, replacements, generationOptions, templateSource)
+				const mapped = applySourceMappedTextEdits(
+					templateSource,
+					nodeGeneratedSourceMap(templateSource.length, {
+						...(invocation.nodeId ? { nodeId: invocation.nodeId } : {}),
+						templateId: definition.modelId
+					}),
+					sourceMappedTemplateEdits(sourceEdits, invocation, definition.modelId)
+				)
+				const sourceIdentity = {
+					...(invocation.nodeId ? { nodeId: invocation.nodeId } : {}),
+					templateId: definition.modelId
+				}
+				const sourceMap = coverGeneratedSourceMapRoot(
+					remapGeneratedSourceMap(mapped.code, result.code, mapped.sourceMap),
+					result.code.length,
+					sourceIdentity
+				)
 
                 return {
                     ...(invocation.nodeId ? { id: invocation.nodeId } : {}),
                     code: result.code,
                     kind: definition.output.kind,
                     source: fragmentSource(definition.modelId, definition.version),
-                    ...(definition.output.type ? { type: definition.output.type } : {}),
+					...(advertisedOutputType ? { type: advertisedOutputType } : {}),
                     ...(definition.output.schema === undefined ? {} : { schema: definition.output.schema }),
-                    provenance: fragmentProvenance(invocation)
+                    provenance: fragmentProvenance(invocation),
+					sourceMap
                 }
             },
 
@@ -290,7 +394,7 @@ export function defineTemplate<
                 const replacements = graphInputsToReplacementMap(serializedInputs)
                 const generationOptions: GenerateOptions = {
                     ...(invocation.options ?? {}),
-                    templateMode: invocation.options?.templateMode ?? templateMode
+                    templateMode
                 }
                 const regions = discoverReplacementRegions(templateSource, { templateMode })
                 const resolvedRegions = regions.filter(region => Object.prototype.hasOwnProperty.call(replacements, region.id))
@@ -319,8 +423,8 @@ export function defineTemplate<
                     if (unresolved) {
                         edits.push({
                             start: region.startCommentStart,
-                            end: region.startCommentEnd,
-                            text: markerComment(region.effectiveType, region.arity, unresolved.id),
+							end: region.endCommentEnd,
+							text: `${markerComment(region.effectiveType, region.arity, unresolved.id)}${region.bodyText}/** @END **/`,
                             region
                         })
                         continue
@@ -334,7 +438,25 @@ export function defineTemplate<
                     })
                 }
 
-                const code = applyReplacementEdits(templateSource, edits)
+				let mapped = applySourceMappedTextEdits(
+					templateSource,
+					nodeGeneratedSourceMap(templateSource.length, {
+						...(invocation.nodeId ? { nodeId: invocation.nodeId } : {}),
+						templateId: definition.modelId
+					}),
+					sourceMappedTemplateEdits(edits, invocation, definition.modelId)
+				)
+				if (generationOptions.format === 'ts-morph') {
+					mapped = formatSourceMappedFragment(mapped.code, mapped.sourceMap, templateMode, {
+						...(generationOptions.filePath ? { filePath: generationOptions.filePath } : {}),
+						...(generationOptions.tsConfigFilePath ? { tsConfigFilePath: generationOptions.tsConfigFilePath } : {})
+					})
+				}
+				const { code } = mapped
+				const sourceMap = coverGeneratedSourceMapRoot(mapped.sourceMap, code.length, {
+					...(invocation.nodeId ? { nodeId: invocation.nodeId } : {}),
+					templateId: definition.modelId
+				})
                 discoverReplacementRegions(code, { ...generationOptions, filePath: '__partial_template_artifact__.ts' })
 
                 const allUnresolved = new Map<string, UnresolvedTemplateInput>()
@@ -347,9 +469,10 @@ export function defineTemplate<
                     code,
                     kind: definition.output.kind,
                     source: fragmentSource(definition.modelId, definition.version),
-                    ...(definition.output.type ? { type: definition.output.type } : {}),
+					...(advertisedOutputType ? { type: advertisedOutputType } : {}),
                     ...(definition.output.schema === undefined ? {} : { schema: definition.output.schema }),
-                    provenance: fragmentProvenance(invocation)
+                    provenance: fragmentProvenance(invocation),
+					sourceMap
                 }
 
                 if (unresolvedInputs.length === 0) {

@@ -6,14 +6,26 @@ import type {
 	InputPort,
 	RawCodeInputPort,
 	RegionKind,
-	SynthesisDiagnostic
+	SynthesisDiagnostic,
+	TypeDescriptor
 } from './graphTypes.js'
+import {
+	compareJsonSchemas,
+	validateSupportedJsonSchema,
+	type SupportedJsonSchemaIssue
+} from './schemaCompatibility.js'
+import {
+	compareTypeScriptTypes,
+	validateTypeScriptType,
+	type TypeScriptTypeIssue
+} from './typeScriptCompatibility.js'
 
 /** Template definition shape accepted by catalog validation. */
 export type CatalogTemplate = GraphTemplateDefinition<any, string, any>
 
 /** Error thrown when one or more template catalog contracts are invalid. */
 export class TemplateCatalogValidationError extends SynthesizeRegionsError {
+	readonly classification = 'templatePolicyFailure' as const
 	readonly diagnostics: readonly SynthesisDiagnostic[]
 
 	constructor(diagnostics: readonly SynthesisDiagnostic[]) {
@@ -32,6 +44,8 @@ interface ValidationContext {
 	byModelId: Map<string, IndexedTemplate[]>
 	knownModelIds: string[]
 	duplicateModelIds: Set<string>
+	invalidOutputModelIds: Set<string>
+	invalidAcceptsPaths: Set<string>
 }
 
 function diagnostic(
@@ -67,6 +81,82 @@ function compareDiagnostics(left: SynthesisDiagnostic, right: SynthesisDiagnosti
 function concreteRegionKinds(port: InputPort): RegionKind[] {
 	if (port.kind !== 'union') return [port.regionKind]
 	return port.options.flatMap(concreteRegionKinds)
+}
+
+function typeIssueDiagnostic(
+	issue: TypeScriptTypeIssue,
+	template: CatalogTemplate,
+	inputName: string | undefined,
+	actual: string
+): SynthesisDiagnostic {
+	return {
+		...diagnostic(issue.code, issue.message, template, issue.path, {
+			...(inputName === undefined ? {} : { inputName }),
+			actual
+		}),
+		...(issue.compilerCode === undefined ? {} : { compilerCode: issue.compilerCode }),
+		...(issue.compilerCategory === undefined ? {} : { compilerCategory: issue.compilerCategory }),
+		...(issue.line === undefined ? {} : { line: issue.line }),
+		...(issue.column === undefined ? {} : { column: issue.column })
+	}
+}
+
+function schemaIssueCode(issue: SupportedJsonSchemaIssue): string {
+	switch (issue.code) {
+		case 'UnsupportedJsonSchemaKeyword': return 'UnsupportedSchemaKeyword'
+		case 'UnresolvedJsonSchemaReference': return 'UnresolvedLocalSchemaReference'
+		case 'UnsupportedJsonSchemaReference':
+		case 'InvalidJsonSchema': return 'InvalidJsonSchema'
+	}
+}
+
+function validateSchema(
+	schema: unknown,
+	template: CatalogTemplate,
+	inputName: string | undefined,
+	path: string,
+	context: ValidationContext
+): boolean {
+	if (schema === undefined) return true
+
+	const result = validateSupportedJsonSchema(schema, path)
+	if (result.ok) return true
+
+	for (const issue of result.issues) {
+		context.diagnostics.push(diagnostic(
+			schemaIssueCode(issue),
+			issue.message,
+			template,
+			issue.path,
+			{
+				...(inputName === undefined ? {} : { inputName }),
+				actual: issue.actual ?? schema
+			}
+		))
+	}
+	return false
+}
+
+function validateTypeDescriptor(
+	descriptor: TypeDescriptor | undefined,
+	template: CatalogTemplate,
+	inputName: string | undefined,
+	path: string,
+	context: ValidationContext
+): boolean {
+	if (descriptor === undefined) return true
+
+	let valid = validateSchema(descriptor.schema, template, inputName, `${path}.schema`, context)
+	if (descriptor.ts === undefined) return valid
+
+	const result = validateTypeScriptType(descriptor.ts, `${path}.ts`)
+	if (result.ok) return valid
+
+	for (const issue of result.issues) {
+		context.diagnostics.push(typeIssueDiagnostic(issue, template, inputName, descriptor.ts))
+	}
+	valid = false
+	return valid
 }
 
 function validateCollectionBounds(
@@ -197,6 +287,62 @@ function validateSourceAllowlist(
 				sourcePath,
 				{ inputName, expected: expectedOutputKind, actual: actualOutputKind }
 			))
+			continue
+		}
+
+		if (context.invalidAcceptsPaths.has(path)
+			|| context.invalidOutputModelIds.has(sourceModelId)) continue
+
+		const expectedType = port.accepts.type
+		const actualType = candidates[0]!.template.output.type
+		const typeCompatibility = compareTypeScriptTypes(expectedType?.ts, actualType?.ts)
+		if (typeCompatibility.status === 'incompatible') {
+			context.diagnostics.push(diagnostic(
+				'IncompatibleSourceType',
+				`Template ${sourceModelId} does not produce a TypeScript type assignable to the fragment port contract.`,
+				template,
+				sourcePath,
+				{
+					inputName,
+					expected: typeCompatibility.expected,
+					actual: typeCompatibility.actual
+				}
+			))
+		}
+
+		const expectedSchema = expectedType?.schema
+		if (expectedSchema === undefined) continue
+
+		const sourceOutput = candidates[0]!.template.output
+		const actualSchema = sourceOutput.type?.schema ?? sourceOutput.schema
+		if (actualSchema === undefined) {
+			context.diagnostics.push(diagnostic(
+				'IncompatibleSourceSchema',
+				`Template ${sourceModelId} does not declare the JSON Schema required by the fragment port contract.`,
+				template,
+				sourcePath,
+				{ inputName, expected: expectedSchema, actual: undefined }
+			))
+			continue
+		}
+
+		const schemaCompatibility = compareJsonSchemas(actualSchema, expectedSchema)
+		if (schemaCompatibility.compatibility === 'incompatible') {
+			context.diagnostics.push(diagnostic(
+				'IncompatibleSourceSchema',
+				`Template ${sourceModelId} produces values outside the fragment port's JSON Schema contract.`,
+				template,
+				sourcePath,
+				{ inputName, expected: expectedSchema, actual: actualSchema }
+			))
+		} else if (schemaCompatibility.compatibility === 'indeterminate') {
+			context.diagnostics.push(diagnostic(
+				'SchemaCompatibilityIndeterminate',
+				`Compatibility between template ${sourceModelId} and the fragment port's JSON Schema cannot be proven.`,
+				template,
+				sourcePath,
+				{ inputName, expected: expectedSchema, actual: actualSchema }
+			))
 		}
 	}
 }
@@ -237,17 +383,56 @@ function validatePort(
 			break
 		}
 		case 'fragment':
-			validateSourceAllowlist(port, template, inputName, path, context)
+			if (!validateTypeDescriptor(
+				port.accepts.type,
+				template,
+				inputName,
+				`${path}.accepts.type`,
+				context
+			)) context.invalidAcceptsPaths.add(path)
 			break
 		case 'fragmentCollection':
 			validateCollectionBounds(port, template, inputName, path, context)
-			validateSourceAllowlist(port, template, inputName, path, context)
+			if (!validateTypeDescriptor(
+				port.accepts.type,
+				template,
+				inputName,
+				`${path}.accepts.type`,
+				context
+			)) context.invalidAcceptsPaths.add(path)
 			break
 		case 'rawCode':
 			validateRawCodePolicy(port, template, inputName, path, context)
+			validateTypeDescriptor(port.type, template, inputName, `${path}.type`, context)
 			break
 		case 'literal':
+			validateSchema(port.schema, template, inputName, `${path}.schema`, context)
 			break
+	}
+}
+
+function validatePortSourceAllowlists(
+	port: InputPort,
+	template: CatalogTemplate,
+	inputName: string,
+	path: string,
+	context: ValidationContext
+): void {
+	if (port.kind === 'union') {
+		for (const [optionIndex, option] of port.options.entries()) {
+			validatePortSourceAllowlists(
+				option,
+				template,
+				inputName,
+				`${path}.options[${optionIndex}]`,
+				context
+			)
+		}
+		return
+	}
+
+	if (port.kind === 'fragment' || port.kind === 'fragmentCollection') {
+		validateSourceAllowlist(port, template, inputName, path, context)
 	}
 }
 
@@ -274,7 +459,14 @@ export function validateTemplateCatalog(
 			.map(([modelId]) => modelId)
 	)
 	const knownModelIds = [...byModelId.keys()].sort()
-	const context: ValidationContext = { diagnostics, byModelId, knownModelIds, duplicateModelIds }
+	const context: ValidationContext = {
+		diagnostics,
+		byModelId,
+		knownModelIds,
+		duplicateModelIds,
+		invalidOutputModelIds: new Set(),
+		invalidAcceptsPaths: new Set()
+	}
 
 	for (const modelId of [...duplicateModelIds].sort()) {
 		const candidates = byModelId.get(modelId)!
@@ -295,6 +487,55 @@ export function validateTemplateCatalog(
 	for (const [templateIndex, template] of templates.entries()) {
 		for (const inputName of Object.keys(template.inputs).sort()) {
 			validatePort(
+				template.inputs[inputName]!,
+				template,
+				inputName,
+				`templates[${templateIndex}].inputs.${inputName}`,
+				context
+			)
+		}
+
+		let outputIsValid = validateTypeDescriptor(
+			template.output.type,
+			template,
+			undefined,
+			`templates[${templateIndex}].output.type`,
+			context
+		)
+		const aliasIsValid = validateSchema(
+			template.output.schema,
+			template,
+			undefined,
+			`templates[${templateIndex}].output.schema`,
+			context
+		)
+		outputIsValid = outputIsValid && aliasIsValid
+
+		const descriptorSchema = template.output.type?.schema
+		const aliasSchema = template.output.schema
+		if (descriptorSchema !== undefined && aliasSchema !== undefined
+			&& outputIsValid) {
+			const descriptorToAlias = compareJsonSchemas(descriptorSchema, aliasSchema)
+			const aliasToDescriptor = compareJsonSchemas(aliasSchema, descriptorSchema)
+			if (descriptorToAlias.compatibility !== 'compatible'
+				|| aliasToDescriptor.compatibility !== 'compatible') {
+				context.diagnostics.push(diagnostic(
+					'ConflictingSchemaMetadata',
+					'Output type.schema and the deprecated output.schema alias must describe equivalent value sets.',
+					template,
+					`templates[${templateIndex}].output.schema`,
+					{ expected: descriptorSchema, actual: aliasSchema }
+				))
+				outputIsValid = false
+			}
+		}
+
+		if (!outputIsValid) context.invalidOutputModelIds.add(template.modelId)
+	}
+
+	for (const [templateIndex, template] of templates.entries()) {
+		for (const inputName of Object.keys(template.inputs).sort()) {
+			validatePortSourceAllowlists(
 				template.inputs[inputName]!,
 				template,
 				inputName,

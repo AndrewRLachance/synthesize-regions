@@ -283,17 +283,20 @@ generation.
 ```ts
 import {
   buildGraphCompiler,
+  applyGraphPatch,
   compileGraph,
   createGraphRunner,
   createTemplateRegistry,
   defineTemplateCatalog,
+  definePartialGraph,
   defineTemplate,
   fillTemplateArtifact,
   fragmentPort,
   literalPort,
   rawCodePort,
   unionPort,
-  type SynthesisGraph
+  type SynthesisGraph,
+  type TypeDescriptor
 } from "synthesize-regions";
 
 const BooleanArrayLiteral = defineTemplate({
@@ -307,8 +310,10 @@ const BooleanArrayLiteral = defineTemplate({
   },
   output: {
     kind: "expression",
-    type: { ts: "boolean[]" },
-    schema: { type: "array", items: { type: "boolean" } }
+    type: {
+      ts: "boolean[]",
+      schema: { type: "array", items: { type: "boolean" } }
+    }
   },
   template: region => region("values")
 });
@@ -402,7 +407,7 @@ the same catalog contract:
 ```ts
 const snapshot = registry.snapshot();
 const compiler = buildGraphCompiler(registry);
-const digest = snapshot.contractDigest; // c1_<sha256>
+const digest = snapshot.contractDigest; // c2_<sha256>
 const runner = createGraphRunner(snapshot, graph, {
   expectedCatalogDigest: digest
 });
@@ -424,12 +429,14 @@ later registry mutations do not alter an active session. A mismatched
 `expectedCatalogDigest` returns a `CatalogDigestMismatch` diagnostic; a runner
 transitions to `failed` for the same mismatch.
 
-The versioned `c1_` digest hashes normalized planner-facing summaries, including
+The versioned `c2_` digest hashes normalized planner-facing summaries, including
 versions, descriptions, inputs, defaulted port settings, policies, allowlists,
-schemas, types, and outputs. It intentionally excludes template function
-source. Change a template's `version` when implementation behavior changes
-without a metadata change. Snapshot membership is frozen, while executable
-closure purity remains the template author's responsibility.
+canonical schemas, types, and outputs. Its payload also identifies the supported
+JSON Schema profile and the schema and TypeScript compatibility-engine versions.
+It intentionally excludes template function source. Change a template's
+`version` when implementation behavior changes without a metadata change.
+Snapshot membership is frozen, while executable closure purity remains the
+template author's responsibility.
 
 Partial compilation preserves required inputs as durable artifact markers. Each
 entry in `unresolvedInputs` has a stable opaque ID; use that ID when filling a
@@ -466,6 +473,67 @@ templates, provide exact required inputs, and produce compatible fragments.
 All top-level and inline node IDs share one namespace for references and must be
 unique, matching the graph produced by runtime inline-node normalization.
 
+### Typed graph repair protocol
+
+Use `definePartialGraph()` (or `compiler.definePartialGraph()`) for a graph that
+is intentionally incomplete. Finite partial graphs still validate template IDs,
+provided input names and shapes, compatible references whose targets exist,
+recursive inline nodes, and globally unique IDs. They may omit required inputs
+and temporarily reference a node or final ID that has not been authored yet.
+
+```ts
+const partialGraph = compiler.definePartialGraph({
+  nodes: [{
+    id: "mapped",
+    templateId: "MapBooleanArray",
+    inputs: { source: { $ref: "source" } }
+  }],
+  finalNodeId: "mapped"
+});
+
+const repairRunner = createGraphRunner(compiler, partialGraph);
+let repairState = repairRunner.advance();
+
+if (repairState.kind === "needsGraphRepair") {
+  repairState = repairRunner.advance({
+    kind: "addNode",
+    node: { id: "source", templateId: "BooleanArrayLiteral", inputs: {} }
+  });
+}
+
+if (repairState.kind === "needsArtifactInputs") {
+  const inputId = repairState.artifact.unresolvedInputs[0].id;
+  repairState = repairRunner.advance({
+    kind: "fill",
+    inputs: { [inputId]: { kind: "literal", value: [true, false] } }
+  });
+}
+```
+
+Runner actions include `addNode`, `removeNode`, `setInput`, `removeInput`,
+`setFinalNode`, `setGoal`, and `removeGoal`, plus the `replaceGraph` escape
+hatch and artifact `fill`. Patches are immutable and transactional. IDs target
+top-level or recursively inline nodes; removing an inline node removes its
+containing input or collection item without cascading to references.
+`applyGraphPatch()` exposes the same patch behavior without creating a runner.
+Failed graph-compilation and artifact operations expose the same contextual
+`classification` field as actionable runner states.
+
+| Classification | Expected response |
+| --- | --- |
+| `graphRepairable` | Submit a patch action or `replaceGraph`. |
+| `artifactFillable` | Submit a corrected `fill`, or patch/replace the graph. |
+| `templatePolicyFailure` | Correct the template catalog or policy before starting a new session. |
+| `terminalFailure` | Correct the session/configuration contract before restarting. |
+
+Rejected patches preserve the previous graph. Rejected fills preserve the
+previous partial artifact, including syntax, policy, compatibility, and
+semantic TypeScript failures caused by that fill, so the next action can supply
+a correction. Invalid actions after a terminal state remain terminal.
+`BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES` and
+`BuiltInSynthesisDiagnosticCode` enumerate package-provided codes, while
+`SynthesisDiagnostic.code` remains open for producer-defined diagnostics.
+
 Graph compilation can opt into project-aware TypeScript semantic validation of
 the complete final artifact:
 
@@ -485,8 +553,136 @@ artifact still has unresolved inputs. Compiler failures are returned as
 structured `TypeScriptSemanticError` graph diagnostics with compiler codes,
 categories, and artifact-relative locations. Use `semanticContext.prelude` for
 bindings or ambient declarations supplied by the artifact's eventual insertion
-site. Diagnostics are attributed to the final graph node; child-node source
-mapping is not currently performed.
+site.
+
+For the real lexical and import context, validate through a read-only virtual
+replacement in a target file:
+
+```ts
+const checked = compileGraph(graph, registry, {
+  checkSemanticDiagnostics: true,
+  tsConfigFilePath: "./tsconfig.json",
+  semanticContext: {
+    targetFile: {
+      filePath: "./src/routes.ts",
+      start: placeholderStart,
+      end: placeholderEnd,
+      // Optional unsaved editor buffer; otherwise filePath is read from disk.
+      sourceText: openDocumentText
+    }
+  }
+});
+```
+
+Target offsets are zero-based UTF-16 offsets and `end` is exclusive; omit
+`end` for a pure insertion. The target is never written. Existing unrelated
+target diagnostics are filtered, while diagnostics introduced by the virtual
+replacement use the target path and retain artifact-relative `line` and
+`column`. Invalid target paths or ranges produce terminal
+`InvalidSemanticTarget` diagnostics.
+
+Graph-produced artifacts carry a JSON-safe `sourceMap` v1. Its half-open
+UTF-16 spans record overlapping node and input ownership with increasing
+`nestingDepth`. Maps survive fragment collections, repeated children,
+`format: "ts-morph"`, artifact filling, and JSON round trips. Semantic
+diagnostics select the deepest span at the compiler location, so `nodeId`,
+`templateId`, and `inputName` identify the graph decision that contributed the
+code. Older or external artifacts may omit the map; attribution then falls back
+to the final artifact. Malformed persisted maps are rejected before validation.
+
+Graph validation always derives expression, suffix, statement-list, or
+object-property wrappers from the artifact's output kind. A caller-provided
+`templateMode` remains supported by the low-level generation API but is ignored
+by graph compilation.
+
+### Type and schema compatibility
+
+Compatibility is directional: a producer's advertised TypeScript type must be
+assignable to the consumer type, and every value allowed by its JSON Schema
+must also be allowed by the consumer schema. `TypeDescriptor.ts` is an
+enforceable author assertion, not documentation. It must be a self-contained
+type expression resolvable from the ES2022 standard library; project-local
+names and any occurrence of `any` are rejected when the catalog is registered.
+Compiler assignability handles structural types, unions, tuples, functions,
+readonly containers, and nested generics.
+
+```ts
+const users = {
+  ts: "ReadonlyArray<{ readonly id: string }>",
+  schema: {
+    type: "array",
+    items: {
+      type: "object",
+      properties: { id: { type: "string", minLength: 1 } },
+      required: ["id"],
+      additionalProperties: false
+    }
+  }
+} satisfies TypeDescriptor;
+```
+
+`SupportedJsonSchema` is a closed Draft 2020-12 profile. It supports boolean
+schemas; local `$defs`/JSON Pointer `$ref`; const and enum; allOf, anyOf,
+oneOf, not, and conditionals; primitive constraints and bounds; object
+properties, dependencies, and unevaluated properties; and homogeneous arrays,
+prefix-item tuples, contains, and unevaluated items. Remote references, IDs and
+anchors, dynamic references, unknown keywords, and legacy draft keywords are
+rejected. `format` and content keywords are preserved as annotations and do not
+reject values.
+
+`JSON_SCHEMA_DIALECT_URI`, `SUPPORTED_JSON_SCHEMA_VERSION`,
+`JSON_SCHEMA_COMPATIBILITY_ENGINE_VERSION`,
+`SUPPORTED_JSON_SCHEMA_KEYWORD_VALUES`, and
+`SUPPORTED_JSON_SCHEMA_TYPE_VALUES` expose the exact versioned profile used by
+validation and catalog digests.
+
+Schema subsumption is deliberately sound and conservative. Common structural
+relationships are proven directly. Exact canonical schemas always match; an
+advanced relationship that cannot be proven fails with
+`SchemaCompatibilityIndeterminate` instead of being guessed compatible.
+Literal validation, fragment and final-goal compatibility, catalog allowlists,
+and registry-generated planner schemas all use this same engine.
+
+The structured compatibility helpers are available when a planner or host needs
+to validate contracts before compiling a graph:
+
+```ts
+const schemaValidation = validateSupportedJsonSchema({
+  type: "array",
+  items: { type: "integer" }
+});
+const valueValidation = validateJsonValueAgainstSchema(
+  [1, 2],
+  { type: "array", items: { type: "integer" } }
+);
+const schemaComparison = compareJsonSchemas(
+  { type: "integer" }, // producer
+  { type: "number" }   // consumer
+);
+const descriptorComparison = compareTypeDescriptors(
+  { ts: "string", schema: { type: "string" } },
+  { ts: "string | number", schema: { type: ["string", "number"] } }
+);
+```
+
+`compareTypeDescriptors(actual, expected)` returns `compatible`,
+`incompatible`, `indeterminate`, or `invalid`; invalid metadata takes
+precedence over incompatibility, which takes precedence over indeterminacy.
+The older `isTypeCompatible()` and `validateJsonSchemaSubset()` exports remain
+as deprecated boolean/single-error adapters. They never treat invalid or
+indeterminate contracts as compatible.
+
+`TypeDescriptor.schema` is the canonical schema location. The older standalone
+`schema` fields on outputs, artifacts, and goals remain readable aliases for
+persisted data. When both forms are supplied they must be provably equivalent;
+new templates should place schema metadata inside `type.schema`.
+
+When synthetic semantic checking validates an advertised `expressionSuffix`
+type, a suffix result that remains `any` through the synthetic receiver is
+rejected instead of being accepted vacuously. Virtual target-file insertion
+uses the real receiver expression and enforces the advertised suffix result
+there; without target context, a suffix can use an explicit assertion or
+narrowing to establish a concrete advertised result.
 
 Raw-code ports are opt-in and can carry a small policy for planner-provided
 snippets:
@@ -676,40 +872,56 @@ The package includes draft 2020-12 JSON Schemas for JSON-shaped public data:
 
 ```txt
 schemas/replacement-map.schema.json
+schemas/supported-json-schema.schema.json
 schemas/synthesis-graph.schema.json
 schemas/template-summary.schema.json
 schemas/graph-compilation-result.schema.json
+schemas/graph-runner-action.schema.json
+schemas/graph-runner-state.schema.json
 ```
 
 Package export paths:
 
 ```txt
 synthesize-regions/schemas/replacement-map.schema.json
+synthesize-regions/schemas/supported-json-schema.schema.json
 synthesize-regions/schemas/synthesis-graph.schema.json
 synthesize-regions/schemas/template-summary.schema.json
 synthesize-regions/schemas/graph-compilation-result.schema.json
+synthesize-regions/schemas/graph-runner-action.schema.json
+synthesize-regions/schemas/graph-runner-state.schema.json
 ```
 
 Example import:
 
 ```ts
 import replacementMapSchema from "synthesize-regions/schemas/replacement-map.schema.json" with { type: "json" };
+import supportedJsonSchema from "synthesize-regions/schemas/supported-json-schema.schema.json" with { type: "json" };
 import synthesisGraphSchema from "synthesize-regions/schemas/synthesis-graph.schema.json" with { type: "json" };
 import templateSummarySchema from "synthesize-regions/schemas/template-summary.schema.json" with { type: "json" };
 import graphCompilationResultSchema from "synthesize-regions/schemas/graph-compilation-result.schema.json" with { type: "json" };
+import graphRunnerActionSchema from "synthesize-regions/schemas/graph-runner-action.schema.json" with { type: "json" };
+import graphRunnerStateSchema from "synthesize-regions/schemas/graph-runner-state.schema.json" with { type: "json" };
 ```
 
-The replacement-map schema validates replacement IDs, replacement `kind`
+The supported-json-schema document publishes the structural shape of the schema
+dialect accepted by template contracts. Runtime validation additionally checks
+regular-expression syntax, local-reference resolution, and cross-keyword rules
+that JSON Schema cannot express about itself. The replacement-map schema
+validates replacement IDs, replacement `kind`
 discriminators, nested expression replacements, and non-empty arrays for list
 replacement values. The synthesis-graph schema validates graph structure,
 node/input discriminators, inline nodes, ref shorthand, and final-goal shape. The
 template-summary schema validates the planner-facing metadata returned by
 template registries. The graph-compilation-result schema validates strict and
 partial successes and failures, complete and unresolved artifacts, and structured
-graph diagnostics.
+graph diagnostics. The graph-runner-action schema validates transactional patch,
+graph replacement, and artifact-fill actions. The graph-runner-state schema
+validates transition outputs and their contextual repair classifications.
 
-The graph, template-summary, and compilation-result documents are generated from
-the live TypeBox contracts in the package. Run `npm run schemas:generate` after a
+The supported-dialect, graph, template-summary, compilation-result, and runner protocol documents
+are generated from the live TypeBox contracts in the package. Run
+`npm run schemas:generate` after a
 contract change, or `npm run schemas:check` to detect missing or stale committed
 documents. JSON is the supported published format; catalog-specific schemas are
 still generated dynamically by the registry APIs.
@@ -780,22 +992,45 @@ template helpers:
 
 ```ts
 import {
+  applyGraphPatch,
+  BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES,
   buildGraphCompiler,
   code,
+  compareJsonSchemas,
+  compareTypeDescriptors,
+  compareTypeScriptTypes,
   compileGraph,
+  createGraphRunner,
   createTemplateRegistry,
+  definePartialGraph,
   defineTemplateCatalog,
   defineTemplate,
   discoverReplacementRegions,
   fragmentPort,
   generateWithReplacements,
   graphTemplateDefinitionToJsonSchema,
+  JSON_SCHEMA_COMPATIBILITY_ENGINE_VERSION,
+  JSON_SCHEMA_DIALECT_URI,
   literalPort,
   rawCodePort,
+  SUPPORTED_JSON_SCHEMA_KEYWORD_VALUES,
+  SUPPORTED_JSON_SCHEMA_TYPE_VALUES,
+  SUPPORTED_JSON_SCHEMA_VERSION,
   templateCatalogDigest,
   unionPort,
+  validateJsonValueAgainstSchema,
+  validateSupportedJsonSchema,
   validateTemplateCatalog,
+  validateTypeScriptType,
+  type JsonValue,
+  type SupportedJsonSchema,
+  type TypeDescriptor,
+  type TypeDescriptorComparisonResult,
+  type GraphPatchAction,
+  type GraphRunnerAction,
+  type GraphRunnerState,
   type ReplacementMap,
+  type StrictPartialSynthesisGraph,
   type TemplateCatalogView,
   type TemplateRegistrySnapshot
 } from "synthesize-regions";
@@ -814,15 +1049,24 @@ defineTemplate(definition)
 defineTemplateCatalog(templates)
 validateTemplateCatalog(templates)
 templateCatalogDigest(templates)
+validateSupportedJsonSchema(schema)
+validateJsonValueAgainstSchema(value, schema)
+compareJsonSchemas(actualSchema, expectedSchema)
+validateTypeScriptType(typeExpression)
+compareTypeScriptTypes(expectedType, actualType)
+compareTypeDescriptors(actualDescriptor, expectedDescriptor)
 createTemplateRegistry(templates?)
 registry.register(template)
 registry.registerAll(templates)
 registry.replace(template)
 registry.snapshot()
 buildGraphCompiler(templates)
+definePartialGraph(templates, graph)
+compiler.definePartialGraph(graph)
 graphTemplateDefinitionToJsonSchema(template)
 compileGraph(graph, registryOrTemplates, { mode: "strict" | "partial", ...options })
 createGraphRunner(registryOrTemplates, graph, options?)
+applyGraphPatch(graph, action)
 code
 ```
 

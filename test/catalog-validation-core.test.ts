@@ -11,7 +11,8 @@ import {
 	validateTemplateCatalog,
 	type GraphTemplateDefinition,
 	type InputPort,
-	type RegionKind
+	type RegionKind,
+	type SupportedJsonSchema
 } from '../src/index.js'
 
 function template(
@@ -151,6 +152,231 @@ describe('catalog validation core', () => {
 		expect(diagnostics.map(({ code, actual }) => ({ code, actual }))).toEqual([
 			{ code: 'UnknownSourceModelId', actual: 'Missing' },
 			{ code: 'IncompatibleSourceOutputKind', actual: 'expression' }
+		])
+	})
+
+	it('recursively validates TypeScript descriptors with deterministic catalog paths', () => {
+		const invalid = defineTemplate({
+			modelId: 'InvalidTypes',
+			inputs: {
+				choice: unionPort({
+					options: [fragmentPort({
+						regionKind: 'expression',
+						accepts: { type: { ts: 'any' } }
+					})]
+				}),
+				raw: rawCodePort({
+					regionKind: 'expression',
+					type: { ts: 'ProjectLocalType' }
+				})
+			},
+			output: { kind: 'expression', type: { ts: 'Array<' } },
+			template: region => `${region('choice')} ?? ${region('raw')}`
+		})
+
+		const diagnostics = validateTemplateCatalog([invalid])
+		expect(diagnostics.map(({ code, path }) => ({ code, path }))).toEqual([
+			{
+				code: 'ForbiddenAnyType',
+				path: 'templates[0].inputs.choice.options[0].accepts.type.ts'
+			},
+			{
+				code: 'UnresolvedTypeScriptType',
+				path: 'templates[0].inputs.raw.type.ts'
+			},
+			{
+				code: 'InvalidTypeScriptType',
+				path: 'templates[0].output.type.ts'
+			}
+		])
+		expect(diagnostics[1]).toMatchObject({
+			compilerCode: 2304,
+			compilerCategory: 'error'
+		})
+	})
+
+	it('requires allowlisted producer TypeScript types to be assignable', () => {
+		const stringSource = defineTemplate({
+			modelId: 'StringSource',
+			inputs: {},
+			output: { kind: 'expression', type: { ts: 'string' } },
+			template: () => '"value"'
+		})
+		const missingType = template('MissingType')
+		const consumer = defineTemplate({
+			modelId: 'Consumer',
+			inputs: {
+				value: fragmentPort({
+					regionKind: 'expression',
+					accepts: {
+						type: { ts: 'number' },
+						sourceModelIds: ['StringSource', 'MissingType']
+					}
+				})
+			},
+			output: { kind: 'expression' },
+			template: region => region('value')
+		})
+
+		const diagnostics = validateTemplateCatalog([consumer, missingType, stringSource])
+		expect(diagnostics.map(({ code, actual }) => ({ code, actual }))).toEqual([
+			{ code: 'IncompatibleSourceType', actual: 'string' },
+			{ code: 'IncompatibleSourceType', actual: undefined }
+		])
+	})
+
+	it('suppresses dependent source checks when consumer or producer metadata is invalid', () => {
+		const invalidSource = defineTemplate({
+			modelId: 'InvalidSource',
+			inputs: {},
+			output: { kind: 'expression', type: { ts: 'any' } },
+			template: () => 'undefined'
+		})
+		const validSource = defineTemplate({
+			modelId: 'ValidSource',
+			inputs: {},
+			output: { kind: 'expression', type: { ts: 'string' } },
+			template: () => '"value"'
+		})
+		const consumer = defineTemplate({
+			modelId: 'Consumer',
+			inputs: {
+				invalidProducer: fragmentPort({
+					regionKind: 'expression',
+					accepts: { type: { ts: 'string' }, sourceModelIds: ['InvalidSource'] }
+				}),
+				invalidConsumer: fragmentPort({
+					regionKind: 'expression',
+					accepts: { type: { ts: 'ProjectLocal' }, sourceModelIds: ['ValidSource'] }
+				})
+			},
+			output: { kind: 'expression' },
+			template: region => `${region('invalidProducer')} ?? ${region('invalidConsumer')}`
+		})
+
+		expect(validateTemplateCatalog([consumer, invalidSource, validSource])
+			.map(({ code, path }) => ({ code, path }))).toEqual([
+				{
+					code: 'UnresolvedTypeScriptType',
+					path: 'templates[0].inputs.invalidConsumer.accepts.type.ts'
+				},
+				{
+					code: 'ForbiddenAnyType',
+					path: 'templates[1].output.type.ts'
+				}
+			])
+	})
+
+	it('recursively validates schemas and rejects conflicting output schema aliases', () => {
+		const invalid = defineTemplate({
+			modelId: 'InvalidSchemas',
+			inputs: {
+				literal: literalPort({
+					regionKind: 'expression',
+					schema: { unsupportedKeyword: true } as unknown as SupportedJsonSchema
+				}),
+				invalidPattern: literalPort({
+					regionKind: 'expression',
+					schema: { type: 'string', pattern: '[' }
+				}),
+				choice: unionPort({
+					options: [rawCodePort({
+						regionKind: 'expression',
+						type: { schema: { $ref: '#/$defs/missing' } }
+					})]
+				})
+			},
+			output: {
+				kind: 'expression',
+				type: { schema: { type: 'string' } },
+				schema: { type: 'number' }
+			},
+			template: region => `${region('literal')} ?? ${region('invalidPattern')} ?? ${region('choice')}`
+		})
+
+		const diagnostics = validateTemplateCatalog([invalid])
+		expect(diagnostics.map(({ code, path }) => ({ code, path }))).toEqual([
+			{
+				code: 'UnresolvedLocalSchemaReference',
+				path: 'templates[0].inputs.choice.options[0].type.schema.$ref'
+			},
+			{
+				code: 'InvalidJsonSchema',
+				path: 'templates[0].inputs.invalidPattern.schema.pattern'
+			},
+			{
+				code: 'UnsupportedSchemaKeyword',
+				path: 'templates[0].inputs.literal.schema.unsupportedKeyword'
+			},
+			{
+				code: 'ConflictingSchemaMetadata',
+				path: 'templates[0].output.schema'
+			}
+		])
+	})
+
+	it('checks allowlisted producer schemas and distinguishes indeterminate inclusion', () => {
+		const numberSource = defineTemplate({
+			modelId: 'NumberSource',
+			inputs: {},
+			output: { kind: 'expression', type: { schema: { type: 'number' } } },
+			template: () => '1'
+		})
+		const patternedSource = defineTemplate({
+			modelId: 'PatternedSource',
+			inputs: {},
+			output: {
+				kind: 'expression',
+				type: { schema: { type: 'string', pattern: '^a' } },
+				schema: { type: 'string', pattern: '^a' }
+			},
+			template: () => '"alpha"'
+		})
+		const legacyAliasSource = defineTemplate({
+			modelId: 'LegacyAliasSource',
+			inputs: {},
+			output: { kind: 'expression', schema: { type: 'string' } },
+			template: () => '"legacy"'
+		})
+		const consumer = defineTemplate({
+			modelId: 'Consumer',
+			inputs: {
+				wrong: fragmentPort({
+					regionKind: 'expression',
+					accepts: {
+						type: { schema: { type: 'string' } },
+						sourceModelIds: ['NumberSource']
+					}
+				}),
+				uncertain: fragmentPort({
+					regionKind: 'expression',
+					accepts: {
+						type: { schema: { type: 'string', pattern: '^.' } },
+						sourceModelIds: ['PatternedSource']
+					}
+				}),
+				legacy: fragmentPort({
+					regionKind: 'expression',
+					accepts: {
+						type: { schema: { type: 'string' } },
+						sourceModelIds: ['LegacyAliasSource']
+					}
+				})
+			},
+			output: { kind: 'expression' },
+			template: region => `${region('wrong')} ?? ${region('uncertain')} ?? ${region('legacy')}`
+		})
+
+		const diagnostics = validateTemplateCatalog([consumer, legacyAliasSource, numberSource, patternedSource])
+		expect(diagnostics.map(({ code, path }) => ({ code, path }))).toEqual([
+			{
+				code: 'SchemaCompatibilityIndeterminate',
+				path: 'templates[0].inputs.uncertain.accepts.sourceModelIds[0]'
+			},
+			{
+				code: 'IncompatibleSourceSchema',
+				path: 'templates[0].inputs.wrong.accepts.sourceModelIds[0]'
+			}
 		])
 	})
 

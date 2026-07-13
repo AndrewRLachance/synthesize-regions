@@ -1,4 +1,4 @@
-import type { TemplateMode } from '../core/types.js'
+import type { ReplacementRegion, TemplateMode } from '../core/types.js'
 import { buildReplacementEdits } from '../replacements/serialize.js'
 import { discoverReplacementRegions } from '../regions/discovery.js'
 import { wrapTemplateSource } from './templateMode.js'
@@ -9,10 +9,12 @@ import { validateTemplateArtifactIntegrity } from './artifactIntegrity.js'
 import type {
 	AuthoredGraphInput,
 	CompleteTemplateArtifact,
+	DefinedPartialSynthesisGraph,
 	DefinedSynthesisGraph,
 	FragmentInputPort,
 	FragmentCollectionInputPort,
 	GeneratedFragment,
+	GeneratedSourceMap,
 	GraphCompilationResult,
 	GraphCompileOptions,
 	GraphPartialCompilationResult,
@@ -24,6 +26,7 @@ import type {
 	RawCodeInputPort,
 	ResolvedGraphInput,
 	StrictSynthesisGraph,
+	StrictPartialSynthesisGraph,
 	StrictTemplateCatalog,
 	SynthesisDiagnostic,
 	SynthesisGraph,
@@ -37,20 +40,185 @@ import type {
 	TemplateRegistrySnapshot,
 	UnresolvedTemplateInput
 } from './graphTypes.js'
-import { fragmentPortOutputKind, isTypeCompatible, portIsRequired, validateJsonSchemaSubset } from './compatibility.js'
+import {
+	compareTypeDescriptors,
+	fragmentPortOutputKind,
+	portIsRequired,
+	resolveEffectiveTypeDescriptor,
+	type TypeDescriptorCompatibilityIssue
+} from './compatibility.js'
+import { validateJsonValueAgainstSchema } from './schemaCompatibility.js'
 import { createTemplateRegistry } from './registry.js'
-import { applyReplacementEdits, templateModeForRegionKind } from './rendering.js'
+import { templateModeForRegionKind } from './rendering.js'
+import { validateVirtualSemanticTarget } from './semanticTarget.js'
+import {
+	applySourceMappedTextEdits,
+	coverGeneratedSourceMapRoot,
+	deepestGeneratedSourceSpan,
+	emptyGeneratedSourceMap,
+	formatSourceMappedFragment,
+	inputGeneratedSourceSpan,
+	mergeGeneratedSourceMaps,
+	nodeGeneratedSourceMap,
+	remapGeneratedSourceMap,
+	shiftGeneratedSourceMap,
+	sourceMappedFragment,
+	sourceMappedFragmentCollection,
+	type SourceMappedTextEdit
+} from './sourceSpans.js'
 
 /** Create a graph diagnostic with error severity. */
 function errorDiagnostic(diagnostic: Omit<SynthesisDiagnostic, 'severity'>): SynthesisDiagnostic {
 	return { ...diagnostic, severity: 'error' }
 }
 
+/** Map compatibility-engine issue names onto stable graph diagnostic codes. */
+function metadataIssueCode(code: string): string {
+	switch (code) {
+		case 'UnsupportedJsonSchemaKeyword': return 'UnsupportedSchemaKeyword'
+		case 'UnresolvedJsonSchemaReference': return 'UnresolvedLocalSchemaReference'
+		case 'UnsupportedJsonSchemaReference': return 'InvalidJsonSchema'
+		default: return code
+	}
+}
+
+/** Convert one descriptor-engine issue into a graph diagnostic at a caller-owned path. */
+function metadataDiagnostic(
+	issue: TypeDescriptorCompatibilityIssue,
+	path: string,
+	identity: Pick<SynthesisDiagnostic, 'nodeId' | 'templateId' | 'inputName'> = {}
+): SynthesisDiagnostic {
+	let relative = issue.path.replace(/^(?:actual|expected)\.?/u, '')
+	if (path.endsWith('.schema')) relative = relative.replace(/^schema\.?/u, '')
+	const issuePath = issue.code === 'ConflictingSchemaMetadata' && path.endsWith('.type')
+		? `${path.slice(0, -'.type'.length)}.schema`
+		: relative ? `${path}.${relative}` : path
+	return errorDiagnostic({
+		stage: 'type',
+		code: metadataIssueCode(issue.code),
+		message: issue.message,
+		...identity,
+		path: issuePath,
+		...(issue.expected === undefined ? {} : { expected: issue.expected }),
+		...(issue.actual === undefined ? {} : { actual: issue.actual }),
+		...(issue.compilerCode === undefined ? {} : { compilerCode: issue.compilerCode }),
+		...(issue.compilerCategory === undefined ? {} : { compilerCategory: issue.compilerCategory }),
+		...(issue.line === undefined ? {} : { line: issue.line }),
+		...(issue.column === undefined ? {} : { column: issue.column })
+	})
+}
+
+/** Resolve canonical descriptor metadata and surface invalid/conflicting aliases. */
+function effectiveDescriptor(
+	type: TemplateArtifact['type'],
+	schema: TemplateArtifact['schema'],
+	path: string,
+	identity: Pick<SynthesisDiagnostic, 'nodeId' | 'templateId' | 'inputName'> = {}
+): { type?: NonNullable<TemplateArtifact['type']>; diagnostics: SynthesisDiagnostic[] } {
+	const resolved = resolveEffectiveTypeDescriptor(type, schema)
+	if (resolved.ok) return { ...(resolved.type ? { type: resolved.type } : {}), diagnostics: [] }
+	const diagnosticPath = type?.schema === undefined && schema !== undefined && path.endsWith('.type')
+		? `${path.slice(0, -'.type'.length)}.schema`
+		: path
+	return {
+		...(resolved.type ? { type: resolved.type } : {}),
+		diagnostics: resolved.issues.map(issue => metadataDiagnostic(issue, diagnosticPath, identity))
+	}
+}
+
+const TERMINAL_GRAPH_DIAGNOSTIC_CODES = new Set([
+	'ArtifactInputIdCollision',
+	'CatalogDigestMismatch',
+	'CompilationScopeInvalid',
+	'InvalidGeneratedSourceMap',
+	'InvalidSemanticTarget'
+])
+
+const TEMPLATE_POLICY_DIAGNOSTIC_CODES = new Set([
+	'ArtifactMarkerArityMismatch',
+	'ArtifactMarkerKindMismatch',
+	'CompleteArtifactContainsMarkers',
+	'DuplicateUnresolvedInputId',
+	'InvalidRawCodePolicy',
+	'MalformedArtifactMarkers',
+	'MalformedTemplateArtifact',
+	'MissingArtifactMarker',
+	'PartialArtifactHasNoUnresolvedInputs',
+	'UnknownArtifactMarker'
+])
+
+/** Classify a graph failure by the repair channel available to its caller. */
+function classifyGraphFailure(
+	diagnostics: readonly SynthesisDiagnostic[]
+): 'graphRepairable' | 'templatePolicyFailure' | 'terminalFailure' {
+	if (diagnostics.some(diagnostic => TERMINAL_GRAPH_DIAGNOSTIC_CODES.has(diagnostic.code))) {
+		return 'terminalFailure'
+	}
+	if (diagnostics.some(diagnostic => TEMPLATE_POLICY_DIAGNOSTIC_CODES.has(diagnostic.code))) {
+		return 'templatePolicyFailure'
+	}
+	return 'graphRepairable'
+}
+
 /** Convert a zero-based artifact offset into a one-based line and column. */
 function artifactLineAndColumn(code: string, offset: number): { line: number; column: number } {
-	const before = code.slice(0, offset)
+	const before = code.slice(0, Math.max(0, Math.min(offset, code.length)))
 	const lines = before.split('\n')
 	return { line: lines.length, column: (lines.at(-1)?.length ?? 0) + 1 }
+}
+
+/** Resolve diagnostic identity from a mapped span, falling back to the final artifact. */
+function semanticDiagnosticIdentity(
+	artifact: CompleteTemplateArtifact,
+	artifactStart: number,
+	length = 0
+): Pick<SynthesisDiagnostic, 'nodeId' | 'templateId' | 'inputName'> {
+	const owner = deepestGeneratedSourceSpan(artifact.sourceMap, artifactStart, length)
+	const nodeId = owner?.nodeId ?? artifact.id
+	return {
+		...(nodeId ? { nodeId } : {}),
+		templateId: owner?.templateId ?? artifact.source.templateId,
+		...(owner?.kind === 'input' ? { inputName: owner.inputName } : {})
+	}
+}
+
+function finalArtifactIdentity(
+	artifact: CompleteTemplateArtifact
+): Pick<SynthesisDiagnostic, 'nodeId' | 'templateId'> {
+	return {
+		...(artifact.id ? { nodeId: artifact.id } : {}),
+		templateId: artifact.source.templateId
+	}
+}
+
+/** Add a declared result type to expression-like semantic wrappers when available. */
+function semanticWrapperForArtifact(
+	artifact: CompleteTemplateArtifact,
+	mode: TemplateMode
+): ReturnType<typeof wrapTemplateSource> {
+	const advertisedType = artifact.type?.ts
+	if (!advertisedType) return wrapTemplateSource(artifact.code, mode)
+
+	if (mode.kind === 'expression') {
+		const prefix = `const __partial: ${advertisedType} = (`
+		const suffix = ');'
+		return { mode, originalText: artifact.code, prefix, suffix, wrappedText: `${prefix}${artifact.code}${suffix}` }
+	}
+
+	if (mode.kind === 'expressionSuffix') {
+		const prefix = 'const __partialCandidate = __partialReceiver'
+		// The synthetic receiver has no insertion-site type yet. Reject a result
+		// that remains `any`; otherwise every advertised suffix type would pass
+		// vacuously. Explicit suffix assertions/narrowing can still establish a
+		// concrete result until virtual target-file insertion is available.
+		const suffix = `;
+type __SynthesisRejectAny<T> = 0 extends (1 & T) ? never : T;
+const __synthesisConcrete: __SynthesisRejectAny<typeof __partialCandidate> = __partialCandidate;
+const __partial: ${advertisedType} = __partialCandidate;`
+		return { mode, originalText: artifact.code, prefix, suffix, wrappedText: `${prefix}${artifact.code}${suffix}` }
+	}
+
+	return wrapTemplateSource(artifact.code, mode)
 }
 
 /** Semantically validate one complete artifact and return graph-native diagnostics. */
@@ -59,9 +227,54 @@ function validateArtifactSemantics(
 	options: GraphCompileOptions
 ): SynthesisDiagnostic[] {
 	if (!options.checkSemanticDiagnostics) return []
+	const targetFile = options.semanticContext?.targetFile
+	if (targetFile) {
+		try {
+			const result = validateVirtualSemanticTarget({
+				targetFile,
+				...(options.tsConfigFilePath ? { tsConfigFilePath: options.tsConfigFilePath } : {}),
+				...(options.semanticContext?.prelude ? { prelude: options.semanticContext.prelude } : {}),
+				artifact: {
+					code: artifact.code,
+					kind: artifact.kind,
+					...(artifact.type ? { type: artifact.type } : {})
+				}
+			})
+			return result.diagnostics.map(diagnostic => {
+				const identity = diagnostic.artifactOffset === undefined
+					? finalArtifactIdentity(artifact)
+					: semanticDiagnosticIdentity(
+						artifact,
+						diagnostic.artifactOffset,
+						Math.min(diagnostic.length ?? 0, artifact.code.length - diagnostic.artifactOffset)
+					)
+				return {
+					stage: 'type',
+					code: 'TypeScriptSemanticError',
+					severity: diagnostic.category === 'error' ? 'error' : 'warning',
+					message: diagnostic.message,
+					...identity,
+					path: result.filePath,
+					compilerCode: diagnostic.code,
+					compilerCategory: diagnostic.category,
+					...(diagnostic.line === undefined ? {} : { line: diagnostic.line }),
+					...(diagnostic.column === undefined ? {} : { column: diagnostic.column })
+				}
+			})
+		} catch (error) {
+			return [errorDiagnostic({
+				stage: 'type',
+				code: 'InvalidSemanticTarget',
+				message: error instanceof Error ? error.message : 'Virtual semantic target validation failed.',
+				...finalArtifactIdentity(artifact),
+				path: targetFile.filePath,
+				actual: error instanceof Error ? { name: error.name, message: error.message } : error
+			})]
+		}
+	}
 
-	const mode = options.templateMode ?? templateModeForArtifact(artifact)
-	const wrapped = wrapTemplateSource(artifact.code, mode)
+	const mode = templateModeForArtifact(artifact)
+	const wrapped = semanticWrapperForArtifact(artifact, mode)
 	const receiverPrelude = mode.kind === 'expressionSuffix' ? 'declare const __partialReceiver: any;\n' : ''
 	const callerPrelude = options.semanticContext?.prelude
 	const prelude = `${receiverPrelude}${callerPrelude ? `${callerPrelude}\n` : ''}`
@@ -75,13 +288,15 @@ function validateArtifactSemantics(
 		const artifactLocation = diagnostic.start !== undefined && diagnostic.start >= artifactStart && diagnostic.start <= artifactEnd
 			? artifactLineAndColumn(artifact.code, diagnostic.start - artifactStart)
 			: undefined
+		const identity = diagnostic.start !== undefined && diagnostic.start >= artifactStart && diagnostic.start <= artifactEnd
+			? semanticDiagnosticIdentity(artifact, diagnostic.start - artifactStart, diagnostic.length)
+			: finalArtifactIdentity(artifact)
 		return {
 			stage: 'type',
 			code: 'TypeScriptSemanticError',
 			severity: diagnostic.category === 'error' ? 'error' : 'warning',
 			message: diagnostic.message,
-			...(artifact.id ? { nodeId: artifact.id } : {}),
-			templateId: artifact.source.templateId,
+			...identity,
 			...(options.filePath ? { path: options.filePath } : {}),
 			compilerCode: diagnostic.code,
 			compilerCategory: diagnostic.category,
@@ -140,6 +355,18 @@ export function defineGraph<
 	return graph as unknown as DefinedSynthesisGraph<TTemplates>
 }
 
+/** Type-check an intentionally incomplete graph against a template catalog. */
+export function definePartialGraph<
+	const TTemplates extends readonly GraphTemplateDefinition<any, string>[],
+	const TGraph extends AuthoredGraphInput
+>(
+	templates: TTemplates & StrictTemplateCatalog<TTemplates>,
+	graph: StrictPartialSynthesisGraph<TTemplates, TGraph>
+): DefinedPartialSynthesisGraph<TTemplates> {
+	createTemplateRegistry(templates as StrictTemplateCatalog<TTemplates>)
+	return graph as unknown as DefinedPartialSynthesisGraph<TTemplates>
+}
+
 /** Callable graph compiler with strict and partial compilation entrypoints. */
 export type GraphCompiler<TTemplates extends readonly GraphTemplateDefinition<any, string>[]> = {
 	/** Stable planner-contract digest captured when this compiler was built. */
@@ -149,11 +376,22 @@ export type GraphCompiler<TTemplates extends readonly GraphTemplateDefinition<an
 	/** Compile an inline typed graph with strict required-input behavior. */
 	<const TGraph extends AuthoredGraphInput>(graph: StrictSynthesisGraph<TTemplates, TGraph>): GraphCompilationResult
 	/** Compile while preserving unresolved required inputs. */
+	(graph: DefinedPartialSynthesisGraph<TTemplates>, options: GraphCompileOptions & { mode: 'partial' }): GraphPartialCompilationResult
+	/** Compile an inline catalog-aware partial graph. */
+	<const TGraph extends AuthoredGraphInput>(
+		graph: StrictPartialSynthesisGraph<TTemplates, TGraph>,
+		options: GraphCompileOptions & { mode: 'partial' }
+	): GraphPartialCompilationResult
+	/** Compile a dynamic graph while preserving unresolved required inputs. */
 	(graph: SynthesisGraph, options: GraphCompileOptions & { mode: 'partial' }): GraphPartialCompilationResult
 	/** Type-check a graph against this compiler's template catalog. */
 	defineGraph<const TGraph extends AuthoredGraphInput>(
 		graph: StrictSynthesisGraph<TTemplates, TGraph>
 	): DefinedSynthesisGraph<TTemplates>
+	/** Type-check an intentionally incomplete graph against this compiler's catalog. */
+	definePartialGraph<const TGraph extends AuthoredGraphInput>(
+		graph: StrictPartialSynthesisGraph<TTemplates, TGraph>
+	): DefinedPartialSynthesisGraph<TTemplates>
 }
 
 /** Build a typed compiler from an authored template catalog. */
@@ -177,6 +415,7 @@ export function buildGraphCompiler(
 		compileGraph(graph as never, catalog, { ...options, ...callOptions } as never)
 	Object.defineProperty(compiler, 'contractDigest', { value: catalog.contractDigest, enumerable: true })
 	compiler.defineGraph = (graph: AuthoredGraphInput) => graph as never
+	compiler.definePartialGraph = (graph: AuthoredGraphInput) => graph as never
 	return compiler as unknown as GraphCompiler<readonly GraphTemplateDefinition<any, string>[]>
 }
 
@@ -308,6 +547,11 @@ function validateStaticGraph(
 				actual: graph.finalNodeId
 			})
 		)
+	}
+
+	if (graph.goal) {
+		const goalDescriptor = effectiveDescriptor(graph.goal.type, graph.goal.schema, 'goal.type')
+		diagnostics.push(...goalDescriptor.diagnostics)
 	}
 
 	for (const node of graph.nodes) {
@@ -449,7 +693,43 @@ function fragmentCompatible(
 		})
 	}
 
-	if (!isTypeCompatible(port.accepts.type, fragment.type)) {
+	const fragmentDescriptor = effectiveDescriptor(
+		fragment.type,
+		fragment.schema,
+		'fragment.type',
+		{
+			nodeId: node.id,
+			templateId: node.templateId,
+			inputName
+		}
+	)
+	if (fragmentDescriptor.diagnostics[0]) return fragmentDescriptor.diagnostics[0]
+
+	const typeComparison = compareTypeDescriptors(fragmentDescriptor.type, port.accepts.type)
+	if (typeComparison.status === 'indeterminate') {
+		return errorDiagnostic({
+			stage: 'type',
+			code: 'SchemaCompatibilityIndeterminate',
+			message: `Input ${inputName} fragment schema compatibility cannot be proven conservatively.`,
+			nodeId: node.id,
+			templateId: node.templateId,
+			inputName,
+			expected: port.accepts.type,
+			actual: fragmentDescriptor.type
+		})
+	}
+	if (typeComparison.status === 'invalid') {
+		return typeComparison.issues[0]
+			? metadataDiagnostic(typeComparison.issues[0], `nodes.${node.id}.inputs.${inputName}`, {
+				nodeId: node.id, templateId: node.templateId, inputName
+			})
+			: errorDiagnostic({
+				stage: 'type', code: 'InvalidTypeScriptType',
+				message: `Input ${inputName} contains invalid type metadata.`,
+				nodeId: node.id, templateId: node.templateId, inputName
+			})
+	}
+	if (typeComparison.status === 'incompatible') {
 		return errorDiagnostic({
 			stage: 'type',
 			code: 'IncompatibleFragmentType',
@@ -458,7 +738,7 @@ function fragmentCompatible(
 			templateId: node.templateId,
 			inputName,
 			expected: port.accepts.type,
-			actual: fragment.type
+			actual: fragmentDescriptor.type
 		})
 	}
 
@@ -606,19 +886,21 @@ function literalCompatible(
 	inputName: string
 ): SynthesisDiagnostic | undefined {
 	if (port.kind !== 'literal') return undefined
-	const result = validateJsonSchemaSubset(value, port.schema)
+	if (port.schema === undefined) return undefined
+	const result = validateJsonValueAgainstSchema(value, port.schema, `nodes.${node.id}.inputs.${inputName}`)
 	if (result.ok) return undefined
+	const issue = result.issues[0]
 
 	return errorDiagnostic({
 		stage: 'input',
 		code: 'InvalidLiteralInput',
-		message: result.message,
+		message: issue?.message ?? 'Literal value does not satisfy its JSON Schema.',
 		nodeId: node.id,
 		templateId: node.templateId,
 		inputName,
-		path: result.path,
-		expected: result.expected,
-		actual: result.actual
+		path: issue?.path ?? `nodes.${node.id}.inputs.${inputName}`,
+		expected: port.schema,
+		actual: value
 	})
 }
 
@@ -641,33 +923,58 @@ function validateFinalGoal(graph: SynthesisGraph, finalFragment: TemplateArtifac
 		)
 	}
 
-	if (!isTypeCompatible(goal.type, finalFragment.type)) {
+	const goalDescriptor = effectiveDescriptor(goal.type, goal.schema, 'goal.type')
+	const finalDescriptor = effectiveDescriptor(
+		finalFragment.type,
+		finalFragment.schema,
+		'finalArtifact.type',
+		{
+			...(finalFragment.id ? { nodeId: finalFragment.id } : {}),
+			templateId: finalFragment.source.templateId
+		}
+	)
+	diagnostics.push(...goalDescriptor.diagnostics, ...finalDescriptor.diagnostics)
+	if (goalDescriptor.diagnostics.length > 0 || finalDescriptor.diagnostics.length > 0) return diagnostics
+
+	const comparison = compareTypeDescriptors(finalDescriptor.type, goalDescriptor.type)
+	if (comparison.status === 'invalid') {
+		diagnostics.push(...comparison.issues.map(issue => metadataDiagnostic(issue, 'goal.type')))
+		return diagnostics
+	}
+	if (comparison.typeScript?.status === 'incompatible') {
 		diagnostics.push(
 			errorDiagnostic({
 				stage: 'type',
 				code: 'FinalGoalTypeMismatch',
 				message: 'Final fragment type does not satisfy graph goal.',
 				path: 'goal.type',
-				expected: goal.type,
-				actual: finalFragment.type
+				expected: goalDescriptor.type?.ts,
+				actual: finalDescriptor.type?.ts
 			})
 		)
 	}
 
-	if (
-		!isTypeCompatible(
-			goal.schema ? { schema: goal.schema } : undefined,
-			finalFragment.schema ? { schema: finalFragment.schema } : undefined
-		)
+	if (comparison.schema?.compatibility === 'indeterminate') {
+		diagnostics.push(errorDiagnostic({
+			stage: 'type',
+			code: 'SchemaCompatibilityIndeterminate',
+			message: 'Final fragment schema compatibility cannot be proven conservatively.',
+			path: goal.schema === undefined ? 'goal.type.schema' : 'goal.schema',
+			expected: goalDescriptor.type?.schema,
+			actual: finalDescriptor.type?.schema
+		}))
+	} else if (
+		goalDescriptor.type?.schema !== undefined
+		&& (finalDescriptor.type?.schema === undefined || comparison.schema?.compatibility === 'incompatible')
 	) {
 		diagnostics.push(
 			errorDiagnostic({
 				stage: 'type',
 				code: 'FinalGoalSchemaMismatch',
 				message: 'Final fragment schema does not satisfy graph goal.',
-				path: 'goal.schema',
-				expected: goal.schema,
-				actual: finalFragment.schema
+				path: goal.schema === undefined ? 'goal.type.schema' : 'goal.schema',
+				expected: goalDescriptor.type.schema,
+				actual: finalDescriptor.type?.schema
 			})
 		)
 	}
@@ -701,6 +1008,63 @@ function partialArtifactReplacementCode(input: ResolvedGraphInput): string | und
 		return input.fragments.map(fragment => fragment.code).join(input.port.separator ?? '\n')
 	}
 	return undefined
+}
+
+/** Remap nested child ownership into the serialized text used for one fill. */
+function nestedResolvedInputSourceMap(
+	input: ResolvedGraphInput,
+	renderedCode: string
+): GeneratedSourceMap | undefined {
+	if (input.kind === 'fragment') {
+		return sourceMappedFragment(input.fragment, renderedCode).sourceMap
+	}
+	if (input.kind === 'fragmentCollection') {
+		const joined = sourceMappedFragmentCollection(input.fragments, input.port.separator ?? '\n')
+		return remapGeneratedSourceMap(joined.code, renderedCode, joined.sourceMap)
+	}
+	return undefined
+}
+
+/** Find the existing unresolved input owner that encloses one physical marker. */
+function unresolvedOwnerDepth(
+	artifact: TemplateArtifact,
+	region: ReplacementRegion,
+	unresolved: UnresolvedTemplateInput
+): { depth: number; exists: boolean } {
+	const candidates = (artifact.sourceMap?.spans ?? []).filter(span =>
+		span.kind === 'input'
+		&& span.inputName === unresolved.inputName
+		&& span.templateId === unresolved.templateId
+		&& (unresolved.nodeId === undefined || span.nodeId === unresolved.nodeId)
+		&& span.start <= region.startCommentStart
+		&& span.end >= region.endCommentEnd
+	)
+	const depth = candidates.reduce((maximum, span) => Math.max(maximum, span.nestingDepth), 1)
+	return { depth, exists: candidates.length > 0 }
+}
+
+/** Build ownership carried by one replacement of an unresolved artifact marker. */
+function artifactFillEditSourceMap(
+	artifact: TemplateArtifact,
+	region: ReplacementRegion,
+	unresolved: UnresolvedTemplateInput,
+	resolved: ResolvedGraphInput,
+	renderedCode: string
+): GeneratedSourceMap {
+	const owner = unresolvedOwnerDepth(artifact, region, unresolved)
+	const ownerMap: GeneratedSourceMap | undefined = owner.exists ? undefined : {
+		...emptyGeneratedSourceMap(),
+		spans: [inputGeneratedSourceSpan(0, renderedCode.length, {
+			...(unresolved.nodeId ? { nodeId: unresolved.nodeId } : {}),
+			templateId: unresolved.templateId,
+			inputName: unresolved.inputName
+		}, owner.depth)]
+	}
+	const nested = nestedResolvedInputSourceMap(resolved, renderedCode)
+	return mergeGeneratedSourceMaps(
+		ownerMap,
+		nested ? shiftGeneratedSourceMap(nested, 0, owner.depth + 1) : undefined
+	)
 }
 
 /** Compare unresolved descriptors when one logical child is composed repeatedly. */
@@ -868,12 +1232,12 @@ export function fillTemplateArtifact(
 ): TemplateArtifactResult {
 	const integrityDiagnostics = validateTemplateArtifactIntegrity(artifact)
 	if (integrityDiagnostics.some(diagnostic => diagnostic.severity === 'error')) {
-		return { kind: 'templateArtifact', ok: false, diagnostics: integrityDiagnostics, artifact }
+		return { kind: 'templateArtifact', ok: false, classification: 'terminalFailure', diagnostics: integrityDiagnostics, artifact }
 	}
 
 	const syntaxDiagnostics = validateArtifactSyntax(artifact, options)
 	if (syntaxDiagnostics.some(diagnostic => diagnostic.severity === 'error')) {
-		return { kind: 'templateArtifact', ok: false, diagnostics: syntaxDiagnostics, artifact }
+		return { kind: 'templateArtifact', ok: false, classification: 'terminalFailure', diagnostics: syntaxDiagnostics, artifact }
 	}
 
 	if (artifact.complete !== false) {
@@ -882,6 +1246,7 @@ export function fillTemplateArtifact(
 			return {
 				kind: 'templateArtifact',
 				ok: false,
+				classification: 'terminalFailure',
 				artifact: complete,
 				diagnostics: [errorDiagnostic({
 					stage: 'input',
@@ -897,13 +1262,13 @@ export function fillTemplateArtifact(
 		}
 		const diagnostics = validateArtifactSemantics(complete, options)
 		return diagnostics.some(diagnostic => diagnostic.severity === 'error')
-			? { kind: 'templateArtifact', ok: false, artifact: complete, diagnostics }
+			? { kind: 'templateArtifact', ok: false, classification: 'terminalFailure', artifact: complete, diagnostics }
 			: { kind: 'templateArtifact', ok: true, artifact: complete, diagnostics }
 	}
 
 	const plan = planArtifactFills(artifact, inputs)
 	if (plan.diagnostics.some(diagnostic => diagnostic.severity === 'error')) {
-		return { kind: 'templateArtifact', ok: false, diagnostics: plan.diagnostics, artifact }
+		return { kind: 'templateArtifact', ok: false, classification: 'artifactFillable', diagnostics: plan.diagnostics, artifact }
 	}
 
 	const diagnostics: SynthesisDiagnostic[] = []
@@ -960,7 +1325,7 @@ export function fillTemplateArtifact(
 	}
 
 	if (diagnostics.some((diagnostic) => diagnostic.severity === 'error')) {
-		return { kind: 'templateArtifact', ok: false, diagnostics, artifact }
+		return { kind: 'templateArtifact', ok: false, classification: 'artifactFillable', diagnostics, artifact }
 	}
 
 	try {
@@ -991,7 +1356,37 @@ export function fillTemplateArtifact(
 				region
 			})
 		}
-		const code = applyReplacementEdits(artifact.code, edits)
+		const mappedEdits: SourceMappedTextEdit[] = edits.map(edit => {
+			const resolved = resolvedInputs[edit.region.id]
+			const unresolved = plan.fills.get(edit.region.id)?.unresolvedInput
+			return {
+				start: edit.start,
+				end: edit.end,
+				text: edit.text,
+				...(resolved && unresolved
+					? { sourceMap: artifactFillEditSourceMap(artifact, edit.region, unresolved, resolved, edit.text) }
+					: {})
+			}
+		})
+		let mapped = applySourceMappedTextEdits(
+			artifact.code,
+			artifact.sourceMap ?? nodeGeneratedSourceMap(artifact.code.length, {
+				...(artifact.id ? { nodeId: artifact.id } : {}),
+				templateId: artifact.source.templateId
+			}),
+			mappedEdits
+		)
+		if (options.format === 'ts-morph') {
+			mapped = formatSourceMappedFragment(mapped.code, mapped.sourceMap, templateModeForArtifact(artifact), {
+				...(options.filePath ? { filePath: options.filePath } : {}),
+				...(options.tsConfigFilePath ? { tsConfigFilePath: options.tsConfigFilePath } : {})
+			})
+		}
+		const { code } = mapped
+		const sourceMap = coverGeneratedSourceMapRoot(mapped.sourceMap, code.length, {
+			...(artifact.id ? { nodeId: artifact.id } : {}),
+			templateId: artifact.source.templateId
+		})
 
 		const base = {
 			...(artifact.id ? { id: artifact.id } : {}),
@@ -1000,7 +1395,8 @@ export function fillTemplateArtifact(
 			source: artifact.source,
 			...(artifact.type ? { type: artifact.type } : {}),
 			...(artifact.schema === undefined ? {} : { schema: artifact.schema }),
-			...(artifact.provenance ? { provenance: artifact.provenance } : {})
+			...(artifact.provenance ? { provenance: artifact.provenance } : {}),
+			sourceMap
 		}
 		const remaining = [...remainingById.values()]
 		const candidate: TemplateArtifact = remaining.length === 0
@@ -1014,6 +1410,7 @@ export function fillTemplateArtifact(
 			return {
 				kind: 'templateArtifact',
 				ok: false,
+				classification: 'artifactFillable',
 				artifact,
 				diagnostics: [...diagnostics, ...candidateDiagnostics]
 			}
@@ -1022,8 +1419,11 @@ export function fillTemplateArtifact(
 		if (candidate.complete === true) {
 			const complete: CompleteTemplateArtifact = candidate
 			diagnostics.push(...validateArtifactSemantics(complete, options))
+			const classification = diagnostics.some(diagnostic => diagnostic.code === 'InvalidSemanticTarget')
+				? 'terminalFailure' as const
+				: 'artifactFillable' as const
 			return diagnostics.some(diagnostic => diagnostic.severity === 'error')
-				? { kind: 'templateArtifact', ok: false, artifact: complete, diagnostics }
+				? { kind: 'templateArtifact', ok: false, classification, artifact: complete, diagnostics }
 				: { kind: 'templateArtifact', ok: true, artifact: complete, diagnostics }
 		}
 
@@ -1042,7 +1442,7 @@ export function fillTemplateArtifact(
 				actual: error
 			})
 		)
-		return { kind: 'templateArtifact', ok: false, diagnostics, artifact }
+		return { kind: 'templateArtifact', ok: false, classification: 'artifactFillable', diagnostics, artifact }
 	}
 }
 
@@ -1067,6 +1467,7 @@ export function finalizeTemplateArtifact(
 		return {
 			kind: 'templateArtifact',
 			ok: false,
+			classification: 'artifactFillable',
 			artifact: filled.artifact,
 			diagnostics: [
 				...filled.diagnostics,
@@ -1085,7 +1486,7 @@ export function finalizeTemplateArtifact(
 
 /** Partially compile a defined graph against an authored template catalog. */
 function compileGraphPartial<const TTemplates extends readonly GraphTemplateDefinition<any, string>[]>(
-	graph: DefinedSynthesisGraph<any>,
+	graph: DefinedPartialSynthesisGraph<any>,
 	templates: TTemplates & StrictTemplateCatalog<TTemplates>,
 	options?: GraphCompileOptions
 ): GraphPartialCompilationResult
@@ -1102,7 +1503,7 @@ function compileGraphPartial<
 	const TTemplates extends readonly GraphTemplateDefinition<any, string>[],
 	const TGraph extends AuthoredGraphInput
 >(
-	graph: StrictSynthesisGraph<TTemplates, TGraph>,
+	graph: StrictPartialSynthesisGraph<TTemplates, TGraph>,
 	templates: TTemplates & StrictTemplateCatalog<TTemplates>,
 	options?: GraphCompileOptions
 ): GraphPartialCompilationResult
@@ -1119,6 +1520,7 @@ function compileGraphPartial(
 			kind: 'graphCompilation',
 			mode: 'partial',
 			ok: false,
+			classification: 'terminalFailure',
 			diagnostics: [errorDiagnostic({
 				stage: 'template',
 				code: 'CatalogDigestMismatch',
@@ -1132,7 +1534,7 @@ function compileGraphPartial(
 	const normalized = normalizeSynthesisGraph(graph).graph
 	const { diagnostics, nodesById } = validateStaticGraph(normalized, registry, { allowMissingRequiredInputs: true })
 	if (diagnostics.some((diagnostic) => diagnostic.severity === 'error')) {
-		return { kind: 'graphCompilation', mode: 'partial', ok: false, diagnostics }
+		return { kind: 'graphCompilation', mode: 'partial', ok: false, classification: 'graphRepairable', diagnostics }
 	}
 
 	let scope: string | undefined
@@ -1326,7 +1728,14 @@ function compileGraphPartial(
 	}
 
 	if (!finalArtifact || diagnostics.some((diagnostic) => diagnostic.severity === 'error')) {
-		return { kind: 'graphCompilation', mode: 'partial', ok: false, diagnostics, partialArtifacts: Object.fromEntries(artifacts) }
+		return {
+			kind: 'graphCompilation',
+			mode: 'partial',
+			ok: false,
+			classification: classifyGraphFailure(diagnostics),
+			diagnostics,
+			partialArtifacts: Object.fromEntries(artifacts)
+		}
 	}
 
 	return {
@@ -1362,7 +1771,17 @@ export function compileGraph(
 
 /** Compile a graph against an authored catalog while preserving unresolved required inputs. */
 export function compileGraph<const TTemplates extends readonly GraphTemplateDefinition<any, string>[]>(
-	graph: DefinedSynthesisGraph<any>,
+	graph: DefinedSynthesisGraph<any> | DefinedPartialSynthesisGraph<any>,
+	templates: TTemplates & StrictTemplateCatalog<TTemplates>,
+	options: GraphCompileOptions & { mode: 'partial' }
+): GraphPartialCompilationResult
+
+/** Partially compile an inline catalog-aware incomplete graph. */
+export function compileGraph<
+	const TTemplates extends readonly GraphTemplateDefinition<any, string>[],
+	const TGraph extends AuthoredGraphInput
+>(
+	graph: StrictPartialSynthesisGraph<TTemplates, TGraph>,
 	templates: TTemplates & StrictTemplateCatalog<TTemplates>,
 	options: GraphCompileOptions & { mode: 'partial' }
 ): GraphPartialCompilationResult
@@ -1389,6 +1808,7 @@ export function compileGraph(
 			kind: 'graphCompilation',
 			mode: options.mode === 'partial' ? 'partial' : 'strict',
 			ok: false,
+			classification: 'terminalFailure',
 			diagnostics: [errorDiagnostic({
 				stage: 'template',
 				code: 'CatalogDigestMismatch',
@@ -1406,7 +1826,7 @@ export function compileGraph(
 	const normalized = normalizeSynthesisGraph(graph).graph
 	const { diagnostics } = validateStaticGraph(normalized, registry)
 	if (diagnostics.some((diagnostic) => diagnostic.severity === 'error')) {
-		return { kind: 'graphCompilation', mode: 'strict', ok: false, diagnostics }
+		return { kind: 'graphCompilation', mode: 'strict', ok: false, classification: 'graphRepairable', diagnostics }
 	}
 
 	const { mode: _mode, ...generateOptions } = options
@@ -1416,6 +1836,7 @@ export function compileGraph(
 			kind: 'graphCompilation',
 			mode: 'strict',
 			ok: false,
+			classification: result.classification,
 			diagnostics: result.diagnostics
 		}
 	}
@@ -1425,6 +1846,7 @@ export function compileGraph(
 			kind: 'graphCompilation',
 			mode: 'strict',
 			ok: false,
+			classification: 'graphRepairable',
 			diagnostics: [
 				...result.diagnostics,
 				errorDiagnostic({

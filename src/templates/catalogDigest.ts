@@ -1,15 +1,24 @@
 import { createHash } from 'node:crypto'
 
 import { canonicalizeJson } from './artifactIdentity.js'
+import { canonicalizeSupportedJsonSchema } from './schemaCompatibility.js'
+import {
+	JSON_SCHEMA_COMPATIBILITY_ENGINE_VERSION,
+	JSON_SCHEMA_DIALECT_URI,
+	SUPPORTED_JSON_SCHEMA_VERSION,
+	type SupportedJsonSchema
+} from './schemaTypes.js'
+import { TYPESCRIPT_COMPATIBILITY_ENGINE_VERSION } from './typeScriptCompatibility.js'
 import { assertTemplateCatalogValid, TemplateCatalogValidationError } from './catalogValidation.js'
 import type {
 	GraphTemplateDefinition,
 	InputPortSummary,
 	RawCodePolicy,
-	TemplateSummary
+	TemplateSummary,
+	TypeDescriptor
 } from './graphTypes.js'
 
-const CATALOG_DIGEST_VERSION = 1
+const CATALOG_DIGEST_VERSION = 2
 
 function sortedUnique(values: readonly string[] | undefined): string[] {
 	return [...new Set(values ?? [])].sort()
@@ -25,6 +34,22 @@ function normalizeRawCodePolicy(policy: RawCodePolicy | undefined): Record<strin
 	}
 }
 
+function normalizeSchema(schema: SupportedJsonSchema): SupportedJsonSchema {
+	return canonicalizeSupportedJsonSchema(schema)
+}
+
+function normalizeTypeDescriptor(
+	type: TypeDescriptor | undefined,
+	legacySchema?: SupportedJsonSchema
+): Record<string, unknown> | undefined {
+	if (type === undefined && legacySchema === undefined) return undefined
+	const schema = type?.schema ?? legacySchema
+	return {
+		...(type?.ts === undefined ? {} : { ts: type.ts.trim() }),
+		...(schema === undefined ? {} : { schema: normalizeSchema(schema) })
+	}
+}
+
 function normalizeInputPortSummary(port: InputPortSummary): Record<string, unknown> {
 	switch (port.kind) {
 		case 'literal':
@@ -33,7 +58,7 @@ function normalizeInputPortSummary(port: InputPortSummary): Record<string, unkno
 				regionKind: port.regionKind,
 				required: port.required,
 				...(port.description === undefined ? {} : { description: port.description }),
-				...(port.schema === undefined ? {} : { schema: port.schema })
+				...(port.schema === undefined ? {} : { schema: normalizeSchema(port.schema) })
 			}
 		case 'fragment':
 			return {
@@ -46,7 +71,9 @@ function normalizeInputPortSummary(port: InputPortSummary): Record<string, unkno
 					...(port.accepts.sourceModelIds === undefined
 						? {}
 						: { sourceModelIds: sortedUnique(port.accepts.sourceModelIds) }),
-					...(port.accepts.type === undefined ? {} : { type: port.accepts.type })
+					...(port.accepts.type === undefined ? {} : {
+						type: normalizeTypeDescriptor(port.accepts.type)
+					})
 				}
 			}
 		case 'fragmentCollection':
@@ -60,7 +87,9 @@ function normalizeInputPortSummary(port: InputPortSummary): Record<string, unkno
 					...(port.accepts.sourceModelIds === undefined
 						? {}
 						: { sourceModelIds: sortedUnique(port.accepts.sourceModelIds) }),
-					...(port.accepts.type === undefined ? {} : { type: port.accepts.type })
+					...(port.accepts.type === undefined ? {} : {
+						type: normalizeTypeDescriptor(port.accepts.type)
+					})
 				},
 				separator: port.separator,
 				minItems: port.minItems,
@@ -73,7 +102,7 @@ function normalizeInputPortSummary(port: InputPortSummary): Record<string, unkno
 				required: port.required,
 				...(port.description === undefined ? {} : { description: port.description }),
 				policy: normalizeRawCodePolicy(port.policy),
-				...(port.type === undefined ? {} : { type: port.type })
+				...(port.type === undefined ? {} : { type: normalizeTypeDescriptor(port.type) })
 			}
 		case 'union':
 			return {
@@ -104,8 +133,9 @@ export function normalizeTemplateSummaries(
 			output: {
 				kind: summary.output.kind,
 				...(summary.output.description === undefined ? {} : { description: summary.output.description }),
-				...(summary.output.type === undefined ? {} : { type: summary.output.type }),
-				...(summary.output.schema === undefined ? {} : { schema: summary.output.schema })
+				...(summary.output.type === undefined && summary.output.schema === undefined ? {} : {
+					type: normalizeTypeDescriptor(summary.output.type, summary.output.schema)
+				})
 			}
 		}))
 }
@@ -115,6 +145,12 @@ export function templateSummaryContractDigest(summaries: readonly TemplateSummar
 	const payload = canonicalizeJson([
 		'template-catalog-contract',
 		CATALOG_DIGEST_VERSION,
+		{
+			jsonSchemaDialect: JSON_SCHEMA_DIALECT_URI,
+			jsonSchemaProfileVersion: SUPPORTED_JSON_SCHEMA_VERSION,
+			jsonSchemaCompatibilityEngineVersion: JSON_SCHEMA_COMPATIBILITY_ENGINE_VERSION,
+			typeScriptCompatibilityEngineVersion: TYPESCRIPT_COMPATIBILITY_ENGINE_VERSION
+		},
 		normalizeTemplateSummaries(summaries)
 	])
 	return `c${CATALOG_DIGEST_VERSION}_${createHash('sha256').update(payload, 'utf8').digest('hex')}`

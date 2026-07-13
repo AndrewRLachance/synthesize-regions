@@ -1,5 +1,13 @@
 import { Type, type Static, type TSchema } from '@sinclair/typebox'
 import { Value } from '@sinclair/typebox/value'
+import { SUPPORTED_JSON_SCHEMA_CONTRACT_DEFINITIONS } from './schemaContract.js'
+import type {
+	GraphPatchAction,
+	GraphPatchResult,
+	GraphRunnerAction,
+	SynthesisGraph
+} from './graphCoreTypes.js'
+import type { GraphRunnerState } from './runner.js'
 
 const RegionKindDefinition = Type.Union([
 	Type.Literal('identifier'), Type.Literal('expression'), Type.Literal('expressionSuffix'),
@@ -9,7 +17,7 @@ const RegionKindDefinition = Type.Union([
 
 const TypeDescriptorDefinition = Type.Object({
 	ts: Type.Optional(Type.String()),
-	schema: Type.Optional(Type.Unknown())
+	schema: Type.Optional(Type.Ref('SupportedJsonSchema'))
 }, { additionalProperties: false })
 
 const RawCodePolicyDefinition = Type.Object({
@@ -34,15 +42,17 @@ const GeneratedFragmentProperties = {
 		templateId: Type.String(), templateVersion: Type.Optional(Type.String())
 	}, { additionalProperties: false }),
 	type: Type.Optional(Type.Ref('CompilationTypeDescriptor')),
-	schema: Type.Optional(Type.Unknown()),
+	schema: Type.Optional(Type.Ref('SupportedJsonSchema')),
 	provenance: Type.Optional(Type.Object({
 		nodeId: Type.Optional(Type.String()), inputRefs: Type.Optional(Type.Array(Type.String())),
 		literalInputs: Type.Optional(Type.Record(Type.String(), Type.Unknown()))
 	}, { additionalProperties: false })),
+	sourceMap: Type.Optional(Type.Ref('GeneratedSourceMap')),
 	diagnostics: Type.Optional(Type.Array(Type.Ref('SynthesisDiagnostic')))
 } as const
 
-const GraphContractModule = Type.Module({
+const GraphContractDefinitions = {
+	...SUPPORTED_JSON_SCHEMA_CONTRACT_DEFINITIONS,
 	GraphRegionKind: RegionKindDefinition,
 	GraphTypeDescriptor: TypeDescriptorDefinition,
 	SynthesisInput: Type.Union([
@@ -68,16 +78,19 @@ const GraphContractModule = Type.Module({
 	SynthesisGoal: Type.Object({
 		outputKind: Type.Optional(Type.Ref('GraphRegionKind')),
 		type: Type.Optional(Type.Ref('GraphTypeDescriptor')),
-		schema: Type.Optional(Type.Unknown())
+		schema: Type.Optional(Type.Ref('SupportedJsonSchema'))
 	}, { additionalProperties: false }),
 	SynthesisGraph: Type.Object({
 		nodes: Type.Array(Type.Ref('SynthesisNode')),
 		finalNodeId: Type.String(),
 		goal: Type.Optional(Type.Ref('SynthesisGoal'))
 	}, { additionalProperties: false })
-})
+} as const
+
+const GraphContractModule = Type.Module(GraphContractDefinitions)
 
 const SummaryContractModule = Type.Module({
+	...SUPPORTED_JSON_SCHEMA_CONTRACT_DEFINITIONS,
 	SummaryRegionKind: RegionKindDefinition,
 	SummaryTypeDescriptor: TypeDescriptorDefinition,
 	SummaryRawCodePolicy: RawCodePolicyDefinition,
@@ -88,7 +101,7 @@ const SummaryContractModule = Type.Module({
 	}, { additionalProperties: false }),
 	LiteralInputPortSummary: Type.Object({
 		kind: Type.Literal('literal'), regionKind: Type.Ref('SummaryRegionKind'), required: Type.Boolean(),
-		description: Type.Optional(Type.String()), schema: Type.Optional(Type.Unknown())
+		description: Type.Optional(Type.String()), schema: Type.Optional(Type.Ref('SupportedJsonSchema'))
 	}, { additionalProperties: false }),
 	FragmentInputPortSummary: Type.Object({
 		kind: Type.Literal('fragment'), regionKind: Type.Ref('SummaryRegionKind'), required: Type.Boolean(),
@@ -119,7 +132,7 @@ const SummaryContractModule = Type.Module({
 	OutputPortSummary: Type.Object({
 		kind: Type.Ref('SummaryRegionKind'),
 		type: Type.Optional(Type.Ref('SummaryTypeDescriptor')),
-		schema: Type.Optional(Type.Unknown()),
+		schema: Type.Optional(Type.Ref('SupportedJsonSchema')),
 		description: Type.Optional(Type.String())
 	}, { additionalProperties: false }),
 	TemplateSummary: Type.Object({
@@ -132,9 +145,26 @@ const SummaryContractModule = Type.Module({
 })
 
 const CompilationContractModule = Type.Module({
+	...GraphContractDefinitions,
 	CompilationRegionKind: RegionKindDefinition,
 	CompilationTypeDescriptor: TypeDescriptorDefinition,
 	CompilationRawCodePolicy: RawCodePolicyDefinition,
+	SynthesisFailureClassification: Type.Union([
+		Type.Literal('graphRepairable'),
+		Type.Literal('artifactFillable'),
+		Type.Literal('templatePolicyFailure'),
+		Type.Literal('terminalFailure')
+	]),
+	GraphCompilationFailureClassification: Type.Union([
+		Type.Literal('graphRepairable'),
+		Type.Literal('templatePolicyFailure'),
+		Type.Literal('terminalFailure')
+	]),
+	TemplateArtifactFailureClassification: Type.Union([
+		Type.Literal('artifactFillable'),
+		Type.Literal('templatePolicyFailure'),
+		Type.Literal('terminalFailure')
+	]),
 	SynthesisRepairHint: Type.Object({
 		kind: Type.String(),
 		message: Type.String()
@@ -161,12 +191,36 @@ const CompilationContractModule = Type.Module({
 		line: Type.Optional(Type.Number()),
 		column: Type.Optional(Type.Number())
 	}, { additionalProperties: false }),
+	GeneratedNodeSourceSpan: Type.Object({
+		kind: Type.Literal('node'),
+		start: Type.Integer({ minimum: 0 }),
+		end: Type.Integer({ minimum: 0 }),
+		nestingDepth: Type.Integer({ minimum: 0 }),
+		nodeId: Type.Optional(Type.String()),
+		templateId: Type.String()
+	}, { additionalProperties: false }),
+	GeneratedInputSourceSpan: Type.Object({
+		kind: Type.Literal('input'),
+		start: Type.Integer({ minimum: 0 }),
+		end: Type.Integer({ minimum: 0 }),
+		nestingDepth: Type.Integer({ minimum: 0 }),
+		nodeId: Type.Optional(Type.String()),
+		templateId: Type.String(),
+		inputName: Type.String()
+	}, { additionalProperties: false }),
+	GeneratedSourceSpan: Type.Union([
+		Type.Ref('GeneratedNodeSourceSpan'), Type.Ref('GeneratedInputSourceSpan')
+	]),
+	GeneratedSourceMap: Type.Object({
+		version: Type.Literal(1),
+		spans: Type.Array(Type.Ref('GeneratedSourceSpan'))
+	}, { additionalProperties: false }),
 	FragmentAccepts: FragmentAcceptsDefinition,
 	InputPort: Type.Union([
 		Type.Object({
 			kind: Type.Literal('literal'), regionKind: Type.Ref('CompilationRegionKind'),
 			required: Type.Optional(Type.Boolean()), description: Type.Optional(Type.String()),
-			schema: Type.Optional(Type.Unknown())
+			schema: Type.Optional(Type.Ref('SupportedJsonSchema'))
 		}, { additionalProperties: false }),
 		Type.Object({
 			kind: Type.Literal('fragment'), regionKind: Type.Ref('CompilationRegionKind'),
@@ -214,41 +268,119 @@ const CompilationContractModule = Type.Module({
 			kind: Type.Literal('fragmentCollection'), fragments: Type.Array(Type.Ref('TemplateArtifact'))
 		}, { additionalProperties: false })
 	]),
-	StrictGraphCompilationResult: Type.Union([
+	TemplateArtifactInputMap: Type.Record(Type.String(), Type.Ref('TemplateArtifactInput')),
+	TemplateArtifactResult: Type.Union([
 		Type.Object({
-			kind: Type.Literal('graphCompilation'), mode: Type.Literal('strict'), ok: Type.Literal(true),
-			finalArtifact: Type.Ref('CompleteTemplateArtifact'),
-			artifacts: Type.Record(Type.String(), Type.Ref('CompleteTemplateArtifact')),
-			diagnostics: Type.Array(Type.Ref('SynthesisDiagnostic'))
+			kind: Type.Literal('templateArtifact'), ok: Type.Literal(true),
+			artifact: Type.Ref('TemplateArtifact'), diagnostics: Type.Array(Type.Ref('SynthesisDiagnostic'))
 		}, { additionalProperties: false }),
 		Type.Object({
-			kind: Type.Literal('graphCompilation'), mode: Type.Literal('strict'), ok: Type.Literal(false),
+			kind: Type.Literal('templateArtifact'), ok: Type.Literal(false),
+			classification: Type.Ref('TemplateArtifactFailureClassification'),
 			diagnostics: Type.Array(Type.Ref('SynthesisDiagnostic')),
-			partialArtifacts: Type.Optional(Type.Record(Type.String(), Type.Ref('CompleteTemplateArtifact')))
+			artifact: Type.Optional(Type.Ref('TemplateArtifact'))
 		}, { additionalProperties: false })
 	]),
+	StrictGraphCompilationSuccess: Type.Object({
+		kind: Type.Literal('graphCompilation'), mode: Type.Literal('strict'), ok: Type.Literal(true),
+		finalArtifact: Type.Ref('CompleteTemplateArtifact'),
+		artifacts: Type.Record(Type.String(), Type.Ref('CompleteTemplateArtifact')),
+		diagnostics: Type.Array(Type.Ref('SynthesisDiagnostic'))
+	}, { additionalProperties: false }),
+	StrictGraphCompilationFailure: Type.Object({
+		kind: Type.Literal('graphCompilation'), mode: Type.Literal('strict'), ok: Type.Literal(false),
+		classification: Type.Ref('GraphCompilationFailureClassification'),
+		diagnostics: Type.Array(Type.Ref('SynthesisDiagnostic')),
+		partialArtifacts: Type.Optional(Type.Record(Type.String(), Type.Ref('CompleteTemplateArtifact')))
+	}, { additionalProperties: false }),
+	StrictGraphCompilationResult: Type.Union([
+		Type.Ref('StrictGraphCompilationSuccess'), Type.Ref('StrictGraphCompilationFailure')
+	]),
+	PartialGraphCompilationSuccess: Type.Object({
+		kind: Type.Literal('graphCompilation'), mode: Type.Literal('partial'), ok: Type.Literal(true),
+		finalArtifact: Type.Ref('TemplateArtifact'),
+		artifacts: Type.Record(Type.String(), Type.Ref('TemplateArtifact')),
+		diagnostics: Type.Array(Type.Ref('SynthesisDiagnostic'))
+	}, { additionalProperties: false }),
+	PartialGraphCompilationFailure: Type.Object({
+		kind: Type.Literal('graphCompilation'), mode: Type.Literal('partial'), ok: Type.Literal(false),
+		classification: Type.Ref('GraphCompilationFailureClassification'),
+		diagnostics: Type.Array(Type.Ref('SynthesisDiagnostic')),
+		partialArtifacts: Type.Optional(Type.Record(Type.String(), Type.Ref('TemplateArtifact')))
+	}, { additionalProperties: false }),
+	GraphRepairablePartialCompilationFailure: Type.Object({
+		kind: Type.Literal('graphCompilation'), mode: Type.Literal('partial'), ok: Type.Literal(false),
+		classification: Type.Literal('graphRepairable'),
+		diagnostics: Type.Array(Type.Ref('SynthesisDiagnostic')),
+		partialArtifacts: Type.Optional(Type.Record(Type.String(), Type.Ref('TemplateArtifact')))
+	}, { additionalProperties: false }),
 	PartialGraphCompilationResult: Type.Union([
-		Type.Object({
-			kind: Type.Literal('graphCompilation'), mode: Type.Literal('partial'), ok: Type.Literal(true),
-			finalArtifact: Type.Ref('TemplateArtifact'),
-			artifacts: Type.Record(Type.String(), Type.Ref('TemplateArtifact')),
-			diagnostics: Type.Array(Type.Ref('SynthesisDiagnostic'))
-		}, { additionalProperties: false }),
-		Type.Object({
-			kind: Type.Literal('graphCompilation'), mode: Type.Literal('partial'), ok: Type.Literal(false),
-			diagnostics: Type.Array(Type.Ref('SynthesisDiagnostic')),
-			partialArtifacts: Type.Optional(Type.Record(Type.String(), Type.Ref('TemplateArtifact')))
-		}, { additionalProperties: false })
+		Type.Ref('PartialGraphCompilationSuccess'), Type.Ref('PartialGraphCompilationFailure')
 	]),
 	GraphCompilationResult: Type.Union([
 		Type.Ref('StrictGraphCompilationResult'), Type.Ref('PartialGraphCompilationResult')
+	]),
+	GraphPatchAction: Type.Union([
+		Type.Object({ kind: Type.Literal('addNode'), node: Type.Ref('SynthesisNode') }, { additionalProperties: false }),
+		Type.Object({ kind: Type.Literal('removeNode'), nodeId: Type.String() }, { additionalProperties: false }),
+		Type.Object({
+			kind: Type.Literal('setInput'), nodeId: Type.String(), inputName: Type.String(),
+			input: Type.Ref('SynthesisInput')
+		}, { additionalProperties: false }),
+		Type.Object({
+			kind: Type.Literal('removeInput'), nodeId: Type.String(), inputName: Type.String()
+		}, { additionalProperties: false }),
+		Type.Object({ kind: Type.Literal('setFinalNode'), nodeId: Type.String() }, { additionalProperties: false }),
+		Type.Object({ kind: Type.Literal('setGoal'), goal: Type.Ref('SynthesisGoal') }, { additionalProperties: false }),
+		Type.Object({ kind: Type.Literal('removeGoal') }, { additionalProperties: false })
+	]),
+	GraphRunnerAction: Type.Union([
+		Type.Ref('GraphPatchAction'),
+		Type.Object({ kind: Type.Literal('replaceGraph'), graph: Type.Ref('SynthesisGraph') }, { additionalProperties: false }),
+		Type.Object({ kind: Type.Literal('fill'), inputs: Type.Ref('TemplateArtifactInputMap') }, { additionalProperties: false })
+	]),
+	GraphPatchResult: Type.Union([
+		Type.Object({
+			kind: Type.Literal('graphPatch'), ok: Type.Literal(true), graph: Type.Ref('SynthesisGraph'),
+			diagnostics: Type.Array(Type.Ref('SynthesisDiagnostic'))
+		}, { additionalProperties: false }),
+		Type.Object({
+			kind: Type.Literal('graphPatch'), ok: Type.Literal(false), graph: Type.Ref('SynthesisGraph'),
+			classification: Type.Literal('graphRepairable'), diagnostics: Type.Array(Type.Ref('SynthesisDiagnostic'))
+		}, { additionalProperties: false })
+	]),
+	GraphRunnerState: Type.Union([
+		Type.Object({
+			kind: Type.Literal('ready'), graph: Type.Ref('SynthesisGraph')
+		}, { additionalProperties: false }),
+		Type.Object({
+			kind: Type.Literal('needsGraphRepair'), graph: Type.Ref('SynthesisGraph'),
+			result: Type.Ref('GraphRepairablePartialCompilationFailure'),
+			diagnostics: Type.Array(Type.Ref('SynthesisDiagnostic')),
+			classification: Type.Literal('graphRepairable')
+		}, { additionalProperties: false }),
+		Type.Object({
+			kind: Type.Literal('needsArtifactInputs'), graph: Type.Ref('SynthesisGraph'),
+			artifact: Type.Ref('PartialTemplateArtifact'),
+			diagnostics: Type.Array(Type.Ref('SynthesisDiagnostic')),
+			classification: Type.Literal('artifactFillable')
+		}, { additionalProperties: false }),
+		Type.Object({
+			kind: Type.Literal('complete'), graph: Type.Ref('SynthesisGraph'),
+			artifact: Type.Ref('CompleteTemplateArtifact'), diagnostics: Type.Array(Type.Ref('SynthesisDiagnostic'))
+		}, { additionalProperties: false }),
+		Type.Object({
+			kind: Type.Literal('failed'), graph: Type.Ref('SynthesisGraph'),
+			diagnostics: Type.Array(Type.Ref('SynthesisDiagnostic')),
+			classification: Type.Union([Type.Literal('templatePolicyFailure'), Type.Literal('terminalFailure')])
+		}, { additionalProperties: false })
 	])
 })
 
 export const RegionKindSchema = GraphContractModule.Import('GraphRegionKind')
 export const TypeDescriptorSchema = GraphContractModule.Import('GraphTypeDescriptor')
 export const SynthesisInputSchema = GraphContractModule.Import('SynthesisInput')
-export const SynthesisGraphSchema = GraphContractModule.Import('SynthesisGraph')
+export const SynthesisGraphSchema = Type.Unsafe<SynthesisGraph>(GraphContractModule.Import('SynthesisGraph'))
 
 export const RawCodePolicySchema = SummaryContractModule.Import('SummaryRawCodePolicy')
 export const LiteralInputPortSummarySchema = SummaryContractModule.Import('LiteralInputPortSummary')
@@ -261,23 +393,41 @@ export const OutputPortSummarySchema = SummaryContractModule.Import('OutputPortS
 export const TemplateSummarySchema = SummaryContractModule.Import('TemplateSummary')
 
 export const SynthesisDiagnosticSchema = CompilationContractModule.Import('SynthesisDiagnostic')
+export const GeneratedSourceSpanSchema = CompilationContractModule.Import('GeneratedSourceSpan')
+export const GeneratedSourceMapSchema = CompilationContractModule.Import('GeneratedSourceMap')
 export const InputPortSchema = CompilationContractModule.Import('InputPort')
 export const GeneratedFragmentSchema = CompilationContractModule.Import('GeneratedFragment')
 export const CompleteTemplateArtifactSchema = CompilationContractModule.Import('CompleteTemplateArtifact')
 export const PartialTemplateArtifactSchema = CompilationContractModule.Import('PartialTemplateArtifact')
 export const TemplateArtifactSchema = CompilationContractModule.Import('TemplateArtifact')
 export const TemplateArtifactInputSchema = CompilationContractModule.Import('TemplateArtifactInput')
-export const TemplateArtifactInputMapSchema = Type.Record(Type.String(), TemplateArtifactInputSchema)
+export const TemplateArtifactInputMapSchema = CompilationContractModule.Import('TemplateArtifactInputMap')
+export const TemplateArtifactResultSchema = CompilationContractModule.Import('TemplateArtifactResult')
+export const SynthesisFailureClassificationSchema = CompilationContractModule.Import('SynthesisFailureClassification')
 export const StrictGraphCompilationResultSchema = CompilationContractModule.Import('StrictGraphCompilationResult')
 export const PartialGraphCompilationResultSchema = CompilationContractModule.Import('PartialGraphCompilationResult')
 export const GraphCompilationResultSchema = CompilationContractModule.Import('GraphCompilationResult')
+// Pin recursive protocol schemas to their public core types. Inferring Static
+// through SynthesisInput -> inline node -> SynthesisInput otherwise makes the
+// compiler truncate later union members after sufficiently deep expansion.
+export const GraphPatchActionSchema = Type.Unsafe<GraphPatchAction>(CompilationContractModule.Import('GraphPatchAction'))
+export const GraphRunnerActionSchema = Type.Unsafe<GraphRunnerAction>(CompilationContractModule.Import('GraphRunnerAction'))
+export const GraphPatchResultSchema = Type.Unsafe<GraphPatchResult>(CompilationContractModule.Import('GraphPatchResult'))
+export const GraphRunnerStateSchema = Type.Unsafe<GraphRunnerState>(CompilationContractModule.Import('GraphRunnerState'))
 
 export type ContractGeneratedFragment = Static<typeof GeneratedFragmentSchema>
+export type ContractGeneratedSourceSpan = Static<typeof GeneratedSourceSpanSchema>
+export type ContractGeneratedSourceMap = Static<typeof GeneratedSourceMapSchema>
 export type ContractCompleteTemplateArtifact = Static<typeof CompleteTemplateArtifactSchema>
 export type ContractPartialTemplateArtifact = Static<typeof PartialTemplateArtifactSchema>
 export type ContractSynthesisGraph = Static<typeof SynthesisGraphSchema>
 export type ContractTemplateSummary = Static<typeof TemplateSummarySchema>
 export type ContractGraphCompilationResult = Static<typeof GraphCompilationResultSchema>
+export type ContractSynthesisFailureClassification = Static<typeof SynthesisFailureClassificationSchema>
+export type ContractGraphPatchAction = Static<typeof GraphPatchActionSchema>
+export type ContractGraphRunnerAction = Static<typeof GraphRunnerActionSchema>
+export type ContractGraphPatchResult = Static<typeof GraphPatchResultSchema>
+export type ContractGraphRunnerState = Static<typeof GraphRunnerStateSchema>
 
 export const checkContract = <TSchemaType extends TSchema>(schema: TSchemaType, value: unknown): value is Static<TSchemaType> =>
 	Value.Check(schema, value)

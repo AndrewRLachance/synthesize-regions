@@ -1,4 +1,5 @@
-import type { GenerateOptions, MarkerExpectedKind, ReplacementMap } from '../core/types.js'
+import type { GenerateOptions, MarkerExpectedKind, ReplacementMap, TemplateMode } from '../core/types.js'
+import type { SupportedJsonSchema } from './schemaTypes.js'
 
 /** Syntactic region kind accepted by graph ports and generated fragments. */
 export type RegionKind = MarkerExpectedKind
@@ -18,17 +19,170 @@ export const REGION_KIND_VALUES = [
 	'objectProperty'
 ] as const satisfies readonly RegionKind[]
 
+/** Built-in diagnostic codes emitted by catalog, graph, artifact, and runner APIs. */
+export const BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES = [
+	'AmbiguousArtifactInputAlias',
+	'ArtifactAlreadyComplete',
+	'ArtifactInputIdCollision',
+	'ArtifactMarkerArityMismatch',
+	'ArtifactMarkerKindMismatch',
+	'CatalogContractNotSerializable',
+	'CatalogDigestMismatch',
+	'CompilationScopeInvalid',
+	'CompleteArtifactContainsMarkers',
+	'ConflictingArtifactFillKeys',
+	'ConflictingSchemaMetadata',
+	'CycleDetected',
+	'DuplicateNodeId',
+	'DuplicateTemplateId',
+	'DuplicateUnresolvedInputId',
+	'EmptyUnionPort',
+	'FinalGoalKindMismatch',
+	'FinalGoalSchemaMismatch',
+	'FinalGoalTypeMismatch',
+	'GeneratedTypeScriptInvalid',
+	'GraphPatchInputNotFound',
+	'GraphPatchTargetAmbiguous',
+	'GraphPatchTargetNotFound',
+	'IncompatibleCollectionSize',
+	'IncompatibleFragmentKind',
+	'IncompatibleFragmentSource',
+	'IncompatibleFragmentType',
+	'IncompatibleInputKind',
+	'IncompatibleSourceOutputKind',
+	'IncompatibleSourceSchema',
+	'IncompatibleSourceType',
+	'InvalidCollectionBounds',
+	'InvalidCollectionMaximum',
+	'InvalidCollectionMinimum',
+	'InvalidGraphRunnerAction',
+	'InvalidGeneratedSourceMap',
+	'InvalidJsonSchema',
+	'InvalidLiteralInput',
+	'InvalidRawCodeMaxLength',
+	'InvalidRawCodePattern',
+	'InvalidRawCodePolicy',
+	'InvalidRunnerTransition',
+	'InvalidSemanticTarget',
+	'InvalidTypeScriptType',
+	'MalformedArtifactMarkers',
+	'MalformedTemplateArtifact',
+	'MissingArtifactMarker',
+	'MissingRequiredInput',
+	'MixedUnionRegionKinds',
+	'PartialArtifactHasNoUnresolvedInputs',
+	'RawCodeRejected',
+	'SchemaCompatibilityIndeterminate',
+	'TypeScriptSemanticError',
+	'UnknownArtifactFillKey',
+	'UnknownArtifactMarker',
+	'UnknownFinalNode',
+	'UnknownInput',
+	'UnknownReference',
+	'UnknownSourceModelId',
+	'UnknownTemplate',
+	'UnknownTemplateReplacement',
+	'UnresolvedLocalSchemaReference',
+	'UnresolvedTemplateInputs',
+	'UnresolvedTypeScriptType',
+	'UnsupportedSchemaKeyword',
+	'ForbiddenAnyType'
+] as const
+
+/** Closed union of package-provided diagnostics; custom diagnostics remain supported. */
+export type BuiltInSynthesisDiagnosticCode = typeof BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES[number]
+
+/** Contextual repair channel attached to failed operations and actionable runner states. */
+export const SYNTHESIS_FAILURE_CLASSIFICATION_VALUES = [
+	'graphRepairable',
+	'artifactFillable',
+	'templatePolicyFailure',
+	'terminalFailure'
+] as const
+
+export type SynthesisFailureClassification = typeof SYNTHESIS_FAILURE_CLASSIFICATION_VALUES[number]
+
+/** Graph patch actions accepted by the runner repair protocol. */
+export const GRAPH_PATCH_ACTION_KIND_VALUES = [
+	'addNode',
+	'removeNode',
+	'setInput',
+	'removeInput',
+	'setFinalNode',
+	'setGoal',
+	'removeGoal'
+] as const
+
+export type GraphPatchActionKind = typeof GRAPH_PATCH_ACTION_KIND_VALUES[number]
+
+/** All explicit actions accepted by GraphRunner.advance(). */
+export const GRAPH_RUNNER_ACTION_KIND_VALUES = [
+	...GRAPH_PATCH_ACTION_KIND_VALUES,
+	'replaceGraph',
+	'fill'
+] as const
+
+export type GraphRunnerActionKind = typeof GRAPH_RUNNER_ACTION_KIND_VALUES[number]
+
+/** Version of the persisted generated-source mapping format. */
+export const GENERATED_SOURCE_MAP_VERSION = 1 as const
+
+/** Runtime list of ownership variants recorded by generated-source maps. */
+export const GENERATED_SOURCE_SPAN_KIND_VALUES = ['node', 'input'] as const
+
+export type GeneratedSourceSpanKind = typeof GENERATED_SOURCE_SPAN_KIND_VALUES[number]
+
+/** Shared identity and range metadata for one generated-source span. */
+interface BaseGeneratedSourceSpan {
+	/** Zero-based UTF-16 offset at which the span begins in artifact `code`. */
+	start: number
+	/** Exclusive zero-based UTF-16 offset at which the span ends in artifact `code`. */
+	end: number
+	/** Composition depth, where the final/root node begins at depth zero. */
+	nestingDepth: number
+	/** Graph node that contributed the span, when generated within a graph. */
+	nodeId?: string
+	/** Template model that contributed the span. */
+	templateId: string
+}
+
+/** Source owned by a template node's generated body. */
+export interface GeneratedNodeSourceSpan extends BaseGeneratedSourceSpan {
+	kind: 'node'
+}
+
+/** Source produced for one concrete or unresolved template input. */
+export interface GeneratedInputSourceSpan extends BaseGeneratedSourceSpan {
+	kind: 'input'
+	/** Input on the contributing template that owns this source. */
+	inputName: string
+}
+
+/** One persisted ownership range within generated artifact code. */
+export type GeneratedSourceSpan = GeneratedNodeSourceSpan | GeneratedInputSourceSpan
+
+/**
+ * Persisted graph provenance used to attribute compiler diagnostics.
+ *
+ * Spans may overlap: nested child spans have a greater `nestingDepth` than the
+ * containing input and node spans.
+ */
+export interface GeneratedSourceMap {
+	version: typeof GENERATED_SOURCE_MAP_VERSION
+	spans: GeneratedSourceSpan[]
+}
+
 /**
  * Optional type metadata used for graph compatibility checks.
  *
- * `ts` is a lightweight TypeScript type string, while `schema` is a supported
- * JSON Schema subset for literal values and fragment goals.
+ * `ts` is a self-contained TypeScript type expression, while `schema` uses the
+ * package's supported Draft 2020-12 profile.
  */
 export interface TypeDescriptor {
-	/** Lightweight TypeScript type string used for conservative compatibility checks. */
+	/** Self-contained TypeScript type expression enforced through compiler assignability. */
 	ts?: string
-	/** JSON Schema subset used for literal validation and schema compatibility. */
-	schema?: unknown
+	/** Canonical JSON Schema contract used for value and fragment compatibility. */
+	schema?: SupportedJsonSchema
 }
 
 /** Planner-facing suggestion for how to repair a diagnostic. */
@@ -97,8 +251,8 @@ export interface GeneratedFragment {
 	}
 	/** Optional TypeScript/JSON-schema type metadata for compatibility checks. */
 	type?: TypeDescriptor
-	/** Optional JSON Schema describing the generated value. */
-	schema?: unknown
+	/** @deprecated Put generated-value schema metadata in `type.schema`. */
+	schema?: SupportedJsonSchema
 	/** Optional lineage metadata for downstream inspection. */
 	provenance?: {
 		/** Graph node ID that produced the fragment. */
@@ -108,6 +262,8 @@ export interface GeneratedFragment {
 		/** Literal input values consumed by the template. */
 		literalInputs?: Record<string, unknown>
 	}
+	/** Persisted source ownership ranges for graph-aware diagnostic attribution. */
+	sourceMap?: GeneratedSourceMap
 	/** Diagnostics attached to this fragment, if a producer supplies them. */
 	diagnostics?: SynthesisDiagnostic[]
 }
@@ -223,8 +379,8 @@ interface RegionInputPort extends BaseInputPort {
 export interface LiteralInputPort extends RegionInputPort {
 	/** Port discriminator for JSON-like literal inputs. */
 	kind: 'literal'
-	/** Optional JSON Schema subset used to validate the literal value. */
-	schema?: unknown
+	/** Optional supported JSON Schema used to validate the literal value. */
+	schema?: SupportedJsonSchema
 }
 
 /** A reference to another generated fragment with kind/type/source checks. */
@@ -286,8 +442,8 @@ export interface OutputPort {
 	kind: RegionKind
 	/** Optional TypeScript/JSON-schema type metadata for compatibility checks. */
 	type?: TypeDescriptor
-	/** Optional JSON Schema describing the generated output. */
-	schema?: unknown
+	/** @deprecated Put generated-output schema metadata in `type.schema`. */
+	schema?: SupportedJsonSchema
 	/** Human-readable output description for planners and summaries. */
 	description?: string
 }
@@ -375,9 +531,41 @@ export interface SynthesisGoal {
 	outputKind?: RegionKind
 	/** Final fragment type metadata. */
 	type?: TypeDescriptor
-	/** Final fragment JSON Schema metadata. */
-	schema?: unknown
+	/** @deprecated Put final-fragment schema metadata in `type.schema`. */
+	schema?: SupportedJsonSchema
 }
+
+/** Immutable, local graph edits accepted by the runner repair protocol. */
+export type GraphPatchAction =
+	| { kind: 'addNode'; node: SynthesisNode }
+	| { kind: 'removeNode'; nodeId: string }
+	| { kind: 'setInput'; nodeId: string; inputName: string; input: SynthesisInput }
+	| { kind: 'removeInput'; nodeId: string; inputName: string }
+	| { kind: 'setFinalNode'; nodeId: string }
+	| { kind: 'setGoal'; goal: SynthesisGoal }
+	| { kind: 'removeGoal' }
+
+/** Any explicit action accepted by `GraphRunner.advance()`. */
+export type GraphRunnerAction =
+	| GraphPatchAction
+	| { kind: 'replaceGraph'; graph: SynthesisGraph }
+	| { kind: 'fill'; inputs: TemplateArtifactInputMap }
+
+/** Transactional result returned by `applyGraphPatch()`. */
+export type GraphPatchResult =
+	| {
+			kind: 'graphPatch'
+			ok: true
+			graph: SynthesisGraph
+			diagnostics: SynthesisDiagnostic[]
+	  }
+	| {
+			kind: 'graphPatch'
+			ok: false
+			classification: 'graphRepairable'
+			graph: SynthesisGraph
+			diagnostics: SynthesisDiagnostic[]
+	  }
 
 /** Minimal graph shape accepted by typed graph authoring helpers. */
 export type AuthoredGraphNode = {
@@ -456,6 +644,7 @@ export type GraphCompilationResult<M extends GraphCompilationMode = 'strict'> =
 			kind: 'graphCompilation'
 			mode: M
 			ok: false
+			classification: Exclude<SynthesisFailureClassification, 'artifactFillable'>
 			diagnostics: SynthesisDiagnostic[]
 			partialArtifacts?: Record<string, GraphArtifactForMode<M>>
 	  }
@@ -480,6 +669,8 @@ export type TemplateArtifactResult =
 			kind: 'templateArtifact'
 			/** Failure discriminator. */
 			ok: false
+			/** Contextual repair channel for this failed artifact operation. */
+			classification: Exclude<SynthesisFailureClassification, 'graphRepairable'>
 			/** Error and warning diagnostics collected while filling. */
 			diagnostics: SynthesisDiagnostic[]
 			/** Best-effort artifact produced before failure, when available. */
@@ -579,8 +770,30 @@ export interface GraphTemplateDefinition<
 	summary(): TemplateSummary
 }
 
+/** A real or caller-supplied target file into which an artifact is virtually inserted. */
+export interface SemanticTargetFileContext {
+	/** Target source-file identity used by TypeScript and graph diagnostics. */
+	filePath: string
+	/** Zero-based UTF-16 offset at which the insertion/replacement starts. */
+	start: number
+	/** Exclusive replacement end offset; defaults to `start` for pure insertion. */
+	end?: number
+	/** Optional unsaved target source; omit to load `filePath` from disk. */
+	sourceText?: string
+}
+
+/** Optional insertion-site context used by graph semantic validation. */
+export interface GraphSemanticContext {
+	/** Declarations or imports made available to a synthetic validation wrapper. */
+	prelude?: string
+	/** Real file context used for virtual insertion and local-scope resolution. */
+	targetFile?: SemanticTargetFileContext
+}
+
 /** Graph compilation options are the normal generation options. */
 export interface GraphCompileOptions extends GenerateOptions {
+	/** @deprecated Graph compilation derives validation wrappers from each artifact kind. */
+	templateMode?: TemplateMode
 	/**
 	 * Stable caller-selected namespace for unresolved artifact input IDs.
 	 *
@@ -592,9 +805,7 @@ export interface GraphCompileOptions extends GenerateOptions {
 	/** Reject compilation when the active catalog does not match this digest. */
 	expectedCatalogDigest?: string
 	/** Optional declarations or imports prepended during graph semantic validation. */
-	semanticContext?: {
-		prelude?: string
-	}
+	semanticContext?: GraphSemanticContext
 }
 
 /** Options for the unified graph compiler. */
@@ -624,8 +835,8 @@ export interface LiteralInputPortSummary extends BasePortSummary {
 	kind: 'literal'
 	/** Replacement region kind the literal feeds. */
 	regionKind: RegionKind
-	/** JSON Schema subset used to validate literal values, when provided. */
-	schema?: unknown
+	/** Supported JSON Schema used to validate literal values, when provided. */
+	schema?: SupportedJsonSchema
 }
 
 export interface FragmentInputPortSummary extends BasePortSummary {
@@ -676,8 +887,8 @@ export interface OutputPortSummary {
 	kind: RegionKind
 	/** Type metadata advertised by the template output, when provided. */
 	type?: TypeDescriptor
-	/** JSON Schema advertised by the template output, when provided. */
-	schema?: unknown
+	/** Deprecated schema alias advertised by the template output, when provided. */
+	schema?: SupportedJsonSchema
 	/** Human-readable output description, when provided. */
 	description?: string
 }

@@ -2,6 +2,7 @@ import { P } from "ts-pattern";
 import { describe, expect, it } from "vitest";
 import {
   buildGraphCompiler,
+  compareTypeDescriptors,
   compileGraph,
   createTemplateRegistry,
   defineGraph,
@@ -520,6 +521,23 @@ describe("schema-driven synthesis graph", () => {
     )).toBe(true);
     expect(validateJsonSchemaSubset("strict", { enum: ["strict", "loose"] }).ok).toBe(true);
     expect(validateJsonSchemaSubset("other", { const: "strict" }).ok).toBe(false);
+  });
+
+  it("returns structured canonical descriptor comparison results", () => {
+    expect(compareTypeDescriptors(
+      { ts: "'ready'", schema: { const: "ready" } },
+      { ts: "string", schema: { type: "string" } }
+    ).status).toBe("compatible");
+    expect(compareTypeDescriptors(
+      { ts: "string | number" },
+      { ts: "string" }
+    ).status).toBe("incompatible");
+    expect(compareTypeDescriptors(
+      { schema: { type: "string", pattern: "^producer" } },
+      { schema: { type: "string", pattern: "^consumer" } }
+    ).status).toBe("indeterminate");
+    expect(compareTypeDescriptors({ ts: "any" }, { ts: "unknown" }).status).toBe("invalid");
+    expect(compareTypeDescriptors({ ts: 42 } as never, undefined).status).toBe("invalid");
   });
 
   it("serializes LLM-facing template summaries without template internals", () => {
@@ -1475,6 +1493,74 @@ describe("schema-driven synthesis graph", () => {
     expect(result.diagnostics.some(diagnostic => diagnostic.code === "FinalGoalTypeMismatch")).toBe(true);
   });
 
+  it("validates goal descriptors and deprecated schema aliases before compilation", () => {
+    const graph: SynthesisGraph = {
+      ...validGraph(),
+      goal: {
+        type: { ts: "unknown", schema: { const: "nested" } },
+        schema: { const: "alias" }
+      }
+    };
+
+    const result = compileGraph(graph, createGraphRegistry());
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.classification).toBe("graphRepairable");
+    expect(result.diagnostics.map(diagnostic => diagnostic.code)).toContain("ConflictingSchemaMetadata");
+
+    const invalid = compileGraph({
+      ...validGraph(),
+      goal: { type: { ts: "any" } }
+    }, createGraphRegistry());
+    expect(invalid.ok).toBe(false);
+    expect(invalid.diagnostics.map(diagnostic => diagnostic.code)).toContain("ForbiddenAnyType");
+
+    const malformed = compileGraph({
+      ...validGraph(),
+      goal: {
+        type: { ts: 42 } as never,
+        schema: { type: "array", items: { type: "boolean" } }
+      }
+    }, createGraphRegistry());
+    expect(malformed.ok).toBe(false);
+    if (!malformed.ok) expect(malformed.classification).toBe("graphRepairable");
+    expect(malformed.diagnostics.map(diagnostic => diagnostic.code)).toContain("InvalidTypeScriptType");
+  });
+
+  it("rejects indeterminate fragment schema compatibility distinctly", () => {
+    const producer = defineTemplate({
+      modelId: "PatternProducer",
+      inputs: {},
+      output: {
+        kind: "expression",
+        type: { schema: { type: "string", pattern: "^producer" } }
+      },
+      template: () => '"producer"'
+    });
+    const consumer = defineTemplate({
+      modelId: "PatternConsumer",
+      inputs: {
+        value: fragmentPort({
+          regionKind: "expression",
+          accepts: { type: { schema: { type: "string", pattern: "^consumer" } } }
+        })
+      },
+      output: { kind: "expression" },
+      template: region => `consume(${region("value")})`
+    });
+
+    const result = compileGraph({
+      nodes: [
+        { id: "producer", templateId: producer.modelId, inputs: {} },
+        { id: "consumer", templateId: consumer.modelId, inputs: { value: { $ref: "producer" } } }
+      ],
+      finalNodeId: "consumer"
+    }, [producer, consumer]);
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostics.map(diagnostic => diagnostic.code)).toContain("SchemaCompatibilityIndeterminate");
+  });
+
   it("preserves legacy pattern-based defineTemplate compatibility", () => {
     const legacy = defineTemplate({
       modelId: "LegacyAddOne",
@@ -1573,6 +1659,7 @@ describe("schema-driven synthesis graph", () => {
     });
 
     expect(checked.ok).toBe(false);
+    if (!checked.ok) expect(checked.classification).toBe("graphRepairable");
     const diagnostic = checked.diagnostics.find(item => item.code === "TypeScriptSemanticError");
     expect(diagnostic).toMatchObject({
       stage: "type",
@@ -1585,6 +1672,72 @@ describe("schema-driven synthesis graph", () => {
       line: 1
     });
     expect(diagnostic?.column).toBeGreaterThan(0);
+  });
+
+  it("semantically enforces an expression artifact's advertised TypeScript type", () => {
+    const incorrectlyAdvertised = defineTemplate({
+      modelId: "IncorrectlyAdvertisedExpression",
+      inputs: {},
+      output: { kind: "expression", type: { ts: "number" } },
+      template: () => '"not a number"'
+    });
+
+    expect(compileGraph({
+      nodes: [{ id: "value", templateId: incorrectlyAdvertised.modelId, inputs: {} }],
+      finalNodeId: "value"
+    }, [incorrectlyAdvertised]).ok).toBe(true);
+
+    const checked = compileGraph({
+      nodes: [{ id: "value", templateId: incorrectlyAdvertised.modelId, inputs: {} }],
+      finalNodeId: "value"
+    }, [incorrectlyAdvertised], { checkSemanticDiagnostics: true });
+
+    expect(checked.ok).toBe(false);
+    expect(checked.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "TypeScriptSemanticError",
+        compilerCode: 2322,
+        nodeId: "value",
+        templateId: incorrectlyAdvertised.modelId
+      })
+    ]));
+  });
+
+  it("semantically enforces an expression-suffix artifact's advertised TypeScript type", () => {
+    const incorrectlyAdvertised = defineTemplate({
+      modelId: "IncorrectlyAdvertisedSuffix",
+      inputs: {},
+      output: { kind: "expressionSuffix", type: { ts: "boolean" } },
+      template: () => ".length"
+    });
+
+    const graph: SynthesisGraph = {
+      nodes: [{ id: "suffix", templateId: incorrectlyAdvertised.modelId, inputs: {} }],
+      finalNodeId: "suffix"
+    };
+    expect(compileGraph(graph, [incorrectlyAdvertised]).ok).toBe(true);
+
+    const checked = compileGraph(graph, [incorrectlyAdvertised], { checkSemanticDiagnostics: true });
+    expect(checked.ok).toBe(false);
+    expect(checked.diagnostics).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "TypeScriptSemanticError",
+        compilerCode: 2322,
+        nodeId: "suffix",
+        templateId: incorrectlyAdvertised.modelId
+      })
+    ]));
+
+    const explicitlyNarrowed = defineTemplate({
+      modelId: "AdvertisedConcreteSuffix",
+      inputs: {},
+      output: { kind: "expressionSuffix", type: { ts: "boolean" } },
+      template: () => " as boolean"
+    });
+    expect(compileGraph({
+      nodes: [{ id: "suffix", templateId: explicitlyNarrowed.modelId, inputs: {} }],
+      finalNodeId: "suffix"
+    }, [explicitlyNarrowed], { checkSemanticDiagnostics: true }).ok).toBe(true);
   });
 
   it("uses a semantic prelude to provide insertion-site bindings", () => {

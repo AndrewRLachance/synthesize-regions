@@ -2,7 +2,7 @@ import { P } from "ts-pattern"
 import { Node, SyntaxKind, ts } from "ts-morph"
 import type { ReplacementMap, Replacement, MarkerExpectedKind, ReplacementExpression, ReplacementExpressionSuffix, ReplacementObjectProperty, ReplacementStatement, ReplacementValue } from "../core/types.js"
 import { createProject, createSourceFile } from "../validation/ast.js"
-import { validateJsonSchemaSubset } from "./compatibility.js"
+import { validateJsonValueAgainstSchema } from "./schemaCompatibility.js"
 import type { ResolvedGraphInput } from "./graphTypes.js"
 
 /**
@@ -306,9 +306,13 @@ function replacementFromRawCode(input: Extract<ResolvedGraphInput, { kind: 'rawC
 }
 
 function replacementFromLiteral(input: Extract<ResolvedGraphInput, { kind: 'literal' }>): ReplacementValue {
-  const schemaResult = validateJsonSchemaSubset(input.value, input.port.schema)
-  if (!schemaResult.ok) {
-    throw new ReplacementSchemaError(schemaResult.message)
+  if (input.port.schema !== undefined) {
+    const schemaResult = validateJsonValueAgainstSchema(input.value, input.port.schema)
+    if (!schemaResult.ok) {
+      throw new ReplacementSchemaError(
+        schemaResult.issues[0]?.message ?? 'literal value does not satisfy its JSON Schema'
+      )
+    }
   }
 
   return markerReplacementSchemas[input.port.regionKind].parse(input.value)

@@ -10,6 +10,8 @@ import type {
 import type { StrictTemplateCatalog } from "./graphStrictTypes.js";
 import { REGION_KIND_VALUES } from "./graphTypes.js";
 import { portIsRequired } from "./compatibility.js";
+import { SupportedJsonSchemaSchema } from './schemaContract.js'
+import { schemaWithResourceId } from './schemaCompatibility.js'
 import { assertTemplateCatalogValid, TemplateCatalogValidationError } from "./catalogValidation.js";
 import {
   cloneTemplateSummaries,
@@ -89,16 +91,69 @@ function rawCodeSchemaFromPolicy(policy: RawCodePolicy | undefined): Record<stri
   return codeSchema;
 }
 
-function inputSchemaForPort(port: InputPort): Record<string, unknown> {
+interface PlannerSchemaResourceContext {
+  readonly contractDigest: string;
+  readonly inputPath: string;
+  readonly resources: Map<string, Record<string, unknown>> | undefined;
+}
+
+function plannerSchemaSafePath(inputPath: string): string {
+  return [...inputPath]
+    .map(character => /^[A-Za-z0-9._-]$/u.test(character)
+      ? character
+      : `_${character.codePointAt(0)!.toString(16)}_`)
+    .join("");
+}
+
+function plannerSchemaResourceId(context: PlannerSchemaResourceContext): string {
+  return `https://schemas.synthesize-regions.invalid/planner/${context.contractDigest}/${plannerSchemaSafePath(context.inputPath)}`;
+}
+
+function plannerSchemaResourceKey(context: PlannerSchemaResourceContext): string {
+  return `${context.contractDigest}_${plannerSchemaSafePath(context.inputPath)}`;
+}
+
+function plannerSchemaResourceReference(context: PlannerSchemaResourceContext): string {
+  return `#/$defs/plannerSchemas/${plannerSchemaResourceKey(context)}`;
+}
+
+function plannerSchemaResource(portSchema: NonNullable<Extract<InputPort, { kind: "literal" }>["schema"]>, id: string): Record<string, unknown> {
+  const resource = schemaWithResourceId(portSchema, id);
+  // Ajv recursively resolves an embedded resource whose root is itself a
+  // `$ref`. Express the same conjunction through allOf so the generated `$id`
+  // remains a stable resource boundary without triggering that resolver loop.
+  if (typeof resource.$ref !== "string") return resource;
+  const { $ref, allOf, ...rest } = resource;
+  return {
+    ...rest,
+    allOf: [
+      { $ref },
+      ...(Array.isArray(allOf) ? allOf : [])
+    ]
+  };
+}
+
+function inputSchemaForPort(
+  port: InputPort,
+  context: PlannerSchemaResourceContext
+): Record<string, unknown> {
   switch (port.kind) {
     case "literal":
+      if (port.schema !== undefined && context.resources !== undefined) {
+        const resourceId = plannerSchemaResourceId(context);
+        context.resources.set(plannerSchemaResourceKey(context), plannerSchemaResource(port.schema, resourceId));
+      }
       return {
         type: "object",
         additionalProperties: false,
         required: ["kind", "value"],
         properties: {
           kind: { const: "literal" },
-          value: port.schema ?? true
+          value: port.schema === undefined
+            ? true
+            : context.resources === undefined
+              ? plannerSchemaResource(port.schema, plannerSchemaResourceId(context))
+              : { $ref: plannerSchemaResourceReference(context) }
         }
       };
     case "fragment":
@@ -138,7 +193,10 @@ function inputSchemaForPort(port: InputPort): Record<string, unknown> {
       };
     case "union":
       return {
-        anyOf: port.options.map(inputSchemaForPort)
+        anyOf: port.options.map((option, index) => inputSchemaForPort(option, {
+          ...context,
+          inputPath: `${context.inputPath}.options[${index}]`
+        }))
       };
   }
 }
@@ -186,7 +244,7 @@ function typeDescriptorSchema(): Record<string, unknown> {
     additionalProperties: false,
     properties: {
       ts: { type: "string" },
-      schema: true
+      schema: { $ref: "#/$defs/supportedJsonSchema" }
     }
   };
 }
@@ -198,7 +256,7 @@ function synthesisGoalSchema(): Record<string, unknown> {
     properties: {
       outputKind: regionKindSchema(),
       type: { $ref: "#/$defs/typeDescriptor" },
-      schema: true
+      schema: { $ref: "#/$defs/supportedJsonSchema" }
     }
   };
 }
@@ -229,6 +287,7 @@ function sharedGraphSchemaDefs(synthesisNodeSchema: Record<string, unknown> = ge
     synthesisInput: genericSynthesisInputSchema(),
     synthesisGoal: synthesisGoalSchema(),
     typeDescriptor: typeDescriptorSchema(),
+    supportedJsonSchema: JSON.parse(JSON.stringify(SupportedJsonSchemaSchema)) as Record<string, unknown>,
     regionKind: regionKindSchema()
   };
 }
@@ -243,9 +302,21 @@ function sharedGraphSchemaDefs(synthesisNodeSchema: Record<string, unknown> = ge
 export function graphTemplateDefinitionToNodeSchema(
   template: GraphTemplateDefinition<any, string>
 ): Record<string, unknown> {
+  return graphTemplateDefinitionToNodeSchemaWithResources(template);
+}
+
+function graphTemplateDefinitionToNodeSchemaWithResources(
+  template: GraphTemplateDefinition<any, string>,
+  resources?: Map<string, Record<string, unknown>>
+): Record<string, unknown> {
   const inputEntries = Object.entries(template.inputs) as Array<[string, InputPort]>;
+  const contractDigest = templateSummaryContractDigest([template.summary()]);
   const inputProperties = Object.fromEntries(
-    inputEntries.map(([key, port]) => [key, inputSchemaForPort(port)])
+    inputEntries.map(([key, port]) => [key, inputSchemaForPort(port, {
+      contractDigest,
+      inputPath: `inputs.${key}`,
+      resources
+    })])
   );
   const requiredInputs = inputEntries
     .filter(([, port]) => portIsRequired(port))
@@ -277,10 +348,17 @@ export function graphTemplateDefinitionToNodeSchema(
 export function graphTemplateDefinitionToJsonSchema(
   template: GraphTemplateDefinition<any, string>
 ): Record<string, unknown> {
+  const resources = new Map<string, Record<string, unknown>>();
+  const nodeSchema = graphTemplateDefinitionToNodeSchemaWithResources(template, resources);
   return {
     $schema: JSON_SCHEMA_URI,
-    ...graphTemplateDefinitionToNodeSchema(template),
-    $defs: sharedGraphSchemaDefs()
+    ...nodeSchema,
+    $defs: {
+      ...sharedGraphSchemaDefs(),
+      plannerSchemas: Object.fromEntries(
+        resources.entries()
+      )
+    }
   };
 }
 
@@ -299,9 +377,10 @@ export function templateRegistryToSynthesisGraphJsonSchema(
   registry: TemplateCatalogView
 ): Record<string, unknown> {
   const templates = registry.list();
+  const resources = new Map<string, Record<string, unknown>>();
   const templateNodeSchemaEntries = templates.map((template, index) => [
     `template${index}`,
-    graphTemplateDefinitionToNodeSchema(template)
+    graphTemplateDefinitionToNodeSchemaWithResources(template, resources)
   ] as const);
 
   const synthesisNodeSchema: Record<string, unknown> = templateNodeSchemaEntries.length === 0
@@ -329,7 +408,10 @@ export function templateRegistryToSynthesisGraphJsonSchema(
     },
     $defs: {
       ...sharedGraphSchemaDefs(synthesisNodeSchema),
-      templateNodes: Object.fromEntries(templateNodeSchemaEntries)
+      templateNodes: Object.fromEntries(templateNodeSchemaEntries),
+      plannerSchemas: Object.fromEntries(
+        resources.entries()
+      )
     }
   };
 }

@@ -8,6 +8,7 @@ import {
 	fragmentCollectionPort,
 	fragmentPort,
 	rawCodePort,
+	validateTemplateArtifactIntegrity,
 	type CompleteTemplateArtifact,
 	type GraphCompileOptions,
 	type GraphPartialCompilationResult,
@@ -258,18 +259,194 @@ describe('artifact fill-key resolution', () => {
 		const artifact = completeExpression()
 		const inputs = { value: { kind: 'rawCode' as const, code: 'ignored' } }
 
-		expectDiagnostic(fillTemplateArtifact(artifact, inputs), 'ArtifactAlreadyComplete')
+		const filled = fillTemplateArtifact(artifact, inputs)
+		expectDiagnostic(filled, 'ArtifactAlreadyComplete')
+		if (!filled.ok) expect(filled.classification).toBe('terminalFailure')
 		expectDiagnostic(finalizeTemplateArtifact(artifact, inputs), 'ArtifactAlreadyComplete')
+	})
+
+	it('treats semantic corruption in an already-complete persisted artifact as terminal', () => {
+		const artifact: CompleteTemplateArtifact = {
+			...completeExpression('"wrong"'),
+			type: { ts: 'number' }
+		}
+		const result = fillTemplateArtifact(artifact, {}, { checkSemanticDiagnostics: true })
+		expectDiagnostic(result, 'TypeScriptSemanticError')
+		if (!result.ok) expect(result.classification).toBe('terminalFailure')
 	})
 })
 
 describe('artifact marker invariants', () => {
+	it('rejects persisted source spans that are reversed or outside artifact code', () => {
+		const artifact: CompleteTemplateArtifact = {
+			...completeExpression(),
+			sourceMap: {
+				version: 1,
+				spans: [
+					{
+						kind: 'node', start: 4, end: 2, nestingDepth: 0,
+						nodeId: 'complete', templateId: 'CompleteExpression'
+					},
+					{
+						kind: 'input', start: 0, end: 99, nestingDepth: 0,
+						nodeId: 'complete', templateId: 'CompleteExpression', inputName: 'value'
+					}
+				]
+			}
+		}
+
+		const result = fillTemplateArtifact(artifact, {})
+		expectDiagnostic(result, 'InvalidGeneratedSourceMap')
+		if (!result.ok) expect(result.classification).toBe('terminalFailure')
+		expect(result.diagnostics.filter(diagnostic => diagnostic.code === 'InvalidGeneratedSourceMap'))
+			.toHaveLength(2)
+	})
+
+	it('keeps an invalid source map on a supplied child artifact fillable', () => {
+		const slot: UnresolvedTemplateInput = {
+			id: 'slot', inputName: 'slot', nodeId: 'outer', templateId: 'Outer',
+			port: fragmentPort({ regionKind: 'expression', accepts: {} })
+		}
+		const outer = partialExpression(marker('slot'), [slot], 'outer')
+		const invalidChild: CompleteTemplateArtifact = {
+			id: 'child', code: '1', kind: 'expression',
+			source: { templateId: 'ManualChild' }, complete: true,
+			sourceMap: {
+				version: 1,
+				spans: [{
+					kind: 'node', start: 0, end: 2, nestingDepth: 0,
+					nodeId: 'child', templateId: 'ManualChild'
+				}]
+			}
+		}
+
+		const result = fillTemplateArtifact(outer, {
+			slot: { kind: 'fragment', fragment: invalidChild }
+		})
+		expectDiagnostic(result, 'InvalidGeneratedSourceMap')
+		if (!result.ok) {
+			expect(result.classification).toBe('artifactFillable')
+			expect(result.artifact).toBe(outer)
+		}
+	})
+
+	it('treats invalid persisted output and unresolved-port metadata as terminal corruption', () => {
+		const unresolved: UnresolvedTemplateInput = {
+			id: 'value',
+			inputName: 'value',
+			nodeId: 'artifact',
+			templateId: 'InvalidMetadataArtifact',
+			port: rawCodePort({
+				regionKind: 'expression',
+				type: { ts: 'any' },
+				policy: { forbiddenPatterns: ['['] }
+			})
+		}
+		const artifact: PartialTemplateArtifact = {
+			...partialExpression(marker('value'), [unresolved]),
+			type: { ts: 'any' }
+		}
+
+		const result = fillTemplateArtifact(artifact, {})
+		expect(result.ok).toBe(false)
+		if (result.ok) return
+		expect(result.classification).toBe('terminalFailure')
+		expect(result.diagnostics.map(diagnostic => diagnostic.code)).toEqual(
+			expect.arrayContaining(['ForbiddenAnyType', 'InvalidRawCodePolicy'])
+		)
+	})
+
+	it('classifies malformed persisted and child port shapes without throwing', () => {
+		const malformedInput = {
+			...rawInput('value'),
+			port: { kind: 'union', options: null }
+		} as unknown as UnresolvedTemplateInput
+		const malformedParent = partialExpression(marker('value'), [malformedInput])
+		const malformedOutput = {
+			...malformedParent,
+			type: { ts: 42 }
+		} as unknown as PartialTemplateArtifact
+
+		const parentResult = fillTemplateArtifact(malformedOutput, {})
+		expectDiagnostic(parentResult, 'MalformedTemplateArtifact')
+		if (!parentResult.ok) expect(parentResult.classification).toBe('terminalFailure')
+
+		const slot: UnresolvedTemplateInput = {
+			id: 'slot', inputName: 'slot', nodeId: 'outer', templateId: 'Outer',
+			port: fragmentPort({ regionKind: 'expression', accepts: {} })
+		}
+		const outer = partialExpression(marker('slot'), [slot], 'outer')
+		const malformedChild = partialExpression(marker('value'), [malformedInput], 'child')
+		const childResult = fillTemplateArtifact(outer, {
+			slot: { kind: 'fragment', fragment: malformedChild }
+		})
+		expectDiagnostic(childResult, 'MalformedTemplateArtifact')
+		if (!childResult.ok) {
+			expect(childResult.classification).toBe('artifactFillable')
+			expect(childResult.artifact).toBe(outer)
+		}
+	})
+
+	it('preserves metadata diagnostics when persisted marker discovery also fails', () => {
+		const artifact: PartialTemplateArtifact = {
+			...partialExpression('/** @TYPE expression id=value **/undefined', [rawInput('value')]),
+			type: { ts: 'any' }
+		}
+		const result = fillTemplateArtifact(artifact, {})
+		expect(result.ok).toBe(false)
+		expect(result.diagnostics.map(diagnostic => diagnostic.code)).toEqual(
+			expect.arrayContaining(['ForbiddenAnyType', 'MalformedArtifactMarkers'])
+		)
+	})
+
+	it('reports invalid legacy artifact schema details at the persisted alias path', () => {
+		const artifact = {
+			...completeExpression(),
+			schema: { type: 'not-a-json-schema-type' }
+		} as unknown as CompleteTemplateArtifact
+
+		const diagnostics = validateTemplateArtifactIntegrity(artifact)
+		const schemaDiagnostics = diagnostics.filter(diagnostic => diagnostic.code === 'InvalidJsonSchema')
+		expect(schemaDiagnostics.length).toBeGreaterThan(0)
+		expect(schemaDiagnostics.every(diagnostic => diagnostic.path === 'schema.type')).toBe(true)
+	})
+
+	it('keeps invalid metadata on a supplied child fragment artifact-fillable', () => {
+		const slot: UnresolvedTemplateInput = {
+			id: 'slot',
+			inputName: 'slot',
+			nodeId: 'outer',
+			templateId: 'Outer',
+			port: fragmentPort({ regionKind: 'expression', accepts: {} })
+		}
+		const outer = partialExpression(marker('slot'), [slot], 'outer')
+		const invalidChild: CompleteTemplateArtifact = {
+			id: 'child',
+			code: '1',
+			kind: 'expression',
+			source: { templateId: 'ManualChild' },
+			type: { ts: 'any' },
+			complete: true
+		}
+
+		const result = fillTemplateArtifact(outer, {
+			slot: { kind: 'fragment', fragment: invalidChild }
+		})
+		expect(result.ok).toBe(false)
+		if (result.ok) return
+		expect(result.classification).toBe('artifactFillable')
+		expect(result.artifact).toBe(outer)
+		expect(result.diagnostics.map(diagnostic => diagnostic.code)).toContain('ForbiddenAnyType')
+	})
+
 	it('rejects duplicate unresolved metadata IDs', () => {
 		const artifact = partialExpression(marker('duplicate'), [
 			rawInput('duplicate', 'first', 'firstNode'),
 			rawInput('duplicate', 'second', 'secondNode')
 		])
-		expectDiagnostic(fillTemplateArtifact(artifact, {}), 'DuplicateUnresolvedInputId')
+		const result = fillTemplateArtifact(artifact, {})
+		expectDiagnostic(result, 'DuplicateUnresolvedInputId')
+		if (!result.ok) expect(result.classification).toBe('terminalFailure')
 	})
 
 	it('rejects unresolved metadata without a corresponding marker', () => {
@@ -334,6 +511,7 @@ describe('artifact marker invariants', () => {
 			slot: { kind: 'fragment', fragment: child }
 		})
 		expectDiagnostic(result, 'ArtifactInputIdCollision')
+		if (!result.ok) expect(result.classification).toBe('artifactFillable')
 	})
 })
 
