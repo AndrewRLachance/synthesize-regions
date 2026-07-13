@@ -43,6 +43,10 @@ try {
 		packedManifest.dependencies?.ajv,
 		'Ajv must be published as a runtime dependency because schema validation is part of the root API.'
 	)
+	await assertPathExists(
+		join(packedPackageDirectory, 'GLOSSARY.md'),
+		'The packed package must contain the glossary linked from its README.'
+	)
 	await verifyManifestTargets(packedPackageDirectory, packedManifest)
 
 	const schemaSubpaths = getJsonExportSubpaths(packedManifest)
@@ -227,6 +231,19 @@ assert.equal(packageModule.isGeneratedSourceMap(sourceMap), true)
 assert.equal(packageModule.checkContract(packageModule.GeneratedSourceMapSchema, sourceMap), true)
 assert.equal(packageModule.isGeneratedSourceMap({ version: 2, spans: [] }), false)
 
+const boundedSource = '/** @TEMPLATE id=Value output=expression **/\\n/** @TYPE number id=value **/ 0 /** @END **/\\n/** @END_TEMPLATE **/'
+const [discoveredTemplate] = packageModule.discoverSourceTemplates(boundedSource)
+assert.equal(discoveredTemplate.id, 'Value')
+assert.equal(discoveredTemplate.regions[0].id, 'value')
+assert.equal(
+	packageModule.generateSourceTemplateWithReplacements(
+		boundedSource,
+		'Value',
+		{ value: { kind: 'number', value: 42 } }
+	).code.trim(),
+	'42'
+)
+
 const require = createRequire(import.meta.url)
 const { default: Ajv2020 } = await import('ajv/dist/2020.js')
 const ajv = new Ajv2020({ allErrors: true, strict: true })
@@ -281,11 +298,14 @@ import {
 	compareJsonSchemas,
 	compareTypeDescriptors,
 	compareTypeScriptTypes,
+	discoverSourceTemplates,
+	generateSourceTemplateWithReplacements,
 	validateJsonValueAgainstSchema,
 	validateSupportedJsonSchema,
 	validateTypeScriptType,
 	isGeneratedSourceMap,
 	type TypeDescriptorComparisonResult,
+	type DiscoveredSourceTemplate,
 	type GeneratedSourceMap,
 	type GeneratedSourceSpan,
 	type JsonValue,
@@ -327,6 +347,13 @@ const sourceMapVersion: 1 = GENERATED_SOURCE_MAP_VERSION
 const sourceSpanKinds: readonly ['node', 'input'] = GENERATED_SOURCE_SPAN_KIND_VALUES
 const sourceMapMatchesContract: boolean = checkContract(GeneratedSourceMapSchema, generatedSourceMap)
 const sourceMapGuarded: boolean = isGeneratedSourceMap(generatedSourceMap)
+const boundedSource = '/** @TEMPLATE id=Value output=expression **/\\n/** @TYPE number id=value **/ 0 /** @END **/\\n/** @END_TEMPLATE **/'
+const discoveredTemplate: DiscoveredSourceTemplate = discoverSourceTemplates(boundedSource)[0]!
+const generatedTemplateCode: string = generateSourceTemplateWithReplacements(
+	boundedSource,
+	'Value',
+	{ value: { kind: 'number', value: 42 } }
+).code
 
 void graph
 void summary
@@ -342,6 +369,8 @@ void sourceMapVersion
 void sourceSpanKinds
 void sourceMapMatchesContract
 void sourceMapGuarded
+void discoveredTemplate
+void generatedTemplateCode
 void compareJsonSchemas
 void compareTypeScriptTypes
 void validateJsonValueAgainstSchema

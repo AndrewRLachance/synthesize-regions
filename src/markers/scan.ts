@@ -23,6 +23,9 @@ function cleanCommentContent(commentText: string): string {
 }
 
 function isMarkerContent(content: string): boolean {
+  // Source-template boundaries form an outer grammar and may contain @TYPE
+  // regions. They are paired by source-template discovery, not this scanner.
+  if (content.startsWith("@TEMPLATE") || content === "@END_TEMPLATE") return false;
   return content.startsWith("@TYPE") || content.startsWith("@END");
 }
 

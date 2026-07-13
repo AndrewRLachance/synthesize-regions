@@ -1,9 +1,18 @@
 import { readFileSync } from "node:fs";
+import { FinalValidationError, InvalidSourceTemplateBoundaryError } from "../core/errors.js";
 import { buildReplacementEdits, type PlannedReplacementEdit } from "../replacements/serialize.js";
-import { discoverReplacementRegions } from "../regions/discovery.js";
+import { discoverReplacementRegions, discoverSourceTemplates } from "../regions/discovery.js";
 import { wrapTemplateSource } from "../templates/templateMode.js";
+import { validateVirtualSemanticTarget } from "../templates/semanticTarget.js";
 import { createProject, createSourceFile, assertFinalValid, diagnosticMessages } from "../validation/ast.js";
-import type { GenerateOptions, GenerateResult, ReplacementMap, TemplateMode } from "../core/types.js";
+import type {
+  DiscoveredSourceTemplate,
+  GenerateDiscoveredSourceTemplateOptions,
+  GenerateOptions,
+  GenerateResult,
+  ReplacementMap,
+  TemplateMode
+} from "../core/types.js";
 
 /**
  * Generate TypeScript by replacing every discovered marker region.
@@ -52,6 +61,87 @@ export function generateFileWithReplacements(
 ): GenerateResult {
   const sourceText = readFileSync(inputFilePath, "utf8");
   return generateWithReplacements(sourceText, replacements, {
+    ...options,
+    filePath: options.filePath ?? inputFilePath
+  });
+}
+
+/** Generate only the body of an explicitly discovered source template. */
+export function generateDiscoveredSourceTemplate(
+  template: DiscoveredSourceTemplate,
+  replacements: ReplacementMap,
+  options: GenerateDiscoveredSourceTemplateOptions = {}
+): GenerateResult {
+  const filePath = options.filePath ?? template.filePath;
+  const result = generateWithReplacements(template.sourceText, replacements, {
+    ...options,
+    ...(filePath ? { filePath } : {}),
+    checkSemanticDiagnostics: false,
+    templateMode: template.templateMode
+  });
+
+  if (!options.checkSemanticDiagnostics) return result;
+
+  const validationFilePath = filePath ?? "__synthesize_regions_source_template__.ts";
+  const semanticResult = validateVirtualSemanticTarget({
+    targetFile: {
+      filePath: validationFilePath,
+      sourceText: template.containingSourceText,
+      start: template.bodyStart,
+      end: template.bodyEnd
+    },
+    artifact: {
+      code: result.code,
+      kind: template.outputKind
+    },
+    ...(options.tsConfigFilePath ? { tsConfigFilePath: options.tsConfigFilePath } : {})
+  });
+  const semantic = semanticResult.diagnostics.map(diagnostic => {
+    const location = diagnostic.start === undefined ? "" : ` at ${diagnostic.start}`;
+    return `${diagnostic.message}${location}`;
+  });
+  if (semantic.length > 0) {
+    throw new FinalValidationError("Generated TypeScript failed final validation.", {
+      filePath: validationFilePath,
+      bodyText: semantic.join("\n")
+    });
+  }
+
+  return {
+    ...result,
+    diagnostics: { syntactic: result.diagnostics.syntactic, semantic }
+  };
+}
+
+/** Discover a named source-template boundary and generate only its body. */
+export function generateSourceTemplateWithReplacements(
+  sourceText: string,
+  templateId: string,
+  replacements: ReplacementMap,
+  options: GenerateDiscoveredSourceTemplateOptions = {}
+): GenerateResult {
+  const templates = discoverSourceTemplates(sourceText, {
+    ...(options.filePath ? { filePath: options.filePath } : {}),
+    ...(options.tsConfigFilePath ? { tsConfigFilePath: options.tsConfigFilePath } : {})
+  });
+  const template = templates.find(candidate => candidate.id === templateId);
+  if (!template) {
+    throw new InvalidSourceTemplateBoundaryError(`Unknown source-template id: ${templateId}`, {
+      id: templateId,
+      ...(options.filePath ? { filePath: options.filePath } : {})
+    });
+  }
+  return generateDiscoveredSourceTemplate(template, replacements, options);
+}
+
+/** File-based variant of `generateSourceTemplateWithReplacements`. */
+export function generateFileSourceTemplateWithReplacements(
+  inputFilePath: string,
+  templateId: string,
+  replacements: ReplacementMap,
+  options: GenerateDiscoveredSourceTemplateOptions = {}
+): GenerateResult {
+  return generateSourceTemplateWithReplacements(readFileSync(inputFilePath, "utf8"), templateId, replacements, {
     ...options,
     filePath: options.filePath ?? inputFilePath
   });

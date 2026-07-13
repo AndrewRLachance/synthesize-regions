@@ -25,7 +25,8 @@
   "files": [
     "dist",
     "schemas",
-    "README.md"
+    "README.md",
+    "GLOSSARY.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",

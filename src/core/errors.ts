@@ -60,3 +60,7 @@ export class EmptyManyReplacementError extends SynthesizeRegionsError {}
 export class SecurityPolicyViolationError extends SynthesizeRegionsError {}
 /** Generated output failed final syntactic or semantic validation. */
 export class FinalValidationError extends SynthesizeRegionsError {}
+/** A `@TEMPLATE` boundary was malformed, unmatched, or duplicated. */
+export class InvalidSourceTemplateBoundaryError extends SynthesizeRegionsError {}
+/** Source-template boundaries cannot be nested. */
+export class NestedSourceTemplateBoundaryError extends SynthesizeRegionsError {}

@@ -8,6 +8,9 @@ paired block comments. It scans template text, validates each marked placeholder
 against a TypeScript AST context, serializes structured replacement objects, and
 validates the generated TypeScript before returning it.
 
+See the [project glossary](./GLOSSARY.md) for terminology used by the
+replacement engine, synthesis graph, repair protocol, and validation layers.
+
 This is intentionally not a macro language. It does not execute template code,
 inject imports, resolve dependencies, or transform arbitrary AST nodes. It only
 replaces regions marked with `@TYPE` and `@END`.
@@ -832,8 +835,59 @@ import { code } from "synthesize-regions/builders";
 
 ## Discovery API
 
-Use discovery when an orchestrator needs to inspect a template before generating
-or loading replacements.
+Use source-template boundaries when a normal TypeScript file contains one or
+more templates. Only text between the paired comments is included in the
+template; surrounding imports, declarations, and other file content are not
+emitted.
+
+```ts
+import {
+  discoverFileSourceTemplates,
+  generateFileSourceTemplateWithReplacements
+} from "synthesize-regions";
+
+// routes.ts
+/** @TEMPLATE id=PostHandler output=statement mode=file */
+export async function POST(request: Request) {
+  const body = /** @TYPE expression id=body */ await request.json() /** @END */;
+}
+/** @END_TEMPLATE */
+
+const [postHandler] = discoverFileSourceTemplates("routes.ts");
+console.log(postHandler.sourceText); // The exported function, not the whole file.
+console.log(postHandler.regions);    // Offsets relative to sourceText.
+console.log(postHandler.fileRegions); // Offsets in routes.ts.
+
+const result = generateFileSourceTemplateWithReplacements(
+  "routes.ts",
+  "PostHandler",
+  { body: { kind: "expression", code: "await parseBody(request)" } }
+);
+```
+
+The opening grammar is:
+
+```txt
+/** @TEMPLATE id=<templateId> output=<regionKind> [mode=<templateMode>] */
+```
+
+`id` values must be unique within the file. `output` uses the same kinds as
+replacement regions. The parser mode is normally inferred: expressions use
+`expression`, statements use `statementList`, object properties use
+`objectPropertyList`, and expression suffixes use `expressionSuffix`. Specify
+`mode=file` with `output=statement` for module-level declarations such as
+exports and imports. Other incompatible output/mode combinations are rejected.
+
+Boundaries cannot nest, but each boundary may contain any number of `@TYPE`
+replacement regions. Use `scanSourceTemplateBoundaries()` when only raw
+boundary ranges are needed, without AST or replacement-region validation.
+Discovery also retains `containingSourceText`. When scoped generation enables
+`checkSemanticDiagnostics`, the generated body is virtually inserted into that
+containing source so imports and declarations outside the emitted boundary are
+available for checking; the source file is never written.
+
+Use replacement-region discovery directly when the caller has already selected
+the complete template source:
 
 ```ts
 import { discoverReplacementRegions } from "synthesize-regions";
@@ -981,6 +1035,8 @@ InvalidIdentifierError
 EmptyManyReplacementError
 SecurityPolicyViolationError
 FinalValidationError
+InvalidSourceTemplateBoundaryError
+NestedSourceTemplateBoundaryError
 TemplateCatalogValidationError
 ```
 
@@ -1005,8 +1061,13 @@ import {
   definePartialGraph,
   defineTemplateCatalog,
   defineTemplate,
+  discoverFileSourceTemplates,
   discoverReplacementRegions,
+  discoverSourceTemplates,
   fragmentPort,
+  generateDiscoveredSourceTemplate,
+  generateFileSourceTemplateWithReplacements,
+  generateSourceTemplateWithReplacements,
   generateWithReplacements,
   graphTemplateDefinitionToJsonSchema,
   JSON_SCHEMA_COMPATIBILITY_ENGINE_VERSION,
@@ -1041,8 +1102,14 @@ Most callers use:
 ```ts
 generateWithReplacements(sourceText, replacements, options?)
 generateFileWithReplacements(inputFilePath, replacements, options?)
+generateDiscoveredSourceTemplate(template, replacements, options?)
+generateSourceTemplateWithReplacements(sourceText, templateId, replacements, options?)
+generateFileSourceTemplateWithReplacements(inputFilePath, templateId, replacements, options?)
 discoverReplacementRegions(sourceText, options?)
 discoverFileReplacementRegions(inputFilePath, options?)
+discoverSourceTemplates(sourceText, options?)
+discoverFileSourceTemplates(inputFilePath, options?)
+scanSourceTemplateBoundaries(sourceText)
 scanReplacementRegions(sourceText)
 serializeReplacement(replacement, options?, region?)
 defineTemplate(definition)

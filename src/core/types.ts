@@ -190,6 +190,50 @@ export interface DiscoverOptions {
   templateMode?: TemplateMode;
 }
 
+/** Options for discovering explicitly bounded templates inside a source file. */
+export interface DiscoverSourceTemplatesOptions {
+  /** Used in diagnostics and retained on discovered template records. */
+  filePath?: string;
+  /** Optional project config used to validate each extracted template. */
+  tsConfigFilePath?: string;
+}
+
+/**
+ * One paired `@TEMPLATE` / `@END_TEMPLATE` source boundary before its body is
+ * parsed for replacement regions.
+ */
+export interface SourceTemplateBoundary {
+  id: string;
+  outputKind: MarkerExpectedKind;
+  /** Parser context declared by `mode=` or inferred from `outputKind`. */
+  templateMode: TemplateMode;
+  startCommentStart: number;
+  startCommentEnd: number;
+  bodyStart: number;
+  bodyEnd: number;
+  endCommentStart: number;
+  endCommentEnd: number;
+  line: number;
+  column: number;
+}
+
+/** An explicitly bounded source template and the replacement regions inside it. */
+export interface DiscoveredSourceTemplate extends SourceTemplateBoundary {
+  /** Complete containing source retained for insertion-site validation. */
+  containingSourceText: string;
+  /** Exact text between the boundary comments; whitespace is preserved. */
+  sourceText: string;
+  /** Replacement-region offsets relative to `sourceText`. */
+  regions: ReplacementRegion[];
+  /** The same replacement regions translated to offsets in the containing file. */
+  fileRegions: ReplacementRegion[];
+  /** Source-file identity supplied by the caller, when available. */
+  filePath?: string;
+}
+
+/** Generation options for an already discovered source template. */
+export type GenerateDiscoveredSourceTemplateOptions = Omit<GenerateOptions, "templateMode">;
+
 export type GenerateFormatPreserve = "preserve";
 export type GenerateFormatTsMorph = "ts-morph";
 
