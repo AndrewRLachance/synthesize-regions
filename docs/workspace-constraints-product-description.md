@@ -26,8 +26,8 @@ For syntax and examples, see the
 For interfaces and evaluator behavior, see the
 [technical design](./workspace-constraints-technical-design.md). The containing
 agent product is described in the
-[runtime product description](./product-description.md) and
-[runtime technical design](./technical-design.md).
+[runtime product description](./synthesis-workflow-product-description.md) and
+[runtime technical design](./synthesis-workflow-technical-design.md).
 
 > **Status:** Proposed v1. This document defines product intent; it does not
 > describe an implemented package feature.
@@ -159,9 +159,10 @@ The readable language compiles into a normalized JSON
 ### Project policy is separate from model intent
 
 Models do not author, select, weaken, or approve the active constraint set. A
-synthesis request names a repository entry path and expected
-`constraintDigest`. The runtime captures and freezes that configuration before
-planning.
+synthesis request may name a repository entry path and expected
+`constraintDigest`. When it does, the runtime captures and freezes that
+configuration before planning. A session that omits constraints still traverses
+the runtime's fixed constraint phases through explicit skip events.
 
 Constraint modules cannot be modified by the same session whose candidate they
 govern.
@@ -273,6 +274,12 @@ Rules are associated with the earliest facts they require:
 - assembled rules check the virtual candidate file tree and syntax facts;
 - semantic rules check compiler-resolved project relationships.
 
+The containing runtime owns these states in its canonical `WorkflowDefinition`.
+The same fixed topology is used for constrained and unconstrained sessions. Each
+phase records passed, failed, or skipped; skip reasons distinguish
+`notConfigured` from `noApplicableRules`. A `.wsc` module cannot define states,
+transitions, effects, or authorization logic.
+
 Failures use deterministic routing:
 
 - local graph/template failures go to the Graph Repairer;
@@ -285,7 +292,13 @@ Failures use deterministic routing:
 
 The Artifact-Set Repairer proposes one schema-constrained plan patch at a time.
 It cannot grant new target authority. Added or invalidated artifacts pass
-through normal graph planning, compilation, and static acceptance.
+through plan constraint checking, normal graph planning, compilation, and static
+acceptance.
+
+Production orchestration follows the runtime's command → pure decision → domain
+event → pure reducer protocol. Constraint evaluation is durable outbox work;
+its revision- and digest-bound result returns as a command before a phase event
+can be committed.
 
 ## Successful Outcome
 
@@ -312,7 +325,7 @@ Workspace Constraints does not:
 - prove business behavior, correctness, security, or performance;
 - load caller-provided code, validators, AST visitors, or compiler plugins;
 - allow unrestricted recursion or unbounded queries;
-- grant filesystem read or write authority;
+- grant filesystem read or write authority through selectors or model output;
 - expose all analyzed source to a model;
 - permit constraints to override target authorization;
 - let a candidate edit the active constraint modules;
@@ -345,18 +358,18 @@ stale digests, and mandatory resource exhaustion are rejected explicitly.
 ## Relationship to the Agent Runtime
 
 Workspace Constraints extends the fixed static acceptance pipeline described in
-the [agent runtime technical design](./technical-design.md):
+the [agent runtime technical design](./synthesis-workflow-technical-design.md):
 
 ```text
 constraint capture and identity
           |
-artifact-set planning ---- plan constraints
+artifact-set planning ---- plan constraints or explicit skip
           |
-graph compilation -------- artifact constraints
+graph compilation -------- artifact constraints or explicit skip
           |
-virtual assembly ---------- assembled constraints
+virtual assembly ---------- assembled constraints or explicit skip
           |
-TypeScript programs ------- semantic constraints
+TypeScript semantic delta - semantic constraints or explicit skip
           |
 canonical change-set hash bound to constraintDigest
 ```

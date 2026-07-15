@@ -14,7 +14,8 @@ synthesis-provenance-wide invariants.
 Workspace Constraints complements the controlled code-production model in
 [Graph Template Authoring](./TEMPLATES.md) and
 [Synthesis Graphs](./SYNTHESIS_GRAPHS.md). It extends the fixed acceptance
-pipeline in the [agent runtime design](./technical-design.md) without adding
+pipeline in the
+[agent runtime design](./synthesis-workflow-technical-design.md) without adding
 executable validators or project-command execution.
 
 See the [authoring guide](./workspace-constraints-README.md) for language usage
@@ -583,13 +584,13 @@ interface WorkspaceConstraintIdentity {
 
 interface ArtifactSetCandidate {
   // Existing plan, revisions, fills, and catalog/workspace identities.
-  constraintIdentity: WorkspaceConstraintIdentity;
+  constraintIdentity?: WorkspaceConstraintIdentity;
 }
 ```
 
-The static change-set hash binds this identity. Constraint recapture, semantic
-digest change, exact module-byte change, or analysis-snapshot change invalidates
-staged state and approval.
+When present, the static change-set hash binds this identity. Constraint
+recapture, semantic digest change, exact module-byte change, or
+analysis-snapshot change invalidates staged state and approval.
 
 ## 11. Request and Authorization
 
@@ -604,9 +605,14 @@ interface WorkspaceConstraintRequest {
 
 interface SynthesisRequest {
   // Existing objective, workspace, targets, catalog, policy, and budgets.
-  constraints: WorkspaceConstraintRequest;
+  constraints?: WorkspaceConstraintRequest;
 }
 ```
+
+Omitting `constraints` disables repository-specific constraint evaluation for
+that session, but does not remove states from the canonical workflow. Each fixed
+phase commits a skipped result with reason `notConfigured`. When a captured set
+has no rule for a phase, the reason is `noApplicableRules`.
 
 Server authorization constrains:
 
@@ -703,7 +709,8 @@ is indeterminate rather than silently treated as legacy.
 
 ## 13. Evaluation Pipeline
 
-Constraint evaluation is interleaved with existing artifact processing:
+When configured, constraint evaluation is interleaved with existing artifact
+processing. When absent, the same fixed states commit `notConfigured` skips:
 
 ```text
 capture workspace + constraints
@@ -883,51 +890,43 @@ rechecked from the earliest affected phase.
 ```ts
 interface SynthesisSession {
   // Existing identity and candidate fields.
-  constraintEntryPath: string;
-  constraintDigest: string;
-  constraintSourceSnapshotHash: string;
-  analysisSnapshotHash: string;
+  constraintIdentity?: WorkspaceConstraintIdentity;
 }
 ```
 
-Constraint capture occurs before `planningSet`. A missing, invalid, or stale
-mandatory constraint capture prevents planning.
+Requested constraint capture occurs before `planningSet`. An invalid or stale
+requested capture prevents planning. An omitted request records no constraint
+identity and proceeds through explicit phase skips.
 
-### 16.2 State machine
+### 16.2 Canonical workflow ownership
 
-The runtime adds `needsSetRepair` as an actionable state:
+Workspace Constraints does not add an independent state machine. The
+[synthesis workflow's canonical `WorkflowDefinition`](./synthesis-workflow-technical-design.md#15-state-machine)
+owns the fixed `planConstraintChecking`, `artifactConstraintChecking`,
+`assembledConstraintChecking`, `semanticConstraintChecking`,
+`constraintRepairRouting`, and `needsSetRepair` states.
+
+Each phase produces exactly one lifecycle event:
 
 ```text
-planningSet -> planChecking
-                  |
-          +-------+-------+
-          |               |
-   needsSetRepair   planningGraphs
-          |               |
-          +--> planChecking
-
-compiling -> artifactChecking -> assembling
-                 |                  |
-          needsSetRepair     assembledChecking
-                                    |
-                             needsSetRepair
-                                    |
-                             semanticChecking
-                                    |
-                       needsGraph/Input/SetRepair
-                                    |
-                            readyForApproval
+<Phase>ConstraintsPassed
+<Phase>ConstraintsFailed
+<Phase>ConstraintsSkipped { reason: notConfigured | noApplicableRules }
 ```
 
-Implementations may materialize checks inside `compiling` or
-`staticChecking`, but persisted events must identify the phase and exact
-constraint identity.
+Failed events enter deterministic constraint-repair routing. Local ownership
+continues to the existing static/input/graph repair path; plan-shape and
+cross-artifact ownership continues to `needsSetRepair`. Every accepted
+artifact-set patch returns to `planConstraintChecking`, then added or invalidated
+artifacts pass through Graph Planning. Constraint source cannot add workflow
+states, transitions, effects, guards, or authorization rules.
 
-### 16.3 Events
+### 16.3 Commands, events, and outbox work
 
-New event families include:
+Constraint-related event families include:
 
 - constraint capture started/completed/rejected;
+- constraint phase skipped with `notConfigured` or `noApplicableRules`;
 - constraint module and normalized-set blobs captured;
 - constraint phase evaluation started/completed;
 - constraint diagnostic set recorded;
@@ -939,9 +938,17 @@ New event families include:
 Events reference content-addressed blobs and participate in existing
 compare-and-swap revision updates.
 
+Evaluations are external work derived from committed events and inserted into
+the transactional outbox. A worker result returns as a revision-, phase-,
+constraint-digest-, source-snapshot-, and analysis-snapshot-bound command. The
+pure command decider authorizes the result and proposes lifecycle/observation
+events; the pure reducer reconstructs the declared target state. XState remains
+a generated visualization and path-analysis projection and performs no
+constraint work.
+
 ## 17. Static Acceptance and Approval
 
-A statically accepted result adds:
+A statically accepted constrained result adds:
 
 ```ts
 interface ConstraintBoundStaticAcceptance {
@@ -1178,8 +1185,9 @@ registering arbitrary fact providers in the agent runtime.
 
 The architecture is satisfied when the system can:
 
-1. Capture `.synthesize-regions/constraints.wsc` and its explicit module
-   closure without executing project code.
+1. When selected, capture `.synthesize-regions/constraints.wsc` and its explicit
+   module closure without executing project code; otherwise record explicit
+   `notConfigured` phase skips.
 2. Produce a validated canonical IR and reproducible `constraintDigest`.
 3. Reject cycles, duplicate IDs, root escapes, unsupported facts, invalid phase
    use, and unbounded expressions.
@@ -1210,6 +1218,8 @@ The architecture is satisfied when the system can:
 | Read access | Captured server-authorized analysis roots |
 | Write access | Unchanged exact targets and allowed create roots |
 | Configuration ownership | Repository data captured immutably per session |
+| Activation | Optional per session; requested capture must succeed |
 | Identity | Versioned `constraintDigest` bound through approval |
 | Repair | Deterministic input, graph, or artifact-set repair |
+| Workflow topology | Fixed states owned by the synthesis `WorkflowDefinition` |
 | Extensions | No executable validators or arbitrary fact-provider plugins |
