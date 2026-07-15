@@ -24,7 +24,7 @@ export const ParseRequestBody = defineTemplate({
 	description: 'Parses the incoming request body once for downstream statements.',
 	inputs: {},
 	output: { kind: 'statement' },
-	template: () => 'const body = await request.json();'
+	source: 'const body = await request.json();'
 })
 
 export const ValidateRequiredField = defineTemplate({
@@ -39,8 +39,9 @@ export const ValidateRequiredField = defineTemplate({
 		})
 	},
 	output: { kind: 'statement' },
-	template: (r) => `if (typeof body[${r('field')}] !== 'string' || body[${r('field')}].length === 0) {
-	return Response.json({ error: 'Missing required field: ' + ${r('field')} }, { status: 400 });
+	source: `const requiredField = ${"/** @TYPE string id=field **/\"\"/** @END **/"};
+if (typeof body[requiredField] !== 'string' || body[requiredField].length === 0) {
+	return Response.json({ error: 'Missing required field: ' + requiredField }, { status: 400 });
 }`
 })
 
@@ -52,7 +53,7 @@ export const FetchUpstreamProfile = defineTemplate({
 		endpoint: rawCodePort({
 			regionKind: 'expression',
 			policy: safeExpressionPolicy,
-			type: { ts: 'string | URL' },
+			type: { ts: 'string' },
 			description: 'Upstream URL expression.'
 		}),
 		method: literalPort({
@@ -62,8 +63,8 @@ export const FetchUpstreamProfile = defineTemplate({
 		})
 	},
 	output: { kind: 'statement' },
-	template: (r) => `const upstreamResponse = await fetch(${r('endpoint')}, {
-	method: ${r('method')},
+	source: `const upstreamResponse = await fetch(${"/** @TYPE expression id=endpoint **/undefined/** @END **/"}, {
+	method: ${"/** @TYPE string id=method **/\"\"/** @END **/"},
 	headers: { 'content-type': 'application/json' },
 	body: JSON.stringify(body)
 });
@@ -84,7 +85,7 @@ export const AuditRequest = defineTemplate({
 		})
 	},
 	output: { kind: 'statement' },
-	template: (r) => `console.info(${r('event')}, {
+	source: `console.info(${"/** @TYPE string id=event **/\"\"/** @END **/"}, {
 	requestId: request.headers.get('x-request-id'),
 	upstreamStatus: upstreamResponse.status
 });`
@@ -102,8 +103,8 @@ export const ReturnJsonResponse = defineTemplate({
 		})
 	},
 	output: { kind: 'statement' },
-	template: (r) => `const profile = await upstreamResponse.json();
-return Response.json({ profile }, { status: ${r('status')} });`
+	source: `const profile = await upstreamResponse.json();
+return Response.json({ profile }, { status: ${"/** @TYPE number id=status **/0/** @END **/"} });`
 })
 
 const routeStatementModelIds = [
@@ -131,8 +132,8 @@ export const PostRouteHandler = defineTemplate({
 		})
 	},
 	output: { kind: 'statement' },
-	template: (r) => `export async function POST(request: Request) {
-${r('statements')}
+	source: `export async function POST(request: Request) {
+${"/** @TYPE statement id=statements **/throw new Error(\"placeholder\");/** @END **/"}
 }`
 })
 

@@ -121,7 +121,7 @@ export const TsPatternMatchStart = defineTemplate({
     type: { ts: 'ReturnType<typeof match>' },
     description: 'A ts-pattern match builder expression.'
   },
-  template: r => `match(${r('value')})`
+  source: `match(${"/** @TYPE expression id=value **/undefined/** @END **/"})`
 })
 
 export const TsPatternApplySuffix = defineTemplate({
@@ -136,7 +136,7 @@ export const TsPatternApplySuffix = defineTemplate({
     kind: 'expression',
     description: 'Expression formed by appending the suffix to the source.'
   },
-  template: r => `${r('source')}${r('suffix')}`
+  source: `${"/** @TYPE expression id=source **/undefined/** @END **/"}${"/** @TYPE expressionSuffix id=suffix **/.value/** @END **/"}`
 })
 
 export const TsPatternWithSuffix = defineTemplate({
@@ -148,7 +148,7 @@ export const TsPatternWithSuffix = defineTemplate({
     handler: handlerInput('Branch handler expression.')
   },
   output: { kind: 'expressionSuffix', description: '.with(...) chain suffix.' },
-  template: r => `.with(${r('pattern')}, ${r('handler')})`
+  source: `.with(${"/** @TYPE expression id=pattern **/undefined/** @END **/"}, ${"/** @TYPE expression id=handler **/undefined/** @END **/"})`
 })
 
 export const TsPatternWithGuardSuffix = defineTemplate({
@@ -161,7 +161,7 @@ export const TsPatternWithGuardSuffix = defineTemplate({
     handler: handlerInput('Branch handler expression.')
   },
   output: { kind: 'expressionSuffix', description: '.with(..., guard, handler) chain suffix.' },
-  template: r => `.with(${r('pattern')}, ${r('guard')}, ${r('handler')})`
+  source: `.with(${"/** @TYPE expression id=pattern **/undefined/** @END **/"}, ${"/** @TYPE expression id=guard **/undefined/** @END **/"}, ${"/** @TYPE expression id=handler **/undefined/** @END **/"})`
 })
 
 export const TsPatternWhenSuffix = defineTemplate({
@@ -173,7 +173,7 @@ export const TsPatternWhenSuffix = defineTemplate({
     handler: handlerInput('Branch handler expression.')
   },
   output: { kind: 'expressionSuffix', description: '.when(...) chain suffix.' },
-  template: r => `.when(${r('predicate')}, ${r('handler')})`
+  source: `.when(${"/** @TYPE expression id=predicate **/undefined/** @END **/"}, ${"/** @TYPE expression id=handler **/undefined/** @END **/"})`
 })
 
 export const TsPatternOtherwiseSuffix = defineTemplate({
@@ -184,7 +184,7 @@ export const TsPatternOtherwiseSuffix = defineTemplate({
     handler: handlerInput('Fallback handler expression.')
   },
   output: { kind: 'expressionSuffix', description: '.otherwise(...) terminal suffix.' },
-  template: r => `.otherwise(${r('handler')})`
+  source: `.otherwise(${"/** @TYPE expression id=handler **/undefined/** @END **/"})`
 })
 
 export const TsPatternExhaustiveSuffix = defineTemplate({
@@ -193,7 +193,7 @@ export const TsPatternExhaustiveSuffix = defineTemplate({
   description: 'Adds terminal .exhaustive() to a match chain.',
   inputs: {},
   output: { kind: 'expressionSuffix', description: '.exhaustive() terminal suffix.' },
-  template: () => `.exhaustive()`
+  source: `.exhaustive()`
 })
 
 export const TsPatternRunSuffix = defineTemplate({
@@ -202,7 +202,7 @@ export const TsPatternRunSuffix = defineTemplate({
   description: 'Adds terminal .run() to a match chain.',
   inputs: {},
   output: { kind: 'expressionSuffix', description: '.run() terminal suffix.' },
-  template: () => `.run()`
+  source: `.run()`
 })
 
 export const TsPatternNarrowSuffix = defineTemplate({
@@ -211,7 +211,7 @@ export const TsPatternNarrowSuffix = defineTemplate({
   description: 'Adds .narrow() to a match chain after handled cases.',
   inputs: {},
   output: { kind: 'expressionSuffix', description: '.narrow() chain suffix.' },
-  template: () => `.narrow()`
+  source: `.narrow()`
 })
 
 export const TsPatternMatchWithOtherwise = defineTemplate({
@@ -225,7 +225,7 @@ export const TsPatternMatchWithOtherwise = defineTemplate({
     fallback: handlerInput('Fallback handler expression.')
   },
   output: { kind: 'expression', description: 'Completed ts-pattern match expression.' },
-  template: r => `match(${r('value')}).with(${r('pattern')}, ${r('handler')}).otherwise(${r('fallback')})`
+  source: `match(${"/** @TYPE expression id=value **/undefined/** @END **/"}).with(${"/** @TYPE expression id=pattern **/undefined/** @END **/"}, ${"/** @TYPE expression id=handler **/undefined/** @END **/"}).otherwise(${"/** @TYPE expression id=fallback **/undefined/** @END **/"})`
 })
 
 export const TsPatternMatchWithExhaustive = defineTemplate({
@@ -238,7 +238,7 @@ export const TsPatternMatchWithExhaustive = defineTemplate({
     handler: handlerInput('Branch handler expression.')
   },
   output: { kind: 'expression', description: 'Completed exhaustive ts-pattern match expression.' },
-  template: r => `match(${r('value')}).with(${r('pattern')}, ${r('handler')}).exhaustive()`
+  source: `match(${"/** @TYPE expression id=value **/undefined/** @END **/"}).with(${"/** @TYPE expression id=pattern **/undefined/** @END **/"}, ${"/** @TYPE expression id=handler **/undefined/** @END **/"}).exhaustive()`
 })
 
 export const TsPatternMatchTwoCasesOtherwise = defineTemplate({
@@ -254,7 +254,7 @@ export const TsPatternMatchTwoCasesOtherwise = defineTemplate({
     fallback: handlerInput('Fallback handler expression.')
   },
   output: { kind: 'expression', description: 'Completed two-case ts-pattern match expression.' },
-  template: r => `match(${r('value')}).with(${r('patternA')}, ${r('handlerA')}).with(${r('patternB')}, ${r('handlerB')}).otherwise(${r('fallback')})`
+  source: `match(${"/** @TYPE expression id=value **/undefined/** @END **/"}).with(${"/** @TYPE expression id=patternA **/undefined/** @END **/"}, ${"/** @TYPE expression id=handlerA **/undefined/** @END **/"}).with(${"/** @TYPE expression id=patternB **/undefined/** @END **/"}, ${"/** @TYPE expression id=handlerB **/undefined/** @END **/"}).otherwise(${"/** @TYPE expression id=fallback **/undefined/** @END **/"})`
 })
 
 export const TsPatternMatchThreeCasesOtherwise = defineTemplate({
@@ -272,7 +272,7 @@ export const TsPatternMatchThreeCasesOtherwise = defineTemplate({
     fallback: handlerInput('Fallback handler expression.')
   },
   output: { kind: 'expression', description: 'Completed three-case ts-pattern match expression.' },
-  template: r => `match(${r('value')}).with(${r('patternA')}, ${r('handlerA')}).with(${r('patternB')}, ${r('handlerB')}).with(${r('patternC')}, ${r('handlerC')}).otherwise(${r('fallback')})`
+  source: `match(${"/** @TYPE expression id=value **/undefined/** @END **/"}).with(${"/** @TYPE expression id=patternA **/undefined/** @END **/"}, ${"/** @TYPE expression id=handlerA **/undefined/** @END **/"}).with(${"/** @TYPE expression id=patternB **/undefined/** @END **/"}, ${"/** @TYPE expression id=handlerB **/undefined/** @END **/"}).with(${"/** @TYPE expression id=patternC **/undefined/** @END **/"}, ${"/** @TYPE expression id=handlerC **/undefined/** @END **/"}).otherwise(${"/** @TYPE expression id=fallback **/undefined/** @END **/"})`
 })
 
 export const TsPatternMatchWhenOtherwise = defineTemplate({
@@ -286,7 +286,7 @@ export const TsPatternMatchWhenOtherwise = defineTemplate({
     fallback: handlerInput('Fallback handler expression.')
   },
   output: { kind: 'expression', description: 'Completed predicate-based ts-pattern match expression.' },
-  template: r => `match(${r('value')}).when(${r('predicate')}, ${r('handler')}).otherwise(${r('fallback')})`
+  source: `match(${"/** @TYPE expression id=value **/undefined/** @END **/"}).when(${"/** @TYPE expression id=predicate **/undefined/** @END **/"}, ${"/** @TYPE expression id=handler **/undefined/** @END **/"}).otherwise(${"/** @TYPE expression id=fallback **/undefined/** @END **/"})`
 })
 
 export const TsPatternIsMatching = defineTemplate({
@@ -303,7 +303,7 @@ export const TsPatternIsMatching = defineTemplate({
     schema: { type: 'boolean' },
     description: 'Boolean match result.'
   },
-  template: r => `isMatching(${r('pattern')}, ${r('value')})`
+  source: `isMatching(${"/** @TYPE expression id=pattern **/undefined/** @END **/"}, ${"/** @TYPE expression id=value **/undefined/** @END **/"})`
 })
 
 export const TsPatternIsMatchingPredicate = defineTemplate({
@@ -318,7 +318,7 @@ export const TsPatternIsMatchingPredicate = defineTemplate({
     type: { ts: '(value: unknown) => boolean' },
     description: 'Predicate/type-guard function.'
   },
-  template: r => `isMatching(${r('pattern')})`
+  source: `isMatching(${"/** @TYPE expression id=pattern **/undefined/** @END **/"})`
 })
 
 export const TsPatternWildcardPattern = defineTemplate({
@@ -327,7 +327,7 @@ export const TsPatternWildcardPattern = defineTemplate({
   description: 'Produces the P._ wildcard pattern.',
   inputs: {},
   output: { kind: 'expression', description: 'P._ wildcard pattern.' },
-  template: () => `P._`
+  source: `P._`
 })
 
 export const TsPatternStringPattern = defineTemplate({
@@ -336,7 +336,7 @@ export const TsPatternStringPattern = defineTemplate({
   description: 'Produces the P.string wildcard pattern.',
   inputs: {},
   output: { kind: 'expression', type: { ts: 'typeof P.string' }, description: 'P.string pattern.' },
-  template: () => `P.string`
+  source: `P.string`
 })
 
 export const TsPatternNumberPattern = defineTemplate({
@@ -345,7 +345,7 @@ export const TsPatternNumberPattern = defineTemplate({
   description: 'Produces the P.number wildcard pattern.',
   inputs: {},
   output: { kind: 'expression', type: { ts: 'typeof P.number' }, description: 'P.number pattern.' },
-  template: () => `P.number`
+  source: `P.number`
 })
 
 export const TsPatternBooleanPattern = defineTemplate({
@@ -354,7 +354,7 @@ export const TsPatternBooleanPattern = defineTemplate({
   description: 'Produces the P.boolean wildcard pattern.',
   inputs: {},
   output: { kind: 'expression', type: { ts: 'typeof P.boolean' }, description: 'P.boolean pattern.' },
-  template: () => `P.boolean`
+  source: `P.boolean`
 })
 
 export const TsPatternBigIntPattern = defineTemplate({
@@ -363,7 +363,7 @@ export const TsPatternBigIntPattern = defineTemplate({
   description: 'Produces the P.bigint wildcard pattern.',
   inputs: {},
   output: { kind: 'expression', type: { ts: 'typeof P.bigint' }, description: 'P.bigint pattern.' },
-  template: () => `P.bigint`
+  source: `P.bigint`
 })
 
 export const TsPatternSymbolPattern = defineTemplate({
@@ -372,7 +372,7 @@ export const TsPatternSymbolPattern = defineTemplate({
   description: 'Produces the P.symbol wildcard pattern.',
   inputs: {},
   output: { kind: 'expression', type: { ts: 'typeof P.symbol' }, description: 'P.symbol pattern.' },
-  template: () => `P.symbol`
+  source: `P.symbol`
 })
 
 export const TsPatternNullishPattern = defineTemplate({
@@ -381,7 +381,7 @@ export const TsPatternNullishPattern = defineTemplate({
   description: 'Produces the P.nullish pattern for null or undefined.',
   inputs: {},
   output: { kind: 'expression', type: { ts: 'typeof P.nullish' }, description: 'P.nullish pattern.' },
-  template: () => `P.nullish`
+  source: `P.nullish`
 })
 
 export const TsPatternNonNullablePattern = defineTemplate({
@@ -390,7 +390,7 @@ export const TsPatternNonNullablePattern = defineTemplate({
   description: 'Produces the P.nonNullable pattern.',
   inputs: {},
   output: { kind: 'expression', type: { ts: 'typeof P.nonNullable' }, description: 'P.nonNullable pattern.' },
-  template: () => `P.nonNullable`
+  source: `P.nonNullable`
 })
 
 export const TsPatternLiteralStringPattern = defineTemplate({
@@ -401,7 +401,7 @@ export const TsPatternLiteralStringPattern = defineTemplate({
     value: stringLiteralInput('String literal to match.')
   },
   output: { kind: 'expression', description: 'String literal pattern.' },
-  template: r => `${r('value')}`
+  source: `${"/** @TYPE string id=value **/\"\"/** @END **/"}`
 })
 
 export const TsPatternLiteralNumberPattern = defineTemplate({
@@ -412,7 +412,7 @@ export const TsPatternLiteralNumberPattern = defineTemplate({
     value: numberLiteralInput('Number literal to match.')
   },
   output: { kind: 'expression', description: 'Number literal pattern.' },
-  template: r => `${r('value')}`
+  source: `${"/** @TYPE number id=value **/0/** @END **/"}`
 })
 
 export const TsPatternLiteralBooleanPattern = defineTemplate({
@@ -423,7 +423,7 @@ export const TsPatternLiteralBooleanPattern = defineTemplate({
     value: booleanLiteralInput('Boolean literal to match.')
   },
   output: { kind: 'expression', description: 'Boolean literal pattern.' },
-  template: r => `${r('value')}`
+  source: `${"/** @TYPE boolean id=value **/false/** @END **/"}`
 })
 
 export const TsPatternArrayPattern = defineTemplate({
@@ -434,7 +434,7 @@ export const TsPatternArrayPattern = defineTemplate({
     itemPattern: patternInput('Element subpattern.')
   },
   output: { kind: 'expression', description: 'P.array(...) pattern.' },
-  template: r => `P.array(${r('itemPattern')})`
+  source: `P.array(${"/** @TYPE expression id=itemPattern **/undefined/** @END **/"})`
 })
 
 export const TsPatternRecordValuePattern = defineTemplate({
@@ -445,7 +445,7 @@ export const TsPatternRecordValuePattern = defineTemplate({
     valuePattern: patternInput('Record value subpattern.')
   },
   output: { kind: 'expression', description: 'P.record(valuePattern) pattern.' },
-  template: r => `P.record(${r('valuePattern')})`
+  source: `P.record(${"/** @TYPE expression id=valuePattern **/undefined/** @END **/"})`
 })
 
 export const TsPatternRecordKeyValuePattern = defineTemplate({
@@ -457,7 +457,7 @@ export const TsPatternRecordKeyValuePattern = defineTemplate({
     valuePattern: patternInput('Record value subpattern.')
   },
   output: { kind: 'expression', description: 'P.record(keyPattern, valuePattern) pattern.' },
-  template: r => `P.record(${r('keyPattern')}, ${r('valuePattern')})`
+  source: `P.record(${"/** @TYPE expression id=keyPattern **/undefined/** @END **/"}, ${"/** @TYPE expression id=valuePattern **/undefined/** @END **/"})`
 })
 
 export const TsPatternSetPattern = defineTemplate({
@@ -468,7 +468,7 @@ export const TsPatternSetPattern = defineTemplate({
     valuePattern: patternInput('Set entry subpattern.')
   },
   output: { kind: 'expression', description: 'P.set(...) pattern.' },
-  template: r => `P.set(${r('valuePattern')})`
+  source: `P.set(${"/** @TYPE expression id=valuePattern **/undefined/** @END **/"})`
 })
 
 export const TsPatternMapPattern = defineTemplate({
@@ -480,7 +480,7 @@ export const TsPatternMapPattern = defineTemplate({
     valuePattern: patternInput('Map value subpattern.')
   },
   output: { kind: 'expression', description: 'P.map(...) pattern.' },
-  template: r => `P.map(${r('keyPattern')}, ${r('valuePattern')})`
+  source: `P.map(${"/** @TYPE expression id=keyPattern **/undefined/** @END **/"}, ${"/** @TYPE expression id=valuePattern **/undefined/** @END **/"})`
 })
 
 export const TsPatternNotPattern = defineTemplate({
@@ -491,7 +491,7 @@ export const TsPatternNotPattern = defineTemplate({
     pattern: patternInput('Subpattern to negate.')
   },
   output: { kind: 'expression', description: 'P.not(...) pattern.' },
-  template: r => `P.not(${r('pattern')})`
+  source: `P.not(${"/** @TYPE expression id=pattern **/undefined/** @END **/"})`
 })
 
 export const TsPatternOptionalPattern = defineTemplate({
@@ -502,7 +502,7 @@ export const TsPatternOptionalPattern = defineTemplate({
     pattern: patternInput('Subpattern for defined values.')
   },
   output: { kind: 'expression', description: 'P.optional(...) pattern.' },
-  template: r => `P.optional(${r('pattern')})`
+  source: `P.optional(${"/** @TYPE expression id=pattern **/undefined/** @END **/"})`
 })
 
 export const TsPatternWhenPattern = defineTemplate({
@@ -513,7 +513,7 @@ export const TsPatternWhenPattern = defineTemplate({
     predicate: predicateInput('Predicate expression.')
   },
   output: { kind: 'expression', description: 'P.when(...) pattern.' },
-  template: r => `P.when(${r('predicate')})`
+  source: `P.when(${"/** @TYPE expression id=predicate **/undefined/** @END **/"})`
 })
 
 export const TsPatternSelectPattern = defineTemplate({
@@ -522,7 +522,7 @@ export const TsPatternSelectPattern = defineTemplate({
   description: 'Produces P.select(), an anonymous selected-value pattern.',
   inputs: {},
   output: { kind: 'expression', description: 'P.select() pattern.' },
-  template: () => `P.select()`
+  source: `P.select()`
 })
 
 export const TsPatternNamedSelectPattern = defineTemplate({
@@ -533,7 +533,7 @@ export const TsPatternNamedSelectPattern = defineTemplate({
     name: stringLiteralInput('Selection name.')
   },
   output: { kind: 'expression', description: 'P.select(name) pattern.' },
-  template: r => `P.select(${r('name')})`
+  source: `P.select(${"/** @TYPE string id=name **/\"\"/** @END **/"})`
 })
 
 export const TsPatternSelectSubpattern = defineTemplate({
@@ -544,7 +544,7 @@ export const TsPatternSelectSubpattern = defineTemplate({
     pattern: patternInput('Subpattern to match and select.')
   },
   output: { kind: 'expression', description: 'P.select(pattern) pattern.' },
-  template: r => `P.select(${r('pattern')})`
+  source: `P.select(${"/** @TYPE expression id=pattern **/undefined/** @END **/"})`
 })
 
 export const TsPatternNamedSelectSubpattern = defineTemplate({
@@ -556,7 +556,7 @@ export const TsPatternNamedSelectSubpattern = defineTemplate({
     pattern: patternInput('Subpattern to match and select.')
   },
   output: { kind: 'expression', description: 'P.select(name, pattern) pattern.' },
-  template: r => `P.select(${r('name')}, ${r('pattern')})`
+  source: `P.select(${"/** @TYPE string id=name **/\"\"/** @END **/"}, ${"/** @TYPE expression id=pattern **/undefined/** @END **/"})`
 })
 
 export const TsPatternInstanceOfPattern = defineTemplate({
@@ -567,7 +567,7 @@ export const TsPatternInstanceOfPattern = defineTemplate({
     constructor: expressionInput('Class constructor expression.')
   },
   output: { kind: 'expression', description: 'P.instanceOf(...) pattern.' },
-  template: r => `P.instanceOf(${r('constructor')})`
+  source: `P.instanceOf(${"/** @TYPE expression id=constructor **/undefined/** @END **/"})`
 })
 
 export const TsPatternUnion2Pattern = defineTemplate({
@@ -579,7 +579,7 @@ export const TsPatternUnion2Pattern = defineTemplate({
     right: patternInput('Second subpattern.')
   },
   output: { kind: 'expression', description: 'P.union(...) pattern.' },
-  template: r => `P.union(${r('left')}, ${r('right')})`
+  source: `P.union(${"/** @TYPE expression id=left **/undefined/** @END **/"}, ${"/** @TYPE expression id=right **/undefined/** @END **/"})`
 })
 
 export const TsPatternUnion3Pattern = defineTemplate({
@@ -592,7 +592,7 @@ export const TsPatternUnion3Pattern = defineTemplate({
     c: patternInput('Third subpattern.')
   },
   output: { kind: 'expression', description: 'P.union(...) pattern.' },
-  template: r => `P.union(${r('a')}, ${r('b')}, ${r('c')})`
+  source: `P.union(${"/** @TYPE expression id=a **/undefined/** @END **/"}, ${"/** @TYPE expression id=b **/undefined/** @END **/"}, ${"/** @TYPE expression id=c **/undefined/** @END **/"})`
 })
 
 export const TsPatternIntersection2Pattern = defineTemplate({
@@ -604,7 +604,7 @@ export const TsPatternIntersection2Pattern = defineTemplate({
     right: patternInput('Second subpattern.')
   },
   output: { kind: 'expression', description: 'P.intersection(...) pattern.' },
-  template: r => `P.intersection(${r('left')}, ${r('right')})`
+  source: `P.intersection(${"/** @TYPE expression id=left **/undefined/** @END **/"}, ${"/** @TYPE expression id=right **/undefined/** @END **/"})`
 })
 
 export const TsPatternStringStartsWithPattern = defineTemplate({
@@ -613,7 +613,7 @@ export const TsPatternStringStartsWithPattern = defineTemplate({
   description: 'Produces P.string.startsWith(prefix).',
   inputs: { prefix: stringLiteralInput('Required string prefix.') },
   output: { kind: 'expression', description: 'P.string.startsWith(...) pattern.' },
-  template: r => `P.string.startsWith(${r('prefix')})`
+  source: `P.string.startsWith(${"/** @TYPE string id=prefix **/\"\"/** @END **/"})`
 })
 
 export const TsPatternStringEndsWithPattern = defineTemplate({
@@ -622,7 +622,7 @@ export const TsPatternStringEndsWithPattern = defineTemplate({
   description: 'Produces P.string.endsWith(suffix).',
   inputs: { suffix: stringLiteralInput('Required string suffix.') },
   output: { kind: 'expression', description: 'P.string.endsWith(...) pattern.' },
-  template: r => `P.string.endsWith(${r('suffix')})`
+  source: `P.string.endsWith(${"/** @TYPE string id=suffix **/\"\"/** @END **/"})`
 })
 
 export const TsPatternStringIncludesPattern = defineTemplate({
@@ -631,7 +631,7 @@ export const TsPatternStringIncludesPattern = defineTemplate({
   description: 'Produces P.string.includes(needle).',
   inputs: { needle: stringLiteralInput('Substring that must appear.') },
   output: { kind: 'expression', description: 'P.string.includes(...) pattern.' },
-  template: r => `P.string.includes(${r('needle')})`
+  source: `P.string.includes(${"/** @TYPE string id=needle **/\"\"/** @END **/"})`
 })
 
 export const TsPatternStringRegexPattern = defineTemplate({
@@ -643,7 +643,7 @@ export const TsPatternStringRegexPattern = defineTemplate({
     flags: stringLiteralInput('Regular expression flags, such as "u" or "iu".')
   },
   output: { kind: 'expression', description: 'P.string.regex(...) pattern.' },
-  template: r => `P.string.regex(new RegExp(${r('source')}, ${r('flags')}))`
+  source: `P.string.regex(new RegExp(${"/** @TYPE string id=source **/\"\"/** @END **/"}, ${"/** @TYPE string id=flags **/\"\"/** @END **/"}))`
 })
 
 export const TsPatternStringMinLengthPattern = defineTemplate({
@@ -652,7 +652,7 @@ export const TsPatternStringMinLengthPattern = defineTemplate({
   description: 'Produces P.string.minLength(min).',
   inputs: { min: numberLiteralInput('Minimum length.') },
   output: { kind: 'expression', description: 'P.string.minLength(...) pattern.' },
-  template: r => `P.string.minLength(${r('min')})`
+  source: `P.string.minLength(${"/** @TYPE number id=min **/0/** @END **/"})`
 })
 
 export const TsPatternStringMaxLengthPattern = defineTemplate({
@@ -661,7 +661,7 @@ export const TsPatternStringMaxLengthPattern = defineTemplate({
   description: 'Produces P.string.maxLength(max).',
   inputs: { max: numberLiteralInput('Maximum length.') },
   output: { kind: 'expression', description: 'P.string.maxLength(...) pattern.' },
-  template: r => `P.string.maxLength(${r('max')})`
+  source: `P.string.maxLength(${"/** @TYPE number id=max **/0/** @END **/"})`
 })
 
 export const TsPatternStringLengthPattern = defineTemplate({
@@ -670,7 +670,7 @@ export const TsPatternStringLengthPattern = defineTemplate({
   description: 'Produces P.string.length(length).',
   inputs: { length: numberLiteralInput('Exact length.') },
   output: { kind: 'expression', description: 'P.string.length(...) pattern.' },
-  template: r => `P.string.length(${r('length')})`
+  source: `P.string.length(${"/** @TYPE number id=length **/0/** @END **/"})`
 })
 
 export const TsPatternNumberBetweenPattern = defineTemplate({
@@ -682,7 +682,7 @@ export const TsPatternNumberBetweenPattern = defineTemplate({
     max: numberLiteralInput('Inclusive upper bound.')
   },
   output: { kind: 'expression', description: 'P.number.between(...) pattern.' },
-  template: r => `P.number.between(${r('min')}, ${r('max')})`
+  source: `P.number.between(${"/** @TYPE number id=min **/0/** @END **/"}, ${"/** @TYPE number id=max **/0/** @END **/"})`
 })
 
 export const TsPatternNumberLessThanPattern = defineTemplate({
@@ -691,7 +691,7 @@ export const TsPatternNumberLessThanPattern = defineTemplate({
   description: 'Produces P.number.lt(max).',
   inputs: { max: numberLiteralInput('Exclusive upper bound.') },
   output: { kind: 'expression', description: 'P.number.lt(...) pattern.' },
-  template: r => `P.number.lt(${r('max')})`
+  source: `P.number.lt(${"/** @TYPE number id=max **/0/** @END **/"})`
 })
 
 export const TsPatternNumberLessThanOrEqualPattern = defineTemplate({
@@ -700,7 +700,7 @@ export const TsPatternNumberLessThanOrEqualPattern = defineTemplate({
   description: 'Produces P.number.lte(max).',
   inputs: { max: numberLiteralInput('Inclusive upper bound.') },
   output: { kind: 'expression', description: 'P.number.lte(...) pattern.' },
-  template: r => `P.number.lte(${r('max')})`
+  source: `P.number.lte(${"/** @TYPE number id=max **/0/** @END **/"})`
 })
 
 export const TsPatternNumberGreaterThanPattern = defineTemplate({
@@ -709,7 +709,7 @@ export const TsPatternNumberGreaterThanPattern = defineTemplate({
   description: 'Produces P.number.gt(min).',
   inputs: { min: numberLiteralInput('Exclusive lower bound.') },
   output: { kind: 'expression', description: 'P.number.gt(...) pattern.' },
-  template: r => `P.number.gt(${r('min')})`
+  source: `P.number.gt(${"/** @TYPE number id=min **/0/** @END **/"})`
 })
 
 export const TsPatternNumberGreaterThanOrEqualPattern = defineTemplate({
@@ -718,7 +718,7 @@ export const TsPatternNumberGreaterThanOrEqualPattern = defineTemplate({
   description: 'Produces P.number.gte(min).',
   inputs: { min: numberLiteralInput('Inclusive lower bound.') },
   output: { kind: 'expression', description: 'P.number.gte(...) pattern.' },
-  template: r => `P.number.gte(${r('min')})`
+  source: `P.number.gte(${"/** @TYPE number id=min **/0/** @END **/"})`
 })
 
 export const TsPatternNumberIntegerPattern = defineTemplate({
@@ -727,7 +727,7 @@ export const TsPatternNumberIntegerPattern = defineTemplate({
   description: 'Produces P.number.int().',
   inputs: {},
   output: { kind: 'expression', description: 'P.number.int() pattern.' },
-  template: () => `P.number.int()`
+  source: `P.number.int()`
 })
 
 export const TsPatternNumberFinitePattern = defineTemplate({
@@ -736,7 +736,7 @@ export const TsPatternNumberFinitePattern = defineTemplate({
   description: 'Produces P.number.finite().',
   inputs: {},
   output: { kind: 'expression', description: 'P.number.finite() pattern.' },
-  template: () => `P.number.finite()`
+  source: `P.number.finite()`
 })
 
 export const TsPatternNumberPositivePattern = defineTemplate({
@@ -745,7 +745,7 @@ export const TsPatternNumberPositivePattern = defineTemplate({
   description: 'Produces P.number.positive().',
   inputs: {},
   output: { kind: 'expression', description: 'P.number.positive() pattern.' },
-  template: () => `P.number.positive()`
+  source: `P.number.positive()`
 })
 
 export const TsPatternNumberNegativePattern = defineTemplate({
@@ -754,7 +754,7 @@ export const TsPatternNumberNegativePattern = defineTemplate({
   description: 'Produces P.number.negative().',
   inputs: {},
   output: { kind: 'expression', description: 'P.number.negative() pattern.' },
-  template: () => `P.number.negative()`
+  source: `P.number.negative()`
 })
 
 export const TsPatternDiscriminatedUnionCase = defineTemplate({
@@ -765,7 +765,7 @@ export const TsPatternDiscriminatedUnionCase = defineTemplate({
     type: stringLiteralInput('Discriminator value.')
   },
   output: { kind: 'expression', description: 'Object pattern matching { type: value }.' },
-  template: r => `({ type: ${r('type')} })`
+  source: `({ type: ${"/** @TYPE string id=type **/\"\"/** @END **/"} })`
 })
 
 export const TsPatternStatusCase = defineTemplate({
@@ -776,7 +776,7 @@ export const TsPatternStatusCase = defineTemplate({
     status: stringLiteralInput('Status value.')
   },
   output: { kind: 'expression', description: 'Object pattern matching { status: value }.' },
-  template: r => `({ status: ${r('status')} })`
+  source: `({ status: ${"/** @TYPE string id=status **/\"\"/** @END **/"} })`
 })
 
 export const TsPatternPropertyPattern = defineTemplate({
@@ -796,7 +796,7 @@ export const TsPatternPropertyPattern = defineTemplate({
     pattern: patternInput('Property subpattern.')
   },
   output: { kind: 'expression', description: 'Object pattern with one property.' },
-  template: r => `({ ${r('property')}: ${r('pattern')} })`
+  source: `({ ${"/** @TYPE identifier id=property **/placeholder/** @END **/"}: ${"/** @TYPE expression id=pattern **/undefined/** @END **/"} })`
 })
 
 export const TsPatternTuple2Pattern = defineTemplate({
@@ -808,7 +808,7 @@ export const TsPatternTuple2Pattern = defineTemplate({
     second: patternInput('Second element pattern.')
   },
   output: { kind: 'expression', description: 'Two-element tuple pattern.' },
-  template: r => `[${r('first')}, ${r('second')}]`
+  source: `[${"/** @TYPE expression id=first **/undefined/** @END **/"}, ${"/** @TYPE expression id=second **/undefined/** @END **/"}]`
 })
 
 export const TsPatternTuple3Pattern = defineTemplate({
@@ -821,7 +821,7 @@ export const TsPatternTuple3Pattern = defineTemplate({
     third: patternInput('Third element pattern.')
   },
   output: { kind: 'expression', description: 'Three-element tuple pattern.' },
-  template: r => `[${r('first')}, ${r('second')}, ${r('third')}]`
+  source: `[${"/** @TYPE expression id=first **/undefined/** @END **/"}, ${"/** @TYPE expression id=second **/undefined/** @END **/"}, ${"/** @TYPE expression id=third **/undefined/** @END **/"}]`
 })
 
 export const TsPatternMaybeDefault = defineTemplate({
@@ -834,7 +834,7 @@ export const TsPatternMaybeDefault = defineTemplate({
     nullishHandler: handlerInput('Handler for nullish value, for example () => fallback.')
   },
   output: { kind: 'expression', description: 'Nullish-aware match expression.' },
-  template: r => `match(${r('value')}).with(P.nonNullable, ${r('nonNullHandler')}).with(P.nullish, ${r('nullishHandler')}).exhaustive()`
+  source: `match(${"/** @TYPE expression id=value **/undefined/** @END **/"}).with(P.nonNullable, ${"/** @TYPE expression id=nonNullHandler **/undefined/** @END **/"}).with(P.nullish, ${"/** @TYPE expression id=nullishHandler **/undefined/** @END **/"}).exhaustive()`
 })
 
 export const TsPatternResultOkErr = defineTemplate({
@@ -847,7 +847,7 @@ export const TsPatternResultOkErr = defineTemplate({
     errorHandler: handlerInput('Handler for { type: "error" }.')
   },
   output: { kind: 'expression', description: 'Result-union match expression.' },
-  template: r => `match(${r('value')}).with({ type: 'ok' }, ${r('okHandler')}).with({ type: 'error' }, ${r('errorHandler')}).exhaustive()`
+  source: `match(${"/** @TYPE expression id=value **/undefined/** @END **/"}).with({ type: 'ok' }, ${"/** @TYPE expression id=okHandler **/undefined/** @END **/"}).with({ type: 'error' }, ${"/** @TYPE expression id=errorHandler **/undefined/** @END **/"}).exhaustive()`
 })
 
 export const TsPatternAsyncState = defineTemplate({
@@ -862,7 +862,7 @@ export const TsPatternAsyncState = defineTemplate({
     errorHandler: handlerInput('Handler for { status: "error" }.')
   },
   output: { kind: 'expression', description: 'Async-state match expression.' },
-  template: r => `match(${r('value')}).with({ status: 'idle' }, ${r('idleHandler')}).with({ status: 'loading' }, ${r('loadingHandler')}).with({ status: 'success' }, ${r('successHandler')}).with({ status: 'error' }, ${r('errorHandler')}).exhaustive()`
+  source: `match(${"/** @TYPE expression id=value **/undefined/** @END **/"}).with({ status: 'idle' }, ${"/** @TYPE expression id=idleHandler **/undefined/** @END **/"}).with({ status: 'loading' }, ${"/** @TYPE expression id=loadingHandler **/undefined/** @END **/"}).with({ status: 'success' }, ${"/** @TYPE expression id=successHandler **/undefined/** @END **/"}).with({ status: 'error' }, ${"/** @TYPE expression id=errorHandler **/undefined/** @END **/"}).exhaustive()`
 })
 
 export const TsPatternValidateObjectWithFallback = defineTemplate({
@@ -876,7 +876,7 @@ export const TsPatternValidateObjectWithFallback = defineTemplate({
     fallbackHandler: handlerInput('Fallback handler.')
   },
   output: { kind: 'expression', description: 'Object validation/mapping match expression.' },
-  template: r => `match(${r('value')}).with(${r('objectPattern')}, ${r('matchedHandler')}).otherwise(${r('fallbackHandler')})`
+  source: `match(${"/** @TYPE expression id=value **/undefined/** @END **/"}).with(${"/** @TYPE expression id=objectPattern **/undefined/** @END **/"}, ${"/** @TYPE expression id=matchedHandler **/undefined/** @END **/"}).otherwise(${"/** @TYPE expression id=fallbackHandler **/undefined/** @END **/"})`
 })
 
 export const TsPatternArrayClassifier = defineTemplate({
@@ -890,7 +890,7 @@ export const TsPatternArrayClassifier = defineTemplate({
     fallbackHandler: handlerInput('Fallback handler.')
   },
   output: { kind: 'expression', description: 'Array-classifying match expression.' },
-  template: r => `match(${r('value')}).with(P.array(P.string), ${r('stringArrayHandler')}).with(P.array(P.number), ${r('numberArrayHandler')}).otherwise(${r('fallbackHandler')})`
+  source: `match(${"/** @TYPE expression id=value **/undefined/** @END **/"}).with(P.array(P.string), ${"/** @TYPE expression id=stringArrayHandler **/undefined/** @END **/"}).with(P.array(P.number), ${"/** @TYPE expression id=numberArrayHandler **/undefined/** @END **/"}).otherwise(${"/** @TYPE expression id=fallbackHandler **/undefined/** @END **/"})`
 })
 
 export const TsPatternHttpResponseClassifier = defineTemplate({
@@ -905,7 +905,7 @@ export const TsPatternHttpResponseClassifier = defineTemplate({
     fallbackHandler: handlerInput('Fallback handler.')
   },
   output: { kind: 'expression', description: 'HTTP status match expression.' },
-  template: r => `match(${r('response')}).with({ status: P.number.between(200, 299) }, ${r('successHandler')}).with({ status: P.number.between(400, 499) }, ${r('clientErrorHandler')}).with({ status: P.number.between(500, 599) }, ${r('serverErrorHandler')}).otherwise(${r('fallbackHandler')})`
+  source: `match(${"/** @TYPE expression id=response **/undefined/** @END **/"}).with({ status: P.number.between(200, 299) }, ${"/** @TYPE expression id=successHandler **/undefined/** @END **/"}).with({ status: P.number.between(400, 499) }, ${"/** @TYPE expression id=clientErrorHandler **/undefined/** @END **/"}).with({ status: P.number.between(500, 599) }, ${"/** @TYPE expression id=serverErrorHandler **/undefined/** @END **/"}).otherwise(${"/** @TYPE expression id=fallbackHandler **/undefined/** @END **/"})`
 })
 
 export const tsPatternGraphTemplateInputs = [

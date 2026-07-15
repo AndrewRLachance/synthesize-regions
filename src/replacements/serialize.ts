@@ -98,6 +98,15 @@ export function serializeReplacementValueForRegion(
   value: ReplacementValue,
   options: GenerateOptions = {}
 ): string {
+  if (region.effectiveType === "sourceFile" && region.arity === "many") {
+    throw new InvalidReplacementKindError("sourceFile[] regions are not supported; provide one complete sourceFile replacement.", {
+      id: region.id,
+      expectedKind: region.effectiveType,
+      arity: region.arity,
+      replacementKind: replacementKindOf(value)
+    });
+  }
+
   if (region.arity === "many") {
     if (!Array.isArray(value)) {
       throw new InvalidReplacementKindError(`Marker id=${region.id} expects an array replacement.`, {
@@ -190,6 +199,7 @@ export function isCompatibleReplacement(expectedKind: MarkerExpectedKind, replac
     case "enumMember": return replacement.kind === "enumMember";
     case "importSpecifier": return replacement.kind === "importSpecifier";
     case "exportSpecifier": return replacement.kind === "exportSpecifier";
+    case "sourceFile": return replacement.kind === "sourceFile";
     case "array":
       return replacement.kind === "array";
     case "object":
@@ -255,7 +265,8 @@ function validateReplacementSyntaxAndSecurity(
     case "constructorParameter":
     case "declaration":
     case "classMember":
-    case "enumMember": {
+    case "enumMember":
+    case "sourceFile": {
       const sourceFile = isFragmentCollectionReplacement(replacement)
         ? validateRawTypedSyntaxCollection(replacement.kind, replacement.code, options, { id: region.id })
         : validateRawTypedSyntax(replacement.kind, replacement.code, options, { id: region.id });
@@ -329,6 +340,7 @@ export function serializeReplacement(replacement: Replacement, options: Generate
     case "enumMember":
     case "importSpecifier":
     case "exportSpecifier":
+    case "sourceFile":
       return replacement.code;
     case "array":
       return `[${replacement.elements.map(element => serializeReplacement(element, options, region)).join(", ")}]`;

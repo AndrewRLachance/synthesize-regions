@@ -33,6 +33,15 @@ import { defaultFragmentCollectionSeparator } from "./rendering.js";
 type StrictPortInput<T extends InputPort, P extends Omit<T, "kind">> =
   P & (Exclude<keyof P, keyof Omit<T, "kind">> extends never ? unknown : never);
 
+type StrictSourceFileFragmentPortInput<P extends Omit<FragmentInputPort, "kind">> =
+  P["regionKind"] extends "sourceFile"
+    ? P["accepts"] extends { readonly outputKind: infer TOutputKind extends RegionKind }
+      ? TOutputKind extends "sourceFile"
+        ? P["accepts"] extends { readonly type: unknown } ? never : P
+        : never
+      : P["accepts"] extends { readonly type: unknown } ? never : P
+    : P["accepts"] extends { readonly outputKind: "sourceFile" } ? never : P;
+
 /** Stable result values returned by descriptor compatibility checks. */
 export const TYPE_DESCRIPTOR_COMPATIBILITY_STATUS_VALUES = [
   "compatible",
@@ -289,13 +298,17 @@ export function literalPort<const P extends Omit<LiteralInputPort, "kind">>(
 }
 
 export function fragmentPort<const P extends Omit<FragmentInputPort, "kind">>(
-  port: StrictPortInput<FragmentInputPort, P>
+  port: StrictSourceFileFragmentPortInput<P> extends never ? never : StrictPortInput<FragmentInputPort, P>
 ): FragmentInputPort & P & { readonly kind: "fragment" } {
   return { ...port, kind: "fragment" } as unknown as FragmentInputPort & P & { readonly kind: "fragment" };
 }
 
 export function fragmentCollectionPort<const P extends Omit<FragmentCollectionInputPort, "kind">>(
-  port: StrictPortInput<FragmentCollectionInputPort, P>
+  port: P["regionKind"] extends "sourceFile"
+    ? never
+    : P["accepts"] extends { readonly outputKind: "sourceFile" }
+      ? never
+      : StrictPortInput<FragmentCollectionInputPort, P>
 ): FragmentCollectionInputPort & P & { readonly kind: "fragmentCollection" } {
   return { ...port, kind: "fragmentCollection" } as unknown as FragmentCollectionInputPort & P & { readonly kind: "fragmentCollection" };
 }
@@ -305,7 +318,7 @@ export function fragmentPortOutputKind(port: FragmentInputPort | FragmentCollect
 }
 
 export function rawCodePort<const P extends Omit<RawCodeInputPort, "kind">>(
-  port: StrictPortInput<RawCodeInputPort, P>
+  port: P["regionKind"] extends "sourceFile" ? never : StrictPortInput<RawCodeInputPort, P>
 ): RawCodeInputPort & P & { readonly kind: "rawCode" } {
   return { ...port, kind: "rawCode" } as unknown as RawCodeInputPort & P & { readonly kind: "rawCode" };
 }

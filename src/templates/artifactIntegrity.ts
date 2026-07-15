@@ -129,6 +129,25 @@ function policyDiagnostic(
 	}
 }
 
+function sourceFileMetadataDiagnostic(
+	value: unknown,
+	message: string,
+	path: string,
+	actual: unknown,
+	inputName?: string
+): SynthesisDiagnostic {
+	return {
+		stage: 'type',
+		code: 'IncompatibleSourceFileMetadata',
+		severity: 'error',
+		message,
+		...safeArtifactIdentity(value),
+		...(inputName === undefined ? {} : { inputName }),
+		path,
+		actual
+	}
+}
+
 /** Recursively validate planner-facing metadata persisted on one unresolved port. */
 function portMetadataDiagnostics(
 	value: unknown,
@@ -140,6 +159,16 @@ function portMetadataDiagnostics(
 	if (!isRecord(port) || typeof port.kind !== 'string') return diagnostics
 	switch (port.kind) {
 		case 'literal':
+			if (port.regionKind === 'sourceFile') {
+				diagnostics.push(policyDiagnostic(
+					value,
+					'IncompatibleInputKind',
+					'sourceFile unresolved inputs must use a scalar fragment port.',
+					`${path}.regionKind`,
+					inputName,
+					port.kind
+				))
+			}
 			if (port.schema !== undefined) {
 				diagnostics.push(...descriptorDiagnostics(value, { schema: port.schema }, `${path}.schema`, inputName))
 			}
@@ -147,6 +176,39 @@ function portMetadataDiagnostics(
 		case 'fragment':
 		case 'fragmentCollection': {
 			const accepts = isRecord(port.accepts) ? port.accepts : undefined
+			const outputKind = typeof accepts?.outputKind === 'string' ? accepts.outputKind : port.regionKind
+			if (port.kind === 'fragmentCollection'
+				&& (port.regionKind === 'sourceFile' || outputKind === 'sourceFile')) {
+				diagnostics.push(policyDiagnostic(
+					value,
+					'IncompatibleInputKind',
+					'sourceFile unresolved inputs must use a scalar fragment port.',
+					`${path}.regionKind`,
+					inputName,
+					port.kind
+				))
+			}
+			if (port.kind === 'fragment'
+				&& (port.regionKind === 'sourceFile' || outputKind === 'sourceFile')
+				&& port.regionKind !== outputKind) {
+				diagnostics.push(policyDiagnostic(
+					value,
+					'IncompatibleFragmentKind',
+					'sourceFile fragment ports cannot reinterpret another output context.',
+					`${path}.accepts.outputKind`,
+					inputName,
+					outputKind
+				))
+			}
+			if (port.regionKind === 'sourceFile' && accepts?.type !== undefined) {
+				diagnostics.push(sourceFileMetadataDiagnostic(
+					value,
+					'sourceFile fragment ports cannot declare value-level TypeDescriptor metadata.',
+					`${path}.accepts.type`,
+					accepts.type,
+					inputName
+				))
+			}
 			diagnostics.push(...descriptorDiagnostics(value, accepts?.type, `${path}.accepts.type`, inputName))
 			if (port.kind === 'fragmentCollection') {
 				const minItems = port.minItems ?? 0
@@ -162,6 +224,16 @@ function portMetadataDiagnostics(
 			break
 		}
 		case 'rawCode': {
+			if (port.regionKind === 'sourceFile') {
+				diagnostics.push(policyDiagnostic(
+					value,
+					'IncompatibleInputKind',
+					'sourceFile unresolved inputs must use a scalar fragment port.',
+					`${path}.regionKind`,
+					inputName,
+					port.kind
+				))
+			}
 			diagnostics.push(...descriptorDiagnostics(value, port.type, `${path}.type`, inputName))
 			const policy = isRecord(port.policy) ? port.policy : undefined
 			if (policy?.maxLength !== undefined
@@ -298,6 +370,24 @@ function artifactMetadataDiagnostics(value: unknown): SynthesisDiagnostic[] {
 	const diagnostics: SynthesisDiagnostic[] = generatedSourceMapDiagnostics(value)
 	const rawType = persistedTypeDescriptor(value.type)
 	const rawSchema = value.schema as SupportedJsonSchema | undefined
+	if (value.kind === 'sourceFile') {
+		if (value.type !== undefined) {
+			diagnostics.push(sourceFileMetadataDiagnostic(
+				value,
+				'sourceFile artifacts cannot declare value-level TypeDescriptor metadata.',
+				'type',
+				value.type
+			))
+		}
+		if (value.schema !== undefined) {
+			diagnostics.push(sourceFileMetadataDiagnostic(
+				value,
+				'sourceFile artifacts cannot declare value-level JSON Schema metadata.',
+				'schema',
+				value.schema
+			))
+		}
+	}
 	const output = resolveEffectiveTypeDescriptor(rawType, rawSchema)
 	if (!output.ok) {
 		const path = rawType?.schema === undefined && rawSchema !== undefined ? 'schema' : 'type'

@@ -46,6 +46,8 @@ function isReplacement(value: unknown): value is Replacement {
     case "importSpecifier":
     case "exportSpecifier":
       return typeof value.code === "string" && value.code.length > 0;
+    case "sourceFile":
+      return typeof value.code === "string";
     case "array":
       return Array.isArray(value.elements) && value.elements.every(isReplacementExpression);
     case "object":
@@ -70,7 +72,12 @@ function isReplacement(value: unknown): value is Replacement {
 }
 
 function isReplacementValue(value: unknown): value is ReplacementValue {
-  return isReplacement(value) || (Array.isArray(value) && value.length > 0 && value.every(isReplacement));
+  return isReplacement(value) || (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every(isReplacement) &&
+    value.every(replacement => replacement.kind !== "sourceFile")
+  );
 }
 
 function isReplacementMap(value: unknown): value is ReplacementMap {
@@ -98,7 +105,12 @@ describe("ReplacementMap JSON Schema", () => {
     expect(manyReplacement).toMatchObject({
       type: "array",
       minItems: 1,
-      items: { $ref: "#/$defs/replacement" }
+      items: {
+        allOf: [
+          { $ref: "#/$defs/replacement" },
+          { not: { $ref: "#/$defs/sourceFileReplacement" } }
+        ]
+      }
     });
   });
 
@@ -123,6 +135,25 @@ describe("ReplacementMap JSON Schema", () => {
     const validate = new Ajv2020({ strict: true }).compile(readSchema());
     expect(validate(replacements), JSON.stringify(validate.errors)).toBe(true);
     expect(validate({ value: { kind: "type", code: "string", extra: true } })).toBe(false);
+  });
+
+  it("accepts scalar source files and rejects source-file collections", () => {
+    const validate = new Ajv2020({ strict: true }).compile(readSchema());
+    const populated = { module: { kind: "sourceFile", code: "export const answer = 42;" } };
+    const empty = { module: { kind: "sourceFile", code: "" } };
+    const collection = {
+      modules: [
+        { kind: "sourceFile", code: "export const first = 1;" },
+        { kind: "sourceFile", code: "export const second = 2;" }
+      ]
+    };
+
+    expect(isReplacementMap(populated)).toBe(true);
+    expect(isReplacementMap(empty)).toBe(true);
+    expect(isReplacementMap(collection)).toBe(false);
+    expect(validate(populated), JSON.stringify(validate.errors)).toBe(true);
+    expect(validate(empty), JSON.stringify(validate.errors)).toBe(true);
+    expect(validate(collection)).toBe(false);
   });
 
   it("models the main rejected structural cases", () => {

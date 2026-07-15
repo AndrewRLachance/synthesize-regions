@@ -383,7 +383,28 @@ function validatePort(
 			}
 			break
 		}
-		case 'fragment':
+		case 'fragment': {
+			const outputKind = port.accepts.outputKind ?? port.regionKind
+			if ((port.regionKind === 'sourceFile' || outputKind === 'sourceFile')
+				&& port.regionKind !== outputKind) {
+				context.diagnostics.push(diagnostic(
+					'IncompatibleFragmentKind',
+					'sourceFile fragment ports must consume sourceFile outputs without cross-context reinterpretation.',
+					template,
+					`${path}.accepts.outputKind`,
+					{ inputName, expected: port.regionKind, actual: outputKind }
+				))
+			}
+			if (port.regionKind === 'sourceFile' && port.accepts.type !== undefined) {
+				context.diagnostics.push(diagnostic(
+					'IncompatibleSourceFileMetadata',
+					'sourceFile fragment ports cannot declare value-level TypeDescriptor metadata.',
+					template,
+					`${path}.accepts.type`,
+					{ inputName, expected: undefined, actual: port.accepts.type }
+				))
+				context.invalidAcceptsPaths.add(path)
+			}
 			if (!validateTypeDescriptor(
 				port.accepts.type,
 				template,
@@ -392,7 +413,19 @@ function validatePort(
 				context
 			)) context.invalidAcceptsPaths.add(path)
 			break
-		case 'fragmentCollection':
+		}
+		case 'fragmentCollection': {
+			const outputKind = port.accepts.outputKind ?? port.regionKind
+			if (port.regionKind === 'sourceFile' || outputKind === 'sourceFile') {
+				context.diagnostics.push(diagnostic(
+					'IncompatibleInputKind',
+					'sourceFile inputs must use one scalar fragment port; fragment collections are not supported.',
+					template,
+					`${path}.regionKind`,
+					{ inputName, expected: 'scalar fragment', actual: 'fragmentCollection' }
+				))
+				context.invalidAcceptsPaths.add(path)
+			}
 			validateCollectionBounds(port, template, inputName, path, context)
 			if (!validateTypeDescriptor(
 				port.accepts.type,
@@ -402,18 +435,35 @@ function validatePort(
 				context
 			)) context.invalidAcceptsPaths.add(path)
 			break
+		}
 		case 'rawCode':
+			if (port.regionKind === 'sourceFile') {
+				context.diagnostics.push(diagnostic(
+					'IncompatibleInputKind',
+					'sourceFile inputs must use a scalar fragment port; raw-code ports are not supported.',
+					template,
+					`${path}.regionKind`,
+					{ inputName, expected: 'fragment', actual: 'rawCode' }
+				))
+			}
 			validateRawCodePolicy(port, template, inputName, path, context)
 			validateTypeDescriptor(port.type, template, inputName, `${path}.type`, context)
 			break
 		case 'literal':
 			if (TYPED_SYNTAX_REGION_KIND_VALUES.includes(port.regionKind as never)) {
+				const sourceFile = port.regionKind === 'sourceFile'
 				context.diagnostics.push(diagnostic(
 					'IncompatibleInputKind',
-					'Literal ports cannot feed first-class type or declaration syntax regions.',
+					sourceFile
+						? 'sourceFile inputs must use a scalar fragment port; literal ports are not supported.'
+						: 'Literal ports cannot feed first-class type or declaration syntax regions.',
 					template,
 					`${path}.regionKind`,
-					{ inputName, expected: 'rawCode, fragment, fragmentCollection, or union', actual: port.regionKind }
+					{
+						inputName,
+						expected: sourceFile ? 'fragment' : 'rawCode, fragment, fragmentCollection, or union',
+						actual: port.regionKind
+					}
 				))
 			}
 			validateSchema(port.schema, template, inputName, `${path}.schema`, context)
@@ -512,6 +562,28 @@ export function validateTemplateCatalog(
 			`templates[${templateIndex}].output.type`,
 			context
 		)
+		if (template.output.kind === 'sourceFile') {
+			if (template.output.type !== undefined) {
+				context.diagnostics.push(diagnostic(
+					'IncompatibleSourceFileMetadata',
+					'sourceFile outputs cannot declare value-level TypeDescriptor metadata.',
+					template,
+					`templates[${templateIndex}].output.type`,
+					{ expected: undefined, actual: template.output.type }
+				))
+				outputIsValid = false
+			}
+			if (template.output.schema !== undefined) {
+				context.diagnostics.push(diagnostic(
+					'IncompatibleSourceFileMetadata',
+					'sourceFile outputs cannot declare value-level JSON Schema metadata.',
+					template,
+					`templates[${templateIndex}].output.schema`,
+					{ expected: undefined, actual: template.output.schema }
+				))
+				outputIsValid = false
+			}
+		}
 		const aliasIsValid = validateSchema(
 			template.output.schema,
 			template,

@@ -95,7 +95,7 @@ export const NextResponseJsonTemplate = defineTemplate({
     init: rawExpression('Response init expression, such as `{ status: 200 }` or `{ headers }`.')
   },
   output: out('expression', { type: nextResponseType }),
-  template: r => `NextResponse.json(${r('body')}, ${r('init')})`
+  source: `NextResponse.json(${"/** @TYPE expression id=body **/undefined/** @END **/"}, ${"/** @TYPE expression id=init **/undefined/** @END **/"})`
 })
 
 export const NextResponseRedirectTemplate = defineTemplate({
@@ -107,7 +107,7 @@ export const NextResponseRedirectTemplate = defineTemplate({
     init: rawExpression('Redirect init expression, such as `307` or `{ status: 308 }`.')
   },
   output: out('expression', { type: nextResponseType }),
-  template: r => `NextResponse.redirect(${r('url')}, ${r('init')})`
+  source: `NextResponse.redirect(${"/** @TYPE expression id=url **/undefined/** @END **/"}, ${"/** @TYPE expression id=init **/undefined/** @END **/"})`
 })
 
 export const NextResponseRewriteTemplate = defineTemplate({
@@ -119,7 +119,7 @@ export const NextResponseRewriteTemplate = defineTemplate({
     init: rawExpression('Rewrite init expression, usually `{ request: { headers } }` or `{}`.')
   },
   output: out('expression', { type: nextResponseType }),
-  template: r => `NextResponse.rewrite(${r('url')}, ${r('init')})`
+  source: `NextResponse.rewrite(${"/** @TYPE expression id=url **/undefined/** @END **/"}, ${"/** @TYPE expression id=init **/undefined/** @END **/"})`
 })
 
 export const NextRedirectStatementTemplate = defineTemplate({
@@ -130,7 +130,7 @@ export const NextRedirectStatementTemplate = defineTemplate({
     path: expressionFragment('Redirect destination expression.', stringOrUrlType)
   },
   output: out('statement'),
-  template: r => `redirect(${r('path')});`
+  source: `redirect(${"/** @TYPE expression id=path **/undefined/** @END **/"});`
 })
 
 export const NextNotFoundStatementTemplate = defineTemplate({
@@ -139,7 +139,7 @@ export const NextNotFoundStatementTemplate = defineTemplate({
   description: 'Emits a notFound() statement to render the nearest not-found boundary. Assumes `notFound` is in scope from next/navigation.',
   inputs: {},
   output: out('statement'),
-  template: () => 'notFound();'
+  source: 'notFound();'
 })
 
 export const NextRevalidatePathStatementTemplate = defineTemplate({
@@ -151,7 +151,7 @@ export const NextRevalidatePathStatementTemplate = defineTemplate({
     type: rawExpression('Path type expression: `"page"`, `"layout"`, `undefined`, or a compatible variable.')
   },
   output: out('statement'),
-  template: r => `revalidatePath(${r('path')}, ${r('type')});`
+  source: `revalidatePath(${"/** @TYPE expression id=path **/undefined/** @END **/"}, ${"/** @TYPE expression id=type **/undefined/** @END **/"});`
 })
 
 export const NextRevalidateTagStatementTemplate = defineTemplate({
@@ -163,7 +163,7 @@ export const NextRevalidateTagStatementTemplate = defineTemplate({
     profile: rawExpression('Revalidation profile expression, preferably `"max"`, or an object such as `{ expire: 0 }`.')
   },
   output: out('statement'),
-  template: r => `revalidateTag(${r('tag')}, ${r('profile')});`
+  source: `revalidateTag(${"/** @TYPE expression id=tag **/undefined/** @END **/"}, ${"/** @TYPE expression id=profile **/undefined/** @END **/"});`
 })
 
 export const NextCookiesGetValueTemplate = defineTemplate({
@@ -174,7 +174,7 @@ export const NextCookiesGetValueTemplate = defineTemplate({
     name: stringExpressionFragment('Cookie name expression.')
   },
   output: out('expression', { type: cookieValueType }),
-  template: r => `(await cookies()).get(${r('name')})?.value`
+  source: `(await cookies()).get(${"/** @TYPE expression id=name **/undefined/** @END **/"})?.value`
 })
 
 export const NextCookiesSetStatementTemplate = defineTemplate({
@@ -187,7 +187,7 @@ export const NextCookiesSetStatementTemplate = defineTemplate({
     options: rawExpression('Cookie options expression, such as `{ httpOnly: true, path: "/" }` or `{}`.')
   },
   output: out('statement'),
-  template: r => `(await cookies()).set(${r('name')}, ${r('value')}, ${r('options')});`
+  source: `(await cookies()).set(${"/** @TYPE expression id=name **/undefined/** @END **/"}, ${"/** @TYPE expression id=value **/undefined/** @END **/"}, ${"/** @TYPE expression id=options **/undefined/** @END **/"});`
 })
 
 export const NextHeadersGetTemplate = defineTemplate({
@@ -198,7 +198,7 @@ export const NextHeadersGetTemplate = defineTemplate({
     name: stringExpressionFragment('Header name expression, such as `"authorization"` or `"user-agent"`.')
   },
   output: out('expression', { type: headerValueType }),
-  template: r => `(await headers()).get(${r('name')})`
+  source: `(await headers()).get(${"/** @TYPE expression id=name **/undefined/** @END **/"})`
 })
 
 export const nextjsGraphTemplateInputs = [

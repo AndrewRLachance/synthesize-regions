@@ -129,9 +129,9 @@ export const NextJsonSetCookieRevalidateTemplate = defineTemplate({
     pathType: rawExpression('Optional path type expression: `"page"`, `"layout"`, or `undefined`.')
   },
   output: out('statement'),
-  template: r => `const __sr_response = NextResponse.json(${r('body')}, ${r('init')});
-__sr_response.cookies.set(${r('cookieName')}, ${r('cookieValue')}, ${r('cookieOptions')});
-revalidatePath(${r('path')}, ${r('pathType')});
+  source: `const __sr_response = NextResponse.json(${"/** @TYPE expression id=body **/undefined/** @END **/"}, ${"/** @TYPE expression id=init **/undefined/** @END **/"});
+__sr_response.cookies.set(${"/** @TYPE expression id=cookieName **/undefined/** @END **/"}, ${"/** @TYPE expression id=cookieValue **/undefined/** @END **/"}, ${"/** @TYPE expression id=cookieOptions **/undefined/** @END **/"});
+revalidatePath(${"/** @TYPE expression id=path **/undefined/** @END **/"}, ${"/** @TYPE expression id=pathType **/undefined/** @END **/"});
 return __sr_response;`
 })
 
@@ -148,7 +148,7 @@ export const NextAuthGuardJsonOrRedirectTemplate = defineTemplate({
     init: rawExpression('Authenticated JSON response init expression, commonly `{ status: 200 }` or `{}`.', responseInitType)
   },
   output: out('expression', { type: nextResponseType }),
-  template: r => `(${r('auth')} == null ? NextResponse.redirect(new URL(${r('loginPath')}, ${r('request')}.url), ${r('redirectInit')}) : NextResponse.json(${r('body')}, ${r('init')}))`
+  source: `(${"/** @TYPE expression id=auth **/undefined/** @END **/"} == null ? NextResponse.redirect(new URL(${"/** @TYPE expression id=loginPath **/undefined/** @END **/"}, ${"/** @TYPE expression id=request **/undefined/** @END **/"}.url), ${"/** @TYPE expression id=redirectInit **/undefined/** @END **/"}) : NextResponse.json(${"/** @TYPE expression id=body **/undefined/** @END **/"}, ${"/** @TYPE expression id=init **/undefined/** @END **/"}))`
 })
 
 export const NextDraftModeRedirectRevalidateTemplate = defineTemplate({
@@ -163,14 +163,14 @@ export const NextDraftModeRedirectRevalidateTemplate = defineTemplate({
     redirectInit: rawExpression('Redirect init expression, commonly `307`, `{ status: 307 }`, or `undefined`.')
   },
   output: out('statement'),
-  template: r => `const __sr_draft = await draftMode();
-if (${r('enabled')}) {
+  source: `const __sr_draft = await draftMode();
+if (${"/** @TYPE expression id=enabled **/undefined/** @END **/"}) {
   __sr_draft.enable();
 } else {
   __sr_draft.disable();
 }
-revalidatePath(${r('path')}, ${r('pathType')});
-return NextResponse.redirect(${r('redirectUrl')}, ${r('redirectInit')});`
+revalidatePath(${"/** @TYPE expression id=path **/undefined/** @END **/"}, ${"/** @TYPE expression id=pathType **/undefined/** @END **/"});
+return NextResponse.redirect(${"/** @TYPE expression id=redirectUrl **/undefined/** @END **/"}, ${"/** @TYPE expression id=redirectInit **/undefined/** @END **/"});`
 })
 
 export const NextServerActionMutationRefreshTemplate = defineTemplate({
@@ -188,10 +188,10 @@ export const NextServerActionMutationRefreshTemplate = defineTemplate({
     pathType: rawExpression('Optional path type expression: `"page"`, `"layout"`, or `undefined`.')
   },
   output: out('statement'),
-  template: r => `(await cookies()).set(${r('cookieName')}, ${r('cookieValue')}, ${r('cookieOptions')});
-updateTag(${r('updateTagName')});
-revalidateTag(${r('revalidateTagName')}, ${r('revalidateProfile')});
-revalidatePath(${r('path')}, ${r('pathType')});
+  source: `(await cookies()).set(${"/** @TYPE expression id=cookieName **/undefined/** @END **/"}, ${"/** @TYPE expression id=cookieValue **/undefined/** @END **/"}, ${"/** @TYPE expression id=cookieOptions **/undefined/** @END **/"});
+updateTag(${"/** @TYPE expression id=updateTagName **/undefined/** @END **/"});
+revalidateTag(${"/** @TYPE expression id=revalidateTagName **/undefined/** @END **/"}, ${"/** @TYPE expression id=revalidateProfile **/undefined/** @END **/"});
+revalidatePath(${"/** @TYPE expression id=path **/undefined/** @END **/"}, ${"/** @TYPE expression id=pathType **/undefined/** @END **/"});
 refresh();`
 })
 
@@ -206,14 +206,14 @@ export const NextCachedJsonFetchWithTagsTemplate = defineTemplate({
     revalidate: expressionFragment('Revalidate interval expression, usually a number, false, or undefined.', revalidateValueType)
   },
   output: out('expression', { type: unknownType }),
-  template: r => `(await (async () => {
-  const __sr_init = ${r('init')};
-  const __sr_response = await fetch(${r('url')}, {
+  source: `(await (async () => {
+  const __sr_init = ${"/** @TYPE expression id=init **/undefined/** @END **/"};
+  const __sr_response = await fetch(${"/** @TYPE expression id=url **/undefined/** @END **/"}, {
     ...__sr_init,
     next: {
       ...(__sr_init.next ?? {}),
-      tags: ${r('tags')},
-      revalidate: ${r('revalidate')}
+      tags: ${"/** @TYPE expression id=tags **/undefined/** @END **/"},
+      revalidate: ${"/** @TYPE expression id=revalidate **/undefined/** @END **/"}
     }
   });
   if (!__sr_response.ok) {

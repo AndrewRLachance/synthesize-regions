@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import type { SynthesisGraph } from './graphCoreTypes.js'
 
 const IDENTITY_VERSION = 1
+const COMPILATION_SCOPE_IDENTITY_VERSION = 2
 
 /** Return whether a value is an ordinary JSON object without custom behavior. */
 function isPlainJsonObject(value: object): value is Record<string, unknown> {
@@ -102,21 +103,25 @@ function sha256(payload: string): string {
  *
  * An explicit scope distinguishes separate jobs that compile the same graph.
  * The graph identity remains part of the payload so reusing a scope for a
- * different graph cannot alias its unresolved-input IDs.
+ * different graph cannot alias its unresolved-input IDs. Both catalog
+ * identities are included so implementation-only template changes also
+ * invalidate partial-artifact input identities.
  */
 export function createCompilationScope(
 	graph: SynthesisGraph,
 	explicitScope?: string,
-	catalogDigest?: string
+	catalogDigest?: string,
+	catalogManifestDigest?: string
 ): string {
 	const payload = canonicalizeJson([
 		'graph-compilation-scope',
-		IDENTITY_VERSION,
+		COMPILATION_SCOPE_IDENTITY_VERSION,
 		explicitScope ?? null,
 		catalogDigest ?? null,
+		catalogManifestDigest ?? null,
 		canonicalizeSynthesisGraph(graph)
 	])
-	return `s${IDENTITY_VERSION}_${sha256(payload)}`
+	return `s${COMPILATION_SCOPE_IDENTITY_VERSION}_${sha256(payload)}`
 }
 
 /**

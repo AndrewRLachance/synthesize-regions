@@ -30,13 +30,15 @@ export const REGION_KIND_VALUES = [
 	'classMember',
 	'enumMember',
 	'importSpecifier',
-	'exportSpecifier'
+	'exportSpecifier',
+	'sourceFile'
 ] as const satisfies readonly RegionKind[]
 
 /** Region kinds that carry TypeScript code rather than JSON literal values. */
 export const TYPED_SYNTAX_REGION_KIND_VALUES = [
 	'type', 'typeMember', 'typeParameter', 'parameter', 'constructorParameter',
-	'heritageType', 'declaration', 'classMember', 'enumMember', 'importSpecifier', 'exportSpecifier'
+	'heritageType', 'declaration', 'classMember', 'enumMember', 'importSpecifier', 'exportSpecifier',
+	'sourceFile'
 ] as const satisfies readonly RegionKind[]
 
 export type TypedSyntaxRegionKind = typeof TYPED_SYNTAX_REGION_KIND_VALUES[number]
@@ -45,17 +47,32 @@ export type TypedSyntaxRegionKind = typeof TYPED_SYNTAX_REGION_KIND_VALUES[numbe
 export const BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES = [
 	'AmbiguousArtifactInputAlias',
 	'ArtifactAlreadyComplete',
+	'ArtifactAssemblyHashMismatch',
+	'ArtifactBaseFileHashMismatch',
+	'ArtifactCreateFileExists',
 	'ArtifactInputIdCollision',
+	'ArtifactLedgerBaseHashMismatch',
+	'ArtifactLedgerGraphHashMismatch',
+	'ArtifactLedgerResultHashMismatch',
+	'ArtifactLedgerUnknownArtifact',
 	'ArtifactMarkerArityMismatch',
 	'ArtifactMarkerKindMismatch',
+	'ArtifactSetCatalogInvalid',
+	'ArtifactSetTypeScriptSemanticError',
+	'ArtifactSetTypeScriptSyntaxError',
+	'ArtifactTargetKindMismatch',
+	'ArtifactTargetPathCollision',
 	'CatalogContractNotSerializable',
 	'CatalogDigestMismatch',
+	'CatalogManifestDigestMismatch',
 	'CompilationScopeInvalid',
 	'CompleteArtifactContainsMarkers',
 	'ConflictingArtifactFillKeys',
 	'ConflictingSchemaMetadata',
 	'CycleDetected',
 	'DuplicateNodeId',
+	'DuplicateArtifactId',
+	'DuplicateWorkspaceFilePath',
 	'DuplicateTemplateId',
 	'DuplicateUnresolvedInputId',
 	'EmptyUnionPort',
@@ -74,11 +91,18 @@ export const BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES = [
 	'IncompatibleSourceOutputKind',
 	'IncompatibleSourceSchema',
 	'IncompatibleSourceType',
+	'IncompatibleSourceFileMetadata',
 	'InvalidCollectionBounds',
 	'InvalidCollectionMaximum',
 	'InvalidCollectionMinimum',
 	'InvalidGraphRunnerAction',
 	'InvalidGeneratedSourceMap',
+	'InvalidArtifactGraph',
+	'InvalidArtifactId',
+	'InvalidArtifactSetPlan',
+	'InvalidArtifactTarget',
+	'InvalidArtifactTargetPath',
+	'InvalidArtifactTargetRange',
 	'InvalidJsonSchema',
 	'InvalidLiteralInput',
 	'InvalidRawCodeMaxLength',
@@ -86,13 +110,23 @@ export const BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES = [
 	'InvalidRawCodePolicy',
 	'InvalidRunnerTransition',
 	'InvalidSemanticTarget',
+	'InvalidTemplateManifest',
+	'InvalidTemplateManifestSource',
+	'InvalidTypeScriptProjectConfigurationPath',
 	'InvalidTypeScriptType',
 	'MalformedArtifactMarkers',
 	'MalformedTemplateArtifact',
 	'MissingArtifactMarker',
+	'MissingArtifactBaseFile',
 	'MissingRequiredInput',
+	'MissingTypeScriptProjectConfiguration',
+	'MissingTemplateManifestIdentity',
+	'MissingWorkspaceSnapshotIdentity',
+	'ArtifactCatalogRequired',
+	'TemplateManifestDigestMismatch',
 	'MixedUnionRegionKinds',
 	'PartialArtifactHasNoUnresolvedInputs',
+	'OverlappingArtifactTargets',
 	'RawCodeRejected',
 	'SchemaCompatibilityIndeterminate',
 	'TypeScriptSemanticError',
@@ -104,6 +138,12 @@ export const BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES = [
 	'UnknownSourceModelId',
 	'UnknownTemplate',
 	'UnknownTemplateReplacement',
+	'UntrustedTemplateCatalogView',
+	'UntrustedTemplateDefinition',
+	'UnresolvedArtifactSetInputs',
+	'EmptyArtifactSetPlan',
+	'InvalidWorkspaceFilePath',
+	'InvalidWorkspaceFileSource',
 	'UnresolvedLocalSchemaReference',
 	'UnresolvedTemplateInputs',
 	'UnresolvedTypeScriptType',
@@ -270,6 +310,14 @@ export interface GeneratedFragment {
 		templateId: string
 		/** Template version that produced the fragment, when provided. */
 		templateVersion?: string
+		/**
+		 * Exact executable template-manifest identity that produced the fragment.
+		 *
+		 * Newly generated fragments always include this field. It remains optional
+		 * so artifacts persisted before manifest identities were introduced remain
+		 * readable.
+		 */
+		templateManifestDigest?: string
 	}
 	/** Optional TypeScript/JSON-schema type metadata for compatibility checks. */
 	type?: TypeDescriptor
@@ -426,7 +474,11 @@ export interface FragmentCollectionInputPort extends RegionInputPort {
 	kind: 'fragmentCollection'
 	/** Fragment compatibility requirements applied independently to every item. */
 	accepts: FragmentInputPort['accepts']
-	/** Text placed between fragment sources when replacing the collection region. Defaults to a newline. */
+	/**
+	 * Text placed between fragment sources when replacing the collection region.
+	 * The default follows the region's syntax context (for example, newline for
+	 * statements and comma-space for parameters).
+	 */
 	separator?: string
 	/** Minimum number of referenced fragments. Defaults to zero. */
 	minItems?: number
@@ -621,6 +673,8 @@ export interface TemplateSummary {
 export interface TemplateCatalogView {
 	/** Stable digest of the normalized planner-facing catalog contract. */
 	readonly contractDigest: string
+	/** Stable digest of the catalog's executable declarative template manifests. */
+	readonly manifestDigest: string
 	/** Look up a template by model ID. */
 	get(templateId: string): GraphTemplateDefinition<any, string> | undefined
 	/** Return all templates sorted by model ID. */
@@ -753,19 +807,8 @@ export interface GraphTemplatePartialInvocation extends BaseGraphTemplateInvocat
 	unresolvedInputs: Record<string, UnresolvedTemplateInput>
 }
 
-/** Helper available inside graph template source functions to mark regions. */
-export type GraphRegionBuilder<I extends Record<string, InputPort>> = <K extends Extract<keyof I, string>>(
-	key: K,
-	body?: string
-) => string
-
-/**
- * Executable graph template definition.
- *
- * `defineTemplate` creates this shape from a declarative template definition
- * and wires invocation through the lower-level replacement engine.
- */
-export interface GraphTemplateDefinition<
+/** Serializable author-owned portion of a graph template definition. */
+export interface GraphTemplateManifest<
 	I extends Record<string, InputPort> = Record<string, InputPort>,
 	M extends string = string,
 	O extends OutputPort = OutputPort
@@ -778,10 +821,25 @@ export interface GraphTemplateDefinition<
 	readonly description?: string
 	/** Named input ports accepted by this template. */
 	readonly inputs: I
-	/** Output fragment contract produced by this template. */
+	/** Output fragment contract produced by the template. */
 	readonly output: O
-	/** Source-template factory that creates marked regions with `region`. */
-	readonly template: (region: GraphRegionBuilder<I>) => string
+	/** Complete marked TypeScript source used for every invocation. */
+	readonly source: string
+}
+
+/**
+ * Executable graph template definition.
+ *
+ * `defineTemplate` creates this shape from a declarative template definition
+ * and wires invocation through the lower-level replacement engine.
+ */
+export interface GraphTemplateDefinition<
+	I extends Record<string, InputPort> = Record<string, InputPort>,
+	M extends string = string,
+	O extends OutputPort = OutputPort
+> extends GraphTemplateManifest<I, M, O> {
+	/** Digest of this template's normalized contract and exact executable source. */
+	readonly manifestDigest: string
 	/** Invoke the template with already-resolved graph inputs. */
 	invoke(invocation: GraphTemplateInvocation): GeneratedFragment
 	/** Invoke the template while preserving missing required inputs as markers. */
@@ -826,6 +884,8 @@ export interface GraphCompileOptions extends GenerateOptions {
 	compilationScope?: string
 	/** Reject compilation when the active catalog does not match this digest. */
 	expectedCatalogDigest?: string
+	/** Reject compilation when executable template manifests differ from this digest. */
+	expectedCatalogManifestDigest?: string
 	/** Optional declarations or imports prepended during graph semantic validation. */
 	semanticContext?: GraphSemanticContext
 }

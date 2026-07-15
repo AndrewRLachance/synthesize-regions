@@ -216,7 +216,7 @@ export const ReduxConfigureStoreTemplate = defineTemplate({
     reducer: expressionInput('Root reducer or reducer map object.', reduxReducerType)
   },
   output: out('expression', { type: reduxStoreType }),
-  template: r => `configureStore({ reducer: ${r('reducer')} })`
+  source: `configureStore({ reducer: ${"/** @TYPE expression id=reducer **/undefined/** @END **/"} })`
 })
 
 export const ReduxConfigureStoreWithMiddlewareTemplate = defineTemplate({
@@ -228,7 +228,7 @@ export const ReduxConfigureStoreWithMiddlewareTemplate = defineTemplate({
     middleware: callbackInput('configureStore middleware callback, usually `getDefaultMiddleware => getDefaultMiddleware().concat(...)`.')
   },
   output: out('expression', { type: reduxStoreType }),
-  template: r => `configureStore({ reducer: ${r('reducer')}, middleware: ${r('middleware')} })`
+  source: `configureStore({ reducer: ${"/** @TYPE expression id=reducer **/undefined/** @END **/"}, middleware: ${"/** @TYPE expression id=middleware **/undefined/** @END **/"} })`
 })
 
 export const ReduxConfigureStoreFullTemplate = defineTemplate({
@@ -239,7 +239,7 @@ export const ReduxConfigureStoreFullTemplate = defineTemplate({
     options: rawObjectExpression('Full configureStore options object, for example `{ reducer, middleware, devTools, preloadedState }`.', reduxStoreType)
   },
   output: out('expression', { type: reduxStoreType }),
-  template: r => `configureStore(${r('options')})`
+  source: `configureStore(${"/** @TYPE expression id=options **/undefined/** @END **/"})`
 })
 
 export const ReduxCombineReducersTemplate = defineTemplate({
@@ -250,7 +250,7 @@ export const ReduxCombineReducersTemplate = defineTemplate({
     reducers: rawObjectExpression('Reducer map object.', reduxReducerMapType)
   },
   output: out('expression', { type: reduxReducerType }),
-  template: r => `combineReducers(${r('reducers')})`
+  source: `combineReducers(${"/** @TYPE expression id=reducers **/undefined/** @END **/"})`
 })
 
 export const ReduxReducerMapPropertyTemplate = defineTemplate({
@@ -262,7 +262,7 @@ export const ReduxReducerMapPropertyTemplate = defineTemplate({
     reducer: expressionInput('Reducer expression.', reduxReducerType)
   },
   output: out('objectProperty'),
-  template: r => `${r('key')}: ${r('reducer')}`
+  source: `${"/** @TYPE string id=key **/\"\"/** @END **/"}: ${"/** @TYPE expression id=reducer **/undefined/** @END **/"}`
 })
 
 export const ReduxCreateSliceTemplate = defineTemplate({
@@ -275,7 +275,7 @@ export const ReduxCreateSliceTemplate = defineTemplate({
     reducers: rawObjectExpression('Reducers object. Case reducers may use Immer-style mutations.')
   },
   output: out('expression', { type: reduxSliceType }),
-  template: r => `createSlice({ name: ${r('name')}, initialState: ${r('initialState')}, reducers: ${r('reducers')} })`
+  source: `createSlice({ name: ${"/** @TYPE string id=name **/\"\"/** @END **/"}, initialState: ${"/** @TYPE expression id=initialState **/undefined/** @END **/"}, reducers: ${"/** @TYPE expression id=reducers **/undefined/** @END **/"} })`
 })
 
 export const ReduxCreateSliceWithExtraReducersTemplate = defineTemplate({
@@ -289,7 +289,7 @@ export const ReduxCreateSliceWithExtraReducersTemplate = defineTemplate({
     extraReducers: callbackInput('extraReducers builder callback, such as `builder => builder.addCase(...)`.')
   },
   output: out('expression', { type: reduxSliceType }),
-  template: r => `createSlice({ name: ${r('name')}, initialState: ${r('initialState')}, reducers: ${r('reducers')}, extraReducers: ${r('extraReducers')} })`
+  source: `createSlice({ name: ${"/** @TYPE string id=name **/\"\"/** @END **/"}, initialState: ${"/** @TYPE expression id=initialState **/undefined/** @END **/"}, reducers: ${"/** @TYPE expression id=reducers **/undefined/** @END **/"}, extraReducers: ${"/** @TYPE expression id=extraReducers **/undefined/** @END **/"} })`
 })
 
 export const ReduxSliceReducerTemplate = defineTemplate({
@@ -300,7 +300,7 @@ export const ReduxSliceReducerTemplate = defineTemplate({
     slice: expressionInput('Redux Toolkit slice expression.', reduxSliceType)
   },
   output: out('expression', { type: reduxReducerType }),
-  template: r => `${r('slice')}.reducer`
+  source: `${"/** @TYPE expression id=slice **/undefined/** @END **/"}.reducer`
 })
 
 export const ReduxSliceActionsTemplate = defineTemplate({
@@ -311,7 +311,7 @@ export const ReduxSliceActionsTemplate = defineTemplate({
     slice: expressionInput('Redux Toolkit slice expression.', reduxSliceType)
   },
   output: out('expression'),
-  template: r => `${r('slice')}.actions`
+  source: `${"/** @TYPE expression id=slice **/undefined/** @END **/"}.actions`
 })
 
 export const ReduxSliceActionTemplate = defineTemplate({
@@ -323,7 +323,7 @@ export const ReduxSliceActionTemplate = defineTemplate({
     actionName: identifierLiteral('Action creator property name.')
   },
   output: out('expression', { type: reduxActionCreatorType }),
-  template: r => `${r('slice')}.actions.${r('actionName')}`
+  source: `${"/** @TYPE expression id=slice **/undefined/** @END **/"}.actions.${"/** @TYPE identifier id=actionName **/placeholder/** @END **/"}`
 })
 
 export const ReduxCreateActionTemplate = defineTemplate({
@@ -334,7 +334,7 @@ export const ReduxCreateActionTemplate = defineTemplate({
     type: stringLiteral('Action type string.')
   },
   output: out('expression', { type: reduxActionCreatorType }),
-  template: r => `createAction(${r('type')})`
+  source: `createAction(${"/** @TYPE string id=type **/\"\"/** @END **/"})`
 })
 
 export const ReduxCreateActionWithPrepareTemplate = defineTemplate({
@@ -346,7 +346,7 @@ export const ReduxCreateActionWithPrepareTemplate = defineTemplate({
     prepare: callbackInput('Prepare callback expression.')
   },
   output: out('expression', { type: reduxActionCreatorType }),
-  template: r => `createAction(${r('type')}, ${r('prepare')})`
+  source: `createAction(${"/** @TYPE string id=type **/\"\"/** @END **/"}, ${"/** @TYPE expression id=prepare **/undefined/** @END **/"})`
 })
 
 export const ReduxCreateReducerTemplate = defineTemplate({
@@ -358,7 +358,7 @@ export const ReduxCreateReducerTemplate = defineTemplate({
     builder: callbackInput('Builder callback expression, such as `builder => builder.addCase(...)`.')
   },
   output: out('expression', { type: reduxReducerType }),
-  template: r => `createReducer(${r('initialState')}, ${r('builder')})`
+  source: `createReducer(${"/** @TYPE expression id=initialState **/undefined/** @END **/"}, ${"/** @TYPE expression id=builder **/undefined/** @END **/"})`
 })
 
 export const ReduxBuilderAddCaseSuffixTemplate = defineTemplate({
@@ -370,7 +370,7 @@ export const ReduxBuilderAddCaseSuffixTemplate = defineTemplate({
     reducer: callbackInput('Case reducer callback expression.')
   },
   output: out('expressionSuffix'),
-  template: r => `.addCase(${r('actionCreator')}, ${r('reducer')})`
+  source: `.addCase(${"/** @TYPE expression id=actionCreator **/undefined/** @END **/"}, ${"/** @TYPE expression id=reducer **/undefined/** @END **/"})`
 })
 
 export const ReduxBuilderAddMatcherSuffixTemplate = defineTemplate({
@@ -382,7 +382,7 @@ export const ReduxBuilderAddMatcherSuffixTemplate = defineTemplate({
     reducer: callbackInput('Case reducer callback expression.')
   },
   output: out('expressionSuffix'),
-  template: r => `.addMatcher(${r('matcher')}, ${r('reducer')})`
+  source: `.addMatcher(${"/** @TYPE expression id=matcher **/undefined/** @END **/"}, ${"/** @TYPE expression id=reducer **/undefined/** @END **/"})`
 })
 
 export const ReduxBuilderAddDefaultCaseSuffixTemplate = defineTemplate({
@@ -393,7 +393,7 @@ export const ReduxBuilderAddDefaultCaseSuffixTemplate = defineTemplate({
     reducer: callbackInput('Default case reducer callback expression.')
   },
   output: out('expressionSuffix'),
-  template: r => `.addDefaultCase(${r('reducer')})`
+  source: `.addDefaultCase(${"/** @TYPE expression id=reducer **/undefined/** @END **/"})`
 })
 
 export const ReduxBuilderCallbackFromSuffixTemplate = defineTemplate({
@@ -404,7 +404,7 @@ export const ReduxBuilderCallbackFromSuffixTemplate = defineTemplate({
     suffix: expressionSuffixFragment('Builder suffix chain.')
   },
   output: out('expression'),
-  template: r => `builder => builder${r('suffix')}`
+  source: `builder => builder${"/** @TYPE expressionSuffix id=suffix **/.value/** @END **/"}`
 })
 
 export const ReduxCreateAsyncThunkTemplate = defineTemplate({
@@ -416,7 +416,7 @@ export const ReduxCreateAsyncThunkTemplate = defineTemplate({
     payloadCreator: callbackInput('Async payload creator callback expression.')
   },
   output: out('expression', { type: reduxAsyncThunkType }),
-  template: r => `createAsyncThunk(${r('typePrefix')}, ${r('payloadCreator')})`
+  source: `createAsyncThunk(${"/** @TYPE string id=typePrefix **/\"\"/** @END **/"}, ${"/** @TYPE expression id=payloadCreator **/undefined/** @END **/"})`
 })
 
 export const ReduxCreateAsyncThunkWithOptionsTemplate = defineTemplate({
@@ -429,7 +429,7 @@ export const ReduxCreateAsyncThunkWithOptionsTemplate = defineTemplate({
     options: rawObjectExpression('createAsyncThunk options object.')
   },
   output: out('expression', { type: reduxAsyncThunkType }),
-  template: r => `createAsyncThunk(${r('typePrefix')}, ${r('payloadCreator')}, ${r('options')})`
+  source: `createAsyncThunk(${"/** @TYPE string id=typePrefix **/\"\"/** @END **/"}, ${"/** @TYPE expression id=payloadCreator **/undefined/** @END **/"}, ${"/** @TYPE expression id=options **/undefined/** @END **/"})`
 })
 
 export const ReduxThunkPendingActionCreatorTemplate = defineTemplate({
@@ -440,7 +440,7 @@ export const ReduxThunkPendingActionCreatorTemplate = defineTemplate({
     thunk: expressionInput('Async thunk expression.', reduxAsyncThunkType)
   },
   output: out('expression', { type: reduxActionCreatorType }),
-  template: r => `${r('thunk')}.pending`
+  source: `${"/** @TYPE expression id=thunk **/undefined/** @END **/"}.pending`
 })
 
 export const ReduxThunkFulfilledActionCreatorTemplate = defineTemplate({
@@ -451,7 +451,7 @@ export const ReduxThunkFulfilledActionCreatorTemplate = defineTemplate({
     thunk: expressionInput('Async thunk expression.', reduxAsyncThunkType)
   },
   output: out('expression', { type: reduxActionCreatorType }),
-  template: r => `${r('thunk')}.fulfilled`
+  source: `${"/** @TYPE expression id=thunk **/undefined/** @END **/"}.fulfilled`
 })
 
 export const ReduxThunkRejectedActionCreatorTemplate = defineTemplate({
@@ -462,7 +462,7 @@ export const ReduxThunkRejectedActionCreatorTemplate = defineTemplate({
     thunk: expressionInput('Async thunk expression.', reduxAsyncThunkType)
   },
   output: out('expression', { type: reduxActionCreatorType }),
-  template: r => `${r('thunk')}.rejected`
+  source: `${"/** @TYPE expression id=thunk **/undefined/** @END **/"}.rejected`
 })
 
 export const ReduxDispatchThunkStatementTemplate = defineTemplate({
@@ -475,7 +475,7 @@ export const ReduxDispatchThunkStatementTemplate = defineTemplate({
     arg: expressionInput('Thunk argument expression.')
   },
   output: out('statement', { type: voidType }),
-  template: r => `${r('dispatch')}(${r('thunk')}(${r('arg')}));`
+  source: `${"/** @TYPE expression id=dispatch **/undefined/** @END **/"}(${"/** @TYPE expression id=thunk **/undefined/** @END **/"}(${"/** @TYPE expression id=arg **/undefined/** @END **/"}));`
 })
 
 export const ReduxThunkUnwrapExpressionTemplate = defineTemplate({
@@ -488,7 +488,7 @@ export const ReduxThunkUnwrapExpressionTemplate = defineTemplate({
     arg: expressionInput('Thunk argument expression.')
   },
   output: out('expression'),
-  template: r => `${r('dispatch')}(${r('thunk')}(${r('arg')})).unwrap()`
+  source: `${"/** @TYPE expression id=dispatch **/undefined/** @END **/"}(${"/** @TYPE expression id=thunk **/undefined/** @END **/"}(${"/** @TYPE expression id=arg **/undefined/** @END **/"})).unwrap()`
 })
 
 export const ReduxCreateEntityAdapterTemplate = defineTemplate({
@@ -499,7 +499,7 @@ export const ReduxCreateEntityAdapterTemplate = defineTemplate({
     options: rawObjectExpression('Entity adapter options object, such as `{ selectId, sortComparer }`.')
   },
   output: out('expression', { type: reduxEntityAdapterType }),
-  template: r => `createEntityAdapter(${r('options')})`
+  source: `createEntityAdapter(${"/** @TYPE expression id=options **/undefined/** @END **/"})`
 })
 
 export const ReduxCreateEntityAdapterDefaultTemplate = defineTemplate({
@@ -508,7 +508,7 @@ export const ReduxCreateEntityAdapterDefaultTemplate = defineTemplate({
   description: 'Creates a default RTK entity adapter with createEntityAdapter().',
   inputs: {},
   output: out('expression', { type: reduxEntityAdapterType }),
-  template: () => 'createEntityAdapter()'
+  source: 'createEntityAdapter()'
 })
 
 export const ReduxEntityAdapterInitialStateTemplate = defineTemplate({
@@ -519,7 +519,7 @@ export const ReduxEntityAdapterInitialStateTemplate = defineTemplate({
     adapter: expressionInput('Entity adapter expression.', reduxEntityAdapterType)
   },
   output: out('expression', { type: reduxEntityStateType }),
-  template: r => `${r('adapter')}.getInitialState()`
+  source: `${"/** @TYPE expression id=adapter **/undefined/** @END **/"}.getInitialState()`
 })
 
 export const ReduxEntityAdapterInitialStateWithExtraTemplate = defineTemplate({
@@ -531,7 +531,7 @@ export const ReduxEntityAdapterInitialStateWithExtraTemplate = defineTemplate({
     extraState: rawObjectExpression('Extra state fields object.')
   },
   output: out('expression', { type: reduxEntityStateType }),
-  template: r => `${r('adapter')}.getInitialState(${r('extraState')})`
+  source: `${"/** @TYPE expression id=adapter **/undefined/** @END **/"}.getInitialState(${"/** @TYPE expression id=extraState **/undefined/** @END **/"})`
 })
 
 export const ReduxEntityAdapterSelectorsTemplate = defineTemplate({
@@ -543,7 +543,7 @@ export const ReduxEntityAdapterSelectorsTemplate = defineTemplate({
     selectState: callbackInput('Selector that returns the entity state.')
   },
   output: out('expression'),
-  template: r => `${r('adapter')}.getSelectors(${r('selectState')})`
+  source: `${"/** @TYPE expression id=adapter **/undefined/** @END **/"}.getSelectors(${"/** @TYPE expression id=selectState **/undefined/** @END **/"})`
 })
 
 export const ReduxEntityAdapterSelectAllTemplate = defineTemplate({
@@ -555,7 +555,7 @@ export const ReduxEntityAdapterSelectAllTemplate = defineTemplate({
     state: expressionInput('Root state expression.')
   },
   output: out('expression'),
-  template: r => `${r('selectors')}.selectAll(${r('state')})`
+  source: `${"/** @TYPE expression id=selectors **/undefined/** @END **/"}.selectAll(${"/** @TYPE expression id=state **/undefined/** @END **/"})`
 })
 
 export const ReduxEntityAdapterSelectByIdTemplate = defineTemplate({
@@ -568,7 +568,7 @@ export const ReduxEntityAdapterSelectByIdTemplate = defineTemplate({
     id: expressionInput('Entity ID expression.')
   },
   output: out('expression'),
-  template: r => `${r('selectors')}.selectById(${r('state')}, ${r('id')})`
+  source: `${"/** @TYPE expression id=selectors **/undefined/** @END **/"}.selectById(${"/** @TYPE expression id=state **/undefined/** @END **/"}, ${"/** @TYPE expression id=id **/undefined/** @END **/"})`
 })
 
 export const ReduxEntityAdapterSetAllStatementTemplate = defineTemplate({
@@ -581,7 +581,7 @@ export const ReduxEntityAdapterSetAllStatementTemplate = defineTemplate({
     entities: expressionInput('Entities array or record expression.')
   },
   output: out('statement', { type: voidType }),
-  template: r => `${r('adapter')}.setAll(${r('state')}, ${r('entities')});`
+  source: `${"/** @TYPE expression id=adapter **/undefined/** @END **/"}.setAll(${"/** @TYPE expression id=state **/undefined/** @END **/"}, ${"/** @TYPE expression id=entities **/undefined/** @END **/"});`
 })
 
 export const ReduxEntityAdapterAddOneStatementTemplate = defineTemplate({
@@ -594,7 +594,7 @@ export const ReduxEntityAdapterAddOneStatementTemplate = defineTemplate({
     entity: expressionInput('Entity expression.')
   },
   output: out('statement', { type: voidType }),
-  template: r => `${r('adapter')}.addOne(${r('state')}, ${r('entity')});`
+  source: `${"/** @TYPE expression id=adapter **/undefined/** @END **/"}.addOne(${"/** @TYPE expression id=state **/undefined/** @END **/"}, ${"/** @TYPE expression id=entity **/undefined/** @END **/"});`
 })
 
 export const ReduxEntityAdapterUpsertManyStatementTemplate = defineTemplate({
@@ -607,7 +607,7 @@ export const ReduxEntityAdapterUpsertManyStatementTemplate = defineTemplate({
     entities: expressionInput('Entities array or record expression.')
   },
   output: out('statement', { type: voidType }),
-  template: r => `${r('adapter')}.upsertMany(${r('state')}, ${r('entities')});`
+  source: `${"/** @TYPE expression id=adapter **/undefined/** @END **/"}.upsertMany(${"/** @TYPE expression id=state **/undefined/** @END **/"}, ${"/** @TYPE expression id=entities **/undefined/** @END **/"});`
 })
 
 export const ReduxEntityAdapterUpdateOneStatementTemplate = defineTemplate({
@@ -620,7 +620,7 @@ export const ReduxEntityAdapterUpdateOneStatementTemplate = defineTemplate({
     update: expressionInput('Entity update object expression.')
   },
   output: out('statement', { type: voidType }),
-  template: r => `${r('adapter')}.updateOne(${r('state')}, ${r('update')});`
+  source: `${"/** @TYPE expression id=adapter **/undefined/** @END **/"}.updateOne(${"/** @TYPE expression id=state **/undefined/** @END **/"}, ${"/** @TYPE expression id=update **/undefined/** @END **/"});`
 })
 
 export const ReduxEntityAdapterRemoveOneStatementTemplate = defineTemplate({
@@ -633,7 +633,7 @@ export const ReduxEntityAdapterRemoveOneStatementTemplate = defineTemplate({
     id: expressionInput('Entity ID expression.')
   },
   output: out('statement', { type: voidType }),
-  template: r => `${r('adapter')}.removeOne(${r('state')}, ${r('id')});`
+  source: `${"/** @TYPE expression id=adapter **/undefined/** @END **/"}.removeOne(${"/** @TYPE expression id=state **/undefined/** @END **/"}, ${"/** @TYPE expression id=id **/undefined/** @END **/"});`
 })
 
 export const ReduxFetchBaseQueryTemplate = defineTemplate({
@@ -644,7 +644,7 @@ export const ReduxFetchBaseQueryTemplate = defineTemplate({
     options: rawObjectExpression('fetchBaseQuery options object, such as `{ baseUrl, prepareHeaders }`.')
   },
   output: out('expression'),
-  template: r => `fetchBaseQuery(${r('options')})`
+  source: `fetchBaseQuery(${"/** @TYPE expression id=options **/undefined/** @END **/"})`
 })
 
 export const ReduxCreateApiTemplate = defineTemplate({
@@ -655,7 +655,7 @@ export const ReduxCreateApiTemplate = defineTemplate({
     options: rawObjectExpression('createApi options object.', rtkQueryApiType)
   },
   output: out('expression', { type: rtkQueryApiType }),
-  template: r => `createApi(${r('options')})`
+  source: `createApi(${"/** @TYPE expression id=options **/undefined/** @END **/"})`
 })
 
 export const ReduxCreateApiBasicTemplate = defineTemplate({
@@ -669,7 +669,7 @@ export const ReduxCreateApiBasicTemplate = defineTemplate({
     endpoints: callbackInput('Endpoint builder callback, such as `build => ({ getPost: build.query(...) })`.')
   },
   output: out('expression', { type: rtkQueryApiType }),
-  template: r => `createApi({ reducerPath: ${r('reducerPath')}, baseQuery: ${r('baseQuery')}, tagTypes: ${r('tagTypes')}, endpoints: ${r('endpoints')} })`
+  source: `createApi({ reducerPath: ${"/** @TYPE string id=reducerPath **/\"\"/** @END **/"}, baseQuery: ${"/** @TYPE expression id=baseQuery **/undefined/** @END **/"}, tagTypes: ${"/** @TYPE expression id=tagTypes **/undefined/** @END **/"}, endpoints: ${"/** @TYPE expression id=endpoints **/undefined/** @END **/"} })`
 })
 
 export const ReduxQueryEndpointPropertyTemplate = defineTemplate({
@@ -681,7 +681,7 @@ export const ReduxQueryEndpointPropertyTemplate = defineTemplate({
     config: rawObjectExpression('Endpoint config object for build.query(...).')
   },
   output: out('objectProperty', { type: rtkQueryEndpointPropertyType }),
-  template: r => `${r('name')}: build.query(${r('config')})`
+  source: `${"/** @TYPE string id=name **/\"\"/** @END **/"}: build.query(${"/** @TYPE expression id=config **/undefined/** @END **/"})`
 })
 
 export const ReduxMutationEndpointPropertyTemplate = defineTemplate({
@@ -693,7 +693,7 @@ export const ReduxMutationEndpointPropertyTemplate = defineTemplate({
     config: rawObjectExpression('Endpoint config object for build.mutation(...).')
   },
   output: out('objectProperty', { type: rtkQueryEndpointPropertyType }),
-  template: r => `${r('name')}: build.mutation(${r('config')})`
+  source: `${"/** @TYPE string id=name **/\"\"/** @END **/"}: build.mutation(${"/** @TYPE expression id=config **/undefined/** @END **/"})`
 })
 
 export const ReduxApiReducerPathTemplate = defineTemplate({
@@ -704,7 +704,7 @@ export const ReduxApiReducerPathTemplate = defineTemplate({
     api: expressionInput('RTK Query API slice expression.', rtkQueryApiType)
   },
   output: out('expression', { type: stringType }),
-  template: r => `${r('api')}.reducerPath`
+  source: `${"/** @TYPE expression id=api **/undefined/** @END **/"}.reducerPath`
 })
 
 export const ReduxApiReducerMapPropertyTemplate = defineTemplate({
@@ -715,7 +715,7 @@ export const ReduxApiReducerMapPropertyTemplate = defineTemplate({
     api: expressionInput('RTK Query API slice expression.', rtkQueryApiType)
   },
   output: out('expression'),
-  template: r => `({ [${r('api')}.reducerPath]: ${r('api')}.reducer })`
+  source: `(api => ({ [api.reducerPath]: api.reducer }))(${"/** @TYPE expression id=api **/undefined/** @END **/"})`
 })
 
 export const ReduxApiMiddlewareConcatTemplate = defineTemplate({
@@ -726,7 +726,7 @@ export const ReduxApiMiddlewareConcatTemplate = defineTemplate({
     api: expressionInput('RTK Query API slice expression.', rtkQueryApiType)
   },
   output: out('expression'),
-  template: r => `getDefaultMiddleware => getDefaultMiddleware().concat(${r('api')}.middleware)`
+  source: `getDefaultMiddleware => getDefaultMiddleware().concat(${"/** @TYPE expression id=api **/undefined/** @END **/"}.middleware)`
 })
 
 export const ReduxApiInjectEndpointsTemplate = defineTemplate({
@@ -738,7 +738,7 @@ export const ReduxApiInjectEndpointsTemplate = defineTemplate({
     endpoints: callbackInput('Endpoint builder callback for injectEndpoints.')
   },
   output: out('expression', { type: rtkQueryApiType }),
-  template: r => `${r('api')}.injectEndpoints({ endpoints: ${r('endpoints')} })`
+  source: `${"/** @TYPE expression id=api **/undefined/** @END **/"}.injectEndpoints({ endpoints: ${"/** @TYPE expression id=endpoints **/undefined/** @END **/"} })`
 })
 
 export const ReduxApiEnhanceEndpointsTemplate = defineTemplate({
@@ -750,7 +750,7 @@ export const ReduxApiEnhanceEndpointsTemplate = defineTemplate({
     options: rawObjectExpression('enhanceEndpoints options object.')
   },
   output: out('expression', { type: rtkQueryApiType }),
-  template: r => `${r('api')}.enhanceEndpoints(${r('options')})`
+  source: `${"/** @TYPE expression id=api **/undefined/** @END **/"}.enhanceEndpoints(${"/** @TYPE expression id=options **/undefined/** @END **/"})`
 })
 
 export const ReduxApiInvalidateTagsActionTemplate = defineTemplate({
@@ -762,7 +762,7 @@ export const ReduxApiInvalidateTagsActionTemplate = defineTemplate({
     tags: expressionInput('Tag descriptions expression.')
   },
   output: out('expression', { type: reduxActionType }),
-  template: r => `${r('api')}.util.invalidateTags(${r('tags')})`
+  source: `${"/** @TYPE expression id=api **/undefined/** @END **/"}.util.invalidateTags(${"/** @TYPE expression id=tags **/undefined/** @END **/"})`
 })
 
 export const ReduxApiPrefetchDispatchStatementTemplate = defineTemplate({
@@ -777,7 +777,7 @@ export const ReduxApiPrefetchDispatchStatementTemplate = defineTemplate({
     options: rawObjectExpression('Prefetch options object.')
   },
   output: out('statement', { type: voidType }),
-  template: r => `${r('dispatch')}(${r('api')}.util.prefetch(${r('endpointName')}, ${r('arg')}, ${r('options')}));`
+  source: `${"/** @TYPE expression id=dispatch **/undefined/** @END **/"}(${"/** @TYPE expression id=api **/undefined/** @END **/"}.util.prefetch(${"/** @TYPE string id=endpointName **/\"\"/** @END **/"}, ${"/** @TYPE expression id=arg **/undefined/** @END **/"}, ${"/** @TYPE expression id=options **/undefined/** @END **/"}));`
 })
 
 export const ReactReduxProviderElementTemplate = defineTemplate({
@@ -789,7 +789,7 @@ export const ReactReduxProviderElementTemplate = defineTemplate({
     children: expressionInput('Provider children expression.', reactNodeType)
   },
   output: out('expression', { type: reactElementType }),
-  template: r => `React.createElement(Provider, { store: ${r('store')} }, ${r('children')})`
+  source: `React.createElement(Provider, { store: ${"/** @TYPE expression id=store **/undefined/** @END **/"} }, ${"/** @TYPE expression id=children **/undefined/** @END **/"})`
 })
 
 export const ReactReduxUseDispatchTemplate = defineTemplate({
@@ -798,7 +798,7 @@ export const ReactReduxUseDispatchTemplate = defineTemplate({
   description: 'Calls useDispatch().',
   inputs: {},
   output: out('expression', { type: reduxDispatchType }),
-  template: () => 'useDispatch()'
+  source: 'useDispatch()'
 })
 
 export const ReactReduxUseSelectorTemplate = defineTemplate({
@@ -809,7 +809,7 @@ export const ReactReduxUseSelectorTemplate = defineTemplate({
     selector: expressionInput('Selector callback expression.', reduxSelectorType)
   },
   output: out('expression'),
-  template: r => `useSelector(${r('selector')})`
+  source: `useSelector(${"/** @TYPE expression id=selector **/undefined/** @END **/"})`
 })
 
 export const ReactReduxUseSelectorShallowEqualTemplate = defineTemplate({
@@ -820,7 +820,7 @@ export const ReactReduxUseSelectorShallowEqualTemplate = defineTemplate({
     selector: expressionInput('Selector callback expression.', reduxSelectorType)
   },
   output: out('expression'),
-  template: r => `useSelector(${r('selector')}, shallowEqual)`
+  source: `useSelector(${"/** @TYPE expression id=selector **/undefined/** @END **/"}, shallowEqual)`
 })
 
 export const ReactReduxUseStoreTemplate = defineTemplate({
@@ -829,7 +829,7 @@ export const ReactReduxUseStoreTemplate = defineTemplate({
   description: 'Calls useStore().',
   inputs: {},
   output: out('expression', { type: reduxStoreType }),
-  template: () => 'useStore()'
+  source: 'useStore()'
 })
 
 export const ReactReduxDispatchActionStatementTemplate = defineTemplate({
@@ -841,7 +841,7 @@ export const ReactReduxDispatchActionStatementTemplate = defineTemplate({
     action: expressionInput('Action expression.', reduxActionType)
   },
   output: out('statement', { type: voidType }),
-  template: r => `${r('dispatch')}(${r('action')});`
+  source: `${"/** @TYPE expression id=dispatch **/undefined/** @END **/"}(${"/** @TYPE expression id=action **/undefined/** @END **/"});`
 })
 
 export const ReactReduxDispatchActionCreatorStatementTemplate = defineTemplate({
@@ -854,7 +854,7 @@ export const ReactReduxDispatchActionCreatorStatementTemplate = defineTemplate({
     payload: expressionInput('Payload expression.')
   },
   output: out('statement', { type: voidType }),
-  template: r => `${r('dispatch')}(${r('actionCreator')}(${r('payload')}));`
+  source: `${"/** @TYPE expression id=dispatch **/undefined/** @END **/"}(${"/** @TYPE expression id=actionCreator **/undefined/** @END **/"}(${"/** @TYPE expression id=payload **/undefined/** @END **/"}));`
 })
 
 export const ReactReduxTypedHooksStatementTemplate = defineTemplate({
@@ -870,7 +870,7 @@ export const ReactReduxTypedHooksStatementTemplate = defineTemplate({
     appStoreType: identifierLiteral('AppStore type identifier.')
   },
   output: out('statement', { type: voidType }),
-  template: r => `export const ${r('dispatchHookName')} = useDispatch.withTypes<${r('appDispatchType')}>();\nexport const ${r('selectorHookName')} = useSelector.withTypes<${r('rootStateType')}>();\nexport const ${r('storeHookName')} = useStore.withTypes<${r('appStoreType')}>();`
+  source: `export const ${"/** @TYPE identifier id=dispatchHookName **/placeholder/** @END **/"} = useDispatch.withTypes<${"/** @TYPE identifier id=appDispatchType **/placeholder/** @END **/"}>();\nexport const ${"/** @TYPE identifier id=selectorHookName **/placeholder/** @END **/"} = useSelector.withTypes<${"/** @TYPE identifier id=rootStateType **/placeholder/** @END **/"}>();\nexport const ${"/** @TYPE identifier id=storeHookName **/placeholder/** @END **/"} = useStore.withTypes<${"/** @TYPE identifier id=appStoreType **/placeholder/** @END **/"}>();`
 })
 
 export const ReduxRootStateTypeStatementTemplate = defineTemplate({
@@ -882,7 +882,7 @@ export const ReduxRootStateTypeStatementTemplate = defineTemplate({
     storeIdentifier: identifierLiteral('Store identifier.')
   },
   output: out('statement', { type: voidType }),
-  template: r => `export type ${r('typeName')} = ReturnType<typeof ${r('storeIdentifier')}.getState>;`
+  source: `export type ${"/** @TYPE identifier id=typeName **/placeholder/** @END **/"} = ReturnType<typeof ${"/** @TYPE identifier id=storeIdentifier **/placeholder/** @END **/"}.getState>;`
 })
 
 export const ReduxAppDispatchTypeStatementTemplate = defineTemplate({
@@ -894,7 +894,7 @@ export const ReduxAppDispatchTypeStatementTemplate = defineTemplate({
     storeIdentifier: identifierLiteral('Store identifier.')
   },
   output: out('statement', { type: voidType }),
-  template: r => `export type ${r('typeName')} = typeof ${r('storeIdentifier')}.dispatch;`
+  source: `export type ${"/** @TYPE identifier id=typeName **/placeholder/** @END **/"} = typeof ${"/** @TYPE identifier id=storeIdentifier **/placeholder/** @END **/"}.dispatch;`
 })
 
 export const ReduxCreateSelector2Template = defineTemplate({
@@ -907,7 +907,7 @@ export const ReduxCreateSelector2Template = defineTemplate({
     result: callbackInput('Result callback expression.')
   },
   output: out('expression', { type: reduxSelectorType }),
-  template: r => `createSelector([${r('selectorA')}, ${r('selectorB')}], ${r('result')})`
+  source: `createSelector([${"/** @TYPE expression id=selectorA **/undefined/** @END **/"}, ${"/** @TYPE expression id=selectorB **/undefined/** @END **/"}], ${"/** @TYPE expression id=result **/undefined/** @END **/"})`
 })
 
 export const ReduxCreateSelector3Template = defineTemplate({
@@ -921,7 +921,7 @@ export const ReduxCreateSelector3Template = defineTemplate({
     result: callbackInput('Result callback expression.')
   },
   output: out('expression', { type: reduxSelectorType }),
-  template: r => `createSelector([${r('selectorA')}, ${r('selectorB')}, ${r('selectorC')}], ${r('result')})`
+  source: `createSelector([${"/** @TYPE expression id=selectorA **/undefined/** @END **/"}, ${"/** @TYPE expression id=selectorB **/undefined/** @END **/"}, ${"/** @TYPE expression id=selectorC **/undefined/** @END **/"}], ${"/** @TYPE expression id=result **/undefined/** @END **/"})`
 })
 
 export const ReduxSelectorPathTemplate = defineTemplate({
@@ -932,7 +932,7 @@ export const ReduxSelectorPathTemplate = defineTemplate({
     key: identifierLiteral('Root state property name.')
   },
   output: out('expression', { type: reduxSelectorType }),
-  template: r => `(state => state.${r('key')})`
+  source: `(state => state.${"/** @TYPE identifier id=key **/placeholder/** @END **/"})`
 })
 
 export const ReduxSelectorNestedPathTemplate = defineTemplate({
@@ -944,7 +944,7 @@ export const ReduxSelectorNestedPathTemplate = defineTemplate({
     child: identifierLiteral('Nested property name.')
   },
   output: out('expression', { type: reduxSelectorType }),
-  template: r => `(state => state.${r('parent')}.${r('child')})`
+  source: `(state => state.${"/** @TYPE identifier id=parent **/placeholder/** @END **/"}.${"/** @TYPE identifier id=child **/placeholder/** @END **/"})`
 })
 
 export const ReduxSelectorMapArrayTemplate = defineTemplate({
@@ -956,7 +956,7 @@ export const ReduxSelectorMapArrayTemplate = defineTemplate({
     mapper: callbackInput('Array mapper callback expression.')
   },
   output: out('expression', { type: reduxSelectorType }),
-  template: r => `(state => ${r('selector')}(state).map(${r('mapper')}))`
+  source: `(state => ${"/** @TYPE expression id=selector **/undefined/** @END **/"}(state).map(${"/** @TYPE expression id=mapper **/undefined/** @END **/"}))`
 })
 
 export const ReduxSelectorFilterArrayTemplate = defineTemplate({
@@ -968,7 +968,7 @@ export const ReduxSelectorFilterArrayTemplate = defineTemplate({
     predicate: callbackInput('Array predicate callback expression.')
   },
   output: out('expression', { type: reduxSelectorType }),
-  template: r => `(state => ${r('selector')}(state).filter(${r('predicate')}))`
+  source: `(state => ${"/** @TYPE expression id=selector **/undefined/** @END **/"}(state).filter(${"/** @TYPE expression id=predicate **/undefined/** @END **/"}))`
 })
 
 export const ReduxCreateListenerMiddlewareTemplate = defineTemplate({
@@ -977,7 +977,7 @@ export const ReduxCreateListenerMiddlewareTemplate = defineTemplate({
   description: 'Creates an RTK listener middleware instance.',
   inputs: {},
   output: out('expression', { type: listenerMiddlewareType }),
-  template: () => 'createListenerMiddleware()'
+  source: 'createListenerMiddleware()'
 })
 
 export const ReduxListenerStartListeningStatementTemplate = defineTemplate({
@@ -990,7 +990,7 @@ export const ReduxListenerStartListeningStatementTemplate = defineTemplate({
     effect: callbackInput('Listener effect callback.')
   },
   output: out('statement', { type: voidType }),
-  template: r => `${r('listenerMiddleware')}.startListening({ predicate: ${r('predicate')}, effect: ${r('effect')} });`
+  source: `${"/** @TYPE expression id=listenerMiddleware **/undefined/** @END **/"}.startListening({ predicate: ${"/** @TYPE expression id=predicate **/undefined/** @END **/"}, effect: ${"/** @TYPE expression id=effect **/undefined/** @END **/"} });`
 })
 
 export const ReduxListenerStartListeningActionCreatorStatementTemplate = defineTemplate({
@@ -1003,7 +1003,7 @@ export const ReduxListenerStartListeningActionCreatorStatementTemplate = defineT
     effect: callbackInput('Listener effect callback.')
   },
   output: out('statement', { type: voidType }),
-  template: r => `${r('listenerMiddleware')}.startListening({ actionCreator: ${r('actionCreator')}, effect: ${r('effect')} });`
+  source: `${"/** @TYPE expression id=listenerMiddleware **/undefined/** @END **/"}.startListening({ actionCreator: ${"/** @TYPE expression id=actionCreator **/undefined/** @END **/"}, effect: ${"/** @TYPE expression id=effect **/undefined/** @END **/"} });`
 })
 
 export const ReduxListenerMiddlewarePrependTemplate = defineTemplate({
@@ -1014,7 +1014,7 @@ export const ReduxListenerMiddlewarePrependTemplate = defineTemplate({
     listenerMiddleware: expressionInput('Listener middleware instance.', listenerMiddlewareType)
   },
   output: out('expression'),
-  template: r => `getDefaultMiddleware => getDefaultMiddleware().prepend(${r('listenerMiddleware')}.middleware)`
+  source: `getDefaultMiddleware => getDefaultMiddleware().prepend(${"/** @TYPE expression id=listenerMiddleware **/undefined/** @END **/"}.middleware)`
 })
 
 export const ReduxIsAnyOfTemplate = defineTemplate({
@@ -1025,7 +1025,7 @@ export const ReduxIsAnyOfTemplate = defineTemplate({
     actionCreators: rawExpression('Comma-separated action creators or an array spread, such as `a, b` or `...actions`.'),
   },
   output: out('expression'),
-  template: r => `isAnyOf(${r('actionCreators')})`
+  source: `isAnyOf(${"/** @TYPE expression id=actionCreators **/undefined/** @END **/"})`
 })
 
 export const ReduxIsAllOfTemplate = defineTemplate({
@@ -1036,7 +1036,7 @@ export const ReduxIsAllOfTemplate = defineTemplate({
     matchers: rawExpression('Comma-separated matcher expressions or an array spread, such as `a, b` or `...matchers`.'),
   },
   output: out('expression'),
-  template: r => `isAllOf(${r('matchers')})`
+  source: `isAllOf(${"/** @TYPE expression id=matchers **/undefined/** @END **/"})`
 })
 
 export const ReduxIsPendingTemplate = defineTemplate({
@@ -1047,7 +1047,7 @@ export const ReduxIsPendingTemplate = defineTemplate({
     thunks: rawExpression('Comma-separated async thunk expressions or an array spread.')
   },
   output: out('expression'),
-  template: r => `isPending(${r('thunks')})`
+  source: `isPending(${"/** @TYPE expression id=thunks **/undefined/** @END **/"})`
 })
 
 export const ReduxIsFulfilledTemplate = defineTemplate({
@@ -1058,7 +1058,7 @@ export const ReduxIsFulfilledTemplate = defineTemplate({
     thunks: rawExpression('Comma-separated async thunk expressions or an array spread.')
   },
   output: out('expression'),
-  template: r => `isFulfilled(${r('thunks')})`
+  source: `isFulfilled(${"/** @TYPE expression id=thunks **/undefined/** @END **/"})`
 })
 
 export const ReduxIsRejectedTemplate = defineTemplate({
@@ -1069,7 +1069,7 @@ export const ReduxIsRejectedTemplate = defineTemplate({
     thunks: rawExpression('Comma-separated async thunk expressions or an array spread.')
   },
   output: out('expression'),
-  template: r => `isRejected(${r('thunks')})`
+  source: `isRejected(${"/** @TYPE expression id=thunks **/undefined/** @END **/"})`
 })
 
 export const ReduxActionCreatorCallTemplate = defineTemplate({
@@ -1081,7 +1081,7 @@ export const ReduxActionCreatorCallTemplate = defineTemplate({
     payload: expressionInput('Payload expression.')
   },
   output: out('expression', { type: reduxPayloadActionType }),
-  template: r => `${r('actionCreator')}(${r('payload')})`
+  source: `${"/** @TYPE expression id=actionCreator **/undefined/** @END **/"}(${"/** @TYPE expression id=payload **/undefined/** @END **/"})`
 })
 
 export const ReduxActionCreatorNoPayloadCallTemplate = defineTemplate({
@@ -1092,7 +1092,7 @@ export const ReduxActionCreatorNoPayloadCallTemplate = defineTemplate({
     actionCreator: expressionInput('Action creator expression.', reduxActionCreatorType)
   },
   output: out('expression', { type: reduxPayloadActionType }),
-  template: r => `${r('actionCreator')}()`
+  source: `${"/** @TYPE expression id=actionCreator **/undefined/** @END **/"}()`
 })
 
 export const ReduxPayloadActionPayloadTemplate = defineTemplate({
@@ -1103,7 +1103,7 @@ export const ReduxPayloadActionPayloadTemplate = defineTemplate({
     action: expressionInput('PayloadAction expression.', reduxPayloadActionType)
   },
   output: out('expression'),
-  template: r => `${r('action')}.payload`
+  source: `${"/** @TYPE expression id=action **/undefined/** @END **/"}.payload`
 })
 
 export const ReduxDraftAssignTemplate = defineTemplate({
@@ -1116,7 +1116,7 @@ export const ReduxDraftAssignTemplate = defineTemplate({
     value: expressionInput('Assigned value expression.')
   },
   output: out('statement', { type: voidType }),
-  template: r => `${r('draft')}.${r('key')} = ${r('value')};`
+  source: `${"/** @TYPE expression id=draft **/undefined/** @END **/"}.${"/** @TYPE identifier id=key **/placeholder/** @END **/"} = ${"/** @TYPE expression id=value **/undefined/** @END **/"};`
 })
 
 export const ReduxDraftPushTemplate = defineTemplate({
@@ -1129,7 +1129,7 @@ export const ReduxDraftPushTemplate = defineTemplate({
     value: expressionInput('Pushed value expression.')
   },
   output: out('statement', { type: voidType }),
-  template: r => `${r('draft')}.${r('key')}.push(${r('value')});`
+  source: `${"/** @TYPE expression id=draft **/undefined/** @END **/"}.${"/** @TYPE identifier id=key **/placeholder/** @END **/"}.push(${"/** @TYPE expression id=value **/undefined/** @END **/"});`
 })
 
 export const ReduxReturnStateStatementTemplate = defineTemplate({
@@ -1140,7 +1140,7 @@ export const ReduxReturnStateStatementTemplate = defineTemplate({
     value: expressionInput('Returned value expression.')
   },
   output: out('statement'),
-  template: r => `return ${r('value')};`
+  source: `return ${"/** @TYPE expression id=value **/undefined/** @END **/"};`
 })
 
 export const ReduxPersistReducerTemplate = defineTemplate({
@@ -1152,7 +1152,7 @@ export const ReduxPersistReducerTemplate = defineTemplate({
     reducer: expressionInput('Reducer expression.', reduxReducerType)
   },
   output: out('expression', { type: reduxReducerType }),
-  template: r => `persistReducer(${r('config')}, ${r('reducer')})`
+  source: `persistReducer(${"/** @TYPE expression id=config **/undefined/** @END **/"}, ${"/** @TYPE expression id=reducer **/undefined/** @END **/"})`
 })
 
 export const ReduxPersistStoreTemplate = defineTemplate({
@@ -1163,7 +1163,7 @@ export const ReduxPersistStoreTemplate = defineTemplate({
     store: expressionInput('Redux store expression.', reduxStoreType)
   },
   output: out('expression'),
-  template: r => `persistStore(${r('store')})`
+  source: `persistStore(${"/** @TYPE expression id=store **/undefined/** @END **/"})`
 })
 
 export const ReduxPersistGateElementTemplate = defineTemplate({
@@ -1176,7 +1176,7 @@ export const ReduxPersistGateElementTemplate = defineTemplate({
     children: expressionInput('Children expression.', reactNodeType)
   },
   output: out('expression', { type: reactElementType }),
-  template: r => `React.createElement(PersistGate, { persistor: ${r('persistor')}, loading: ${r('loading')} }, ${r('children')})`
+  source: `React.createElement(PersistGate, { persistor: ${"/** @TYPE expression id=persistor **/undefined/** @END **/"}, loading: ${"/** @TYPE expression id=loading **/undefined/** @END **/"} }, ${"/** @TYPE expression id=children **/undefined/** @END **/"})`
 })
 
 export const ReduxSagaTakeLatestStatementTemplate = defineTemplate({
@@ -1189,7 +1189,7 @@ export const ReduxSagaTakeLatestStatementTemplate = defineTemplate({
     args: rawExpression('Optional comma-prefixed extra args, or empty string via raw code if your policy allows it.')
   },
   output: out('statement', { type: sagaEffectType }),
-  template: r => `yield takeLatest(${r('pattern')}, ${r('worker')}${r('args')});`
+  source: `yield takeLatest(${"/** @TYPE expression id=pattern **/undefined/** @END **/"}, ${"/** @TYPE expression id=worker **/undefined/** @END **/"}${"/** @TYPE expression id=args **/undefined/** @END **/"});`
 })
 
 export const ReduxSagaTakeEveryStatementTemplate = defineTemplate({
@@ -1202,7 +1202,7 @@ export const ReduxSagaTakeEveryStatementTemplate = defineTemplate({
     args: rawExpression('Optional comma-prefixed extra args, or empty string via raw code if your policy allows it.')
   },
   output: out('statement', { type: sagaEffectType }),
-  template: r => `yield takeEvery(${r('pattern')}, ${r('worker')}${r('args')});`
+  source: `yield takeEvery(${"/** @TYPE expression id=pattern **/undefined/** @END **/"}, ${"/** @TYPE expression id=worker **/undefined/** @END **/"}${"/** @TYPE expression id=args **/undefined/** @END **/"});`
 })
 
 export const ReduxSagaCallExpressionTemplate = defineTemplate({
@@ -1214,7 +1214,7 @@ export const ReduxSagaCallExpressionTemplate = defineTemplate({
     args: rawExpression('Comma-separated call arguments or empty string if no args.')
   },
   output: out('expression', { type: sagaEffectType }),
-  template: r => `call(${r('fn')}${r('args')})`
+  source: `call(${"/** @TYPE expression id=fn **/undefined/** @END **/"}${"/** @TYPE expression id=args **/undefined/** @END **/"})`
 })
 
 export const ReduxSagaPutStatementTemplate = defineTemplate({
@@ -1225,7 +1225,7 @@ export const ReduxSagaPutStatementTemplate = defineTemplate({
     action: expressionInput('Action expression.', reduxActionType)
   },
   output: out('statement', { type: sagaEffectType }),
-  template: r => `yield put(${r('action')});`
+  source: `yield put(${"/** @TYPE expression id=action **/undefined/** @END **/"});`
 })
 
 export const ReduxSagaSelectExpressionTemplate = defineTemplate({
@@ -1237,7 +1237,7 @@ export const ReduxSagaSelectExpressionTemplate = defineTemplate({
     args: rawExpression('Comma-separated selector arguments or empty string if no args.')
   },
   output: out('expression', { type: sagaEffectType }),
-  template: r => `select(${r('selector')}${r('args')})`
+  source: `select(${"/** @TYPE expression id=selector **/undefined/** @END **/"}${"/** @TYPE expression id=args **/undefined/** @END **/"})`
 })
 
 export const ReduxSagaAllExpressionTemplate = defineTemplate({
@@ -1248,7 +1248,7 @@ export const ReduxSagaAllExpressionTemplate = defineTemplate({
     effects: expressionInput('Array or object of saga effects.')
   },
   output: out('expression', { type: sagaEffectType }),
-  template: r => `all(${r('effects')})`
+  source: `all(${"/** @TYPE expression id=effects **/undefined/** @END **/"})`
 })
 
 export const ReduxSagaForkStatementTemplate = defineTemplate({
@@ -1260,7 +1260,7 @@ export const ReduxSagaForkStatementTemplate = defineTemplate({
     args: rawExpression('Comma-separated fork arguments or empty string if no args.')
   },
   output: out('statement', { type: sagaEffectType }),
-  template: r => `yield fork(${r('fn')}${r('args')});`
+  source: `yield fork(${"/** @TYPE expression id=fn **/undefined/** @END **/"}${"/** @TYPE expression id=args **/undefined/** @END **/"});`
 })
 
 export const ReduxStatementList2Template = defineTemplate({
@@ -1272,7 +1272,7 @@ export const ReduxStatementList2Template = defineTemplate({
     second: statementFragment('Second statement fragment.')
   },
   output: out('statement'),
-  template: r => `${r('first')}\n${r('second')}`
+  source: `${"/** @TYPE statement id=first **/throw new Error(\"placeholder\");/** @END **/"}\n${"/** @TYPE statement id=second **/throw new Error(\"placeholder\");/** @END **/"}`
 })
 
 export const ReduxStatementList3Template = defineTemplate({
@@ -1285,7 +1285,7 @@ export const ReduxStatementList3Template = defineTemplate({
     third: statementFragment('Third statement fragment.')
   },
   output: out('statement'),
-  template: r => `${r('first')}\n${r('second')}\n${r('third')}`
+  source: `${"/** @TYPE statement id=first **/throw new Error(\"placeholder\");/** @END **/"}\n${"/** @TYPE statement id=second **/throw new Error(\"placeholder\");/** @END **/"}\n${"/** @TYPE statement id=third **/throw new Error(\"placeholder\");/** @END **/"}`
 })
 
 export const ReduxDeclareConstStatementTemplate = defineTemplate({
@@ -1297,7 +1297,7 @@ export const ReduxDeclareConstStatementTemplate = defineTemplate({
     value: expressionInput('Initializer expression.')
   },
   output: out('statement'),
-  template: r => `const ${r('name')} = ${r('value')};`
+  source: `const ${"/** @TYPE identifier id=name **/placeholder/** @END **/"} = ${"/** @TYPE expression id=value **/undefined/** @END **/"};`
 })
 
 export const ReduxExportConstStatementTemplate = defineTemplate({
@@ -1309,7 +1309,7 @@ export const ReduxExportConstStatementTemplate = defineTemplate({
     value: expressionInput('Initializer expression.')
   },
   output: out('statement'),
-  template: r => `export const ${r('name')} = ${r('value')};`
+  source: `export const ${"/** @TYPE identifier id=name **/placeholder/** @END **/"} = ${"/** @TYPE expression id=value **/undefined/** @END **/"};`
 })
 
 export const ReduxExportDefaultStatementTemplate = defineTemplate({
@@ -1320,7 +1320,7 @@ export const ReduxExportDefaultStatementTemplate = defineTemplate({
     value: expressionInput('Default export expression.')
   },
   output: out('statement'),
-  template: r => `export default ${r('value')};`
+  source: `export default ${"/** @TYPE expression id=value **/undefined/** @END **/"};`
 })
 
 export const ReduxToolkitStoreSetupWithApiTemplate = defineTemplate({
@@ -1332,7 +1332,7 @@ export const ReduxToolkitStoreSetupWithApiTemplate = defineTemplate({
     api: expressionInput('RTK Query API slice expression.', rtkQueryApiType)
   },
   output: out('expression', { type: reduxStoreType }),
-  template: r => `configureStore({ reducer: { ...${r('reducers')}, [${r('api')}.reducerPath]: ${r('api')}.reducer }, middleware: getDefaultMiddleware => getDefaultMiddleware().concat(${r('api')}.middleware) })`
+  source: `(api => configureStore({ reducer: { ...${"/** @TYPE expression id=reducers **/undefined/** @END **/"}, [api.reducerPath]: api.reducer }, middleware: getDefaultMiddleware => getDefaultMiddleware().concat(api.middleware) }))(${"/** @TYPE expression id=api **/undefined/** @END **/"})`
 })
 
 export const ReduxEntitySliceTemplate = defineTemplate({
@@ -1345,7 +1345,7 @@ export const ReduxEntitySliceTemplate = defineTemplate({
     extraReducers: rawObjectExpression('Additional reducers object to spread after adapter reducers.')
   },
   output: out('expression', { type: reduxSliceType }),
-  template: r => `createSlice({ name: ${r('name')}, initialState: ${r('adapter')}.getInitialState(), reducers: { setAll: ${r('adapter')}.setAll, addOne: ${r('adapter')}.addOne, upsertMany: ${r('adapter')}.upsertMany, removeOne: ${r('adapter')}.removeOne, ...${r('extraReducers')} } })`
+  source: `(adapter => createSlice({ name: ${"/** @TYPE string id=name **/\"\"/** @END **/"}, initialState: adapter.getInitialState(), reducers: { setAll: adapter.setAll, addOne: adapter.addOne, upsertMany: adapter.upsertMany, removeOne: adapter.removeOne, ...${"/** @TYPE expression id=extraReducers **/undefined/** @END **/"} } }))(${"/** @TYPE expression id=adapter **/undefined/** @END **/"})`
 })
 
 export const ReduxCrudApiTemplate = defineTemplate({
@@ -1359,7 +1359,7 @@ export const ReduxCrudApiTemplate = defineTemplate({
     tagType: stringLiteral('RTK Query tag type, such as `Post`.')
   },
   output: out('expression', { type: rtkQueryApiType }),
-  template: r => `createApi({ reducerPath: ${r('reducerPath')}, baseQuery: fetchBaseQuery({ baseUrl: ${r('baseUrl')} }), tagTypes: [${r('tagType')}], endpoints: build => ({ list: build.query({ query: () => ${r('resourcePath')}, providesTags: [${r('tagType')}] }), get: build.query({ query: id => \`${r('resourcePath')}/\${id}\`, providesTags: (_result, _error, id) => [{ type: ${r('tagType')}, id }] }), create: build.mutation({ query: body => ({ url: ${r('resourcePath')}, method: 'POST', body }), invalidatesTags: [${r('tagType')}] }), update: build.mutation({ query: ({ id, ...patch }) => ({ url: \`${r('resourcePath')}/\${id}\`, method: 'PATCH', body: patch }), invalidatesTags: (_result, _error, { id }) => [{ type: ${r('tagType')}, id }] }), delete: build.mutation({ query: id => ({ url: \`${r('resourcePath')}/\${id}\`, method: 'DELETE' }), invalidatesTags: [${r('tagType')}] }) }) })`
+  source: `((resourcePath, tagType) => createApi({ reducerPath: ${"/** @TYPE string id=reducerPath **/\"\"/** @END **/"}, baseQuery: fetchBaseQuery({ baseUrl: ${"/** @TYPE string id=baseUrl **/\"\"/** @END **/"} }), tagTypes: [tagType], endpoints: build => ({ list: build.query({ query: () => resourcePath, providesTags: [tagType] }), get: build.query({ query: id => \`\${resourcePath}/\${id}\`, providesTags: (_result, _error, id) => [{ type: tagType, id }] }), create: build.mutation({ query: body => ({ url: resourcePath, method: 'POST', body }), invalidatesTags: [tagType] }), update: build.mutation({ query: ({ id, ...patch }) => ({ url: \`\${resourcePath}/\${id}\`, method: 'PATCH', body: patch }), invalidatesTags: (_result, _error, { id }) => [{ type: tagType, id }] }), delete: build.mutation({ query: id => ({ url: \`\${resourcePath}/\${id}\`, method: 'DELETE' }), invalidatesTags: [tagType] }) }) }))(${"/** @TYPE string id=resourcePath **/\"\"/** @END **/"}, ${"/** @TYPE string id=tagType **/\"\"/** @END **/"})`
 })
 
 export const reduxGraphTemplateInputs = [

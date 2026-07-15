@@ -21,6 +21,7 @@ export function defaultFragmentCollectionSeparator(kind: RegionKind): string {
 /** Select the parser wrapper used to validate a generated region fragment. */
 export function templateModeForRegionKind(kind: RegionKind): TemplateMode {
 	switch (kind) {
+		case 'sourceFile': return { kind: 'file' }
 		case 'expressionSuffix': return { kind: 'expressionSuffix' }
 		case 'statement': return { kind: 'statementList' }
 		case 'objectProperty': return { kind: 'objectPropertyList' }

@@ -27,7 +27,7 @@ export const BooleanArrayLiteral = defineTemplate({
 			items: { type: 'boolean' }
 		}
 	},
-	template: (r) => r('values')
+	source: "/** @TYPE expression id=values **/undefined/** @END **/"
 })
 
 export const IdArrow = defineTemplate({
@@ -37,7 +37,7 @@ export const IdArrow = defineTemplate({
 	output: {
 		kind: 'expression'
 	},
-	template: () => `x => x`
+	source: `x => x`
 })
 
 export const NotNumberArrow = defineTemplate({
@@ -47,7 +47,7 @@ export const NotNumberArrow = defineTemplate({
 	output: {
 		kind: 'expression'
 	},
-	template: () => `x => !Number.isFinite(x)`
+	source: `x => !Number.isFinite(x)`
 })
 
 export const TruthyArrow = defineTemplate({
@@ -57,7 +57,7 @@ export const TruthyArrow = defineTemplate({
 	output: {
 		kind: 'expression'
 	},
-	template: () => `x => !!x`
+	source: `x => !!x`
 })
 
 export const IsTrue = defineTemplate({
@@ -67,7 +67,7 @@ export const IsTrue = defineTemplate({
 	output: {
 		kind: 'expression'
 	},
-	template: () => `x => x === true`
+	source: `x => x === true`
 })
 
 export const AllTrueArrow = defineTemplate({
@@ -84,7 +84,7 @@ export const AllTrueArrow = defineTemplate({
 	output: {
 		kind: 'expression'
 	},
-	template: (r) => `x => x.every(${r('source', 'item => item')})`
+	source: `x => x.every(${"/** @TYPE expression id=source **/item => item/** @END **/"})`
 })
 
 export const TsPatternWithSuffix = defineTemplate({
@@ -108,7 +108,7 @@ export const TsPatternWithSuffix = defineTemplate({
 	output: {
 		kind: 'expressionSuffix'
 	},
-	template: (region) => `.with(${region('pattern', '[]')}, ${region('handler', 'x => null')})`
+	source: `.with(${"/** @TYPE expression id=pattern **/[]/** @END **/"}, ${"/** @TYPE expression id=handler **/x => null/** @END **/"})`
 })
 
 export const MapBooleanArray = defineTemplate({
@@ -132,7 +132,7 @@ export const MapBooleanArray = defineTemplate({
 			items: { type: 'boolean' }
 		}
 	},
-	template: (r) => `${r('source')}.map(Boolean)`
+	source: `${"/** @TYPE expression id=source **/undefined/** @END **/"}.map(Boolean)`
 })
 
 export const ApplyExpressionSuffix = defineTemplate({
@@ -146,7 +146,7 @@ export const ApplyExpressionSuffix = defineTemplate({
 	output: {
 		kind: 'expression'
 	},
-	template: (r) => `${r('source')}${r('suffix')}`
+	source: `${"/** @TYPE expression id=source **/undefined/** @END **/"}${"/** @TYPE expressionSuffix id=suffix **/.value/** @END **/"}`
 })
 
 export const ConsecutiveExpressions = defineTemplate({
@@ -156,7 +156,7 @@ export const ConsecutiveExpressions = defineTemplate({
 		second: statementFragment()
 	},
 	output: { kind: 'statement' },
-	template: (r) => `${r('first')}\n${r('second')}`
+	source: `${"/** @TYPE statement id=first **/throw new Error(\"placeholder\");/** @END **/"}\n${"/** @TYPE statement id=second **/throw new Error(\"placeholder\");/** @END **/"}`
 })
 
 function main() {

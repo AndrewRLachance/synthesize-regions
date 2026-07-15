@@ -278,6 +278,7 @@ function replacementFromFragment(input: Extract<ResolvedGraphInput, { kind: 'fra
     case 'enumMember':
     case 'importSpecifier':
     case 'exportSpecifier':
+    case 'sourceFile':
       return { kind: input.port.regionKind, code }
     case 'array':
     case 'object':
@@ -315,6 +316,7 @@ function replacementFromRawCode(input: Extract<ResolvedGraphInput, { kind: 'rawC
     case 'enumMember':
     case 'importSpecifier':
     case 'exportSpecifier':
+    case 'sourceFile':
       return { kind: input.port.regionKind, code: input.code }
     case 'array':
     case 'object':
@@ -1169,5 +1171,6 @@ export const markerReplacementSchemas = {
   classMember: oneOrMany('classMember replacement value', typedCodeReplacementSchema('classMember')),
   enumMember: oneOrMany('enumMember replacement value', typedCodeReplacementSchema('enumMember')),
   importSpecifier: oneOrMany('importSpecifier replacement value', typedCodeReplacementSchema('importSpecifier')),
-  exportSpecifier: oneOrMany('exportSpecifier replacement value', typedCodeReplacementSchema('exportSpecifier'))
+  exportSpecifier: oneOrMany('exportSpecifier replacement value', typedCodeReplacementSchema('exportSpecifier')),
+  sourceFile: typedCodeReplacementSchema('sourceFile')
 } satisfies Record<MarkerExpectedKind, Schema<ReplacementValue>>

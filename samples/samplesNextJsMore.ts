@@ -119,7 +119,7 @@ export const NextPermanentRedirectStatementTemplate = defineTemplate({
     path: expressionFragment('Permanent redirect destination expression.', stringOrUrlType)
   },
   output: out('statement'),
-  template: r => `permanentRedirect(${r('path')});`
+  source: `permanentRedirect(${"/** @TYPE expression id=path **/undefined/** @END **/"});`
 })
 
 export const NextRefreshStatementTemplate = defineTemplate({
@@ -128,7 +128,7 @@ export const NextRefreshStatementTemplate = defineTemplate({
   description: 'Emits refresh() to refresh the client router from a Server Action. Assumes `refresh` is in scope from next/cache.',
   inputs: {},
   output: out('statement'),
-  template: () => 'refresh();'
+  source: 'refresh();'
 })
 
 export const NextUpdateTagStatementTemplate = defineTemplate({
@@ -139,7 +139,7 @@ export const NextUpdateTagStatementTemplate = defineTemplate({
     tag: stringExpressionFragment('Cache tag expression to expire immediately.')
   },
   output: out('statement'),
-  template: r => `updateTag(${r('tag')});`
+  source: `updateTag(${"/** @TYPE expression id=tag **/undefined/** @END **/"});`
 })
 
 export const NextDraftModeIsEnabledTemplate = defineTemplate({
@@ -148,7 +148,7 @@ export const NextDraftModeIsEnabledTemplate = defineTemplate({
   description: 'Reads Draft Mode state with (await draftMode()).isEnabled. Assumes `draftMode` is in scope from next/headers and the generated code is in an async server context.',
   inputs: {},
   output: out('expression', { type: booleanType, schema: { type: 'boolean' } }),
-  template: () => `(await draftMode()).isEnabled`
+  source: `(await draftMode()).isEnabled`
 })
 
 export const NextDraftModeEnableStatementTemplate = defineTemplate({
@@ -157,7 +157,7 @@ export const NextDraftModeEnableStatementTemplate = defineTemplate({
   description: 'Enables Draft Mode with (await draftMode()).enable(). Assumes `draftMode` is in scope from next/headers and the generated code is in a Route Handler.',
   inputs: {},
   output: out('statement'),
-  template: () => `(await draftMode()).enable();`
+  source: `(await draftMode()).enable();`
 })
 
 export const NextDraftModeDisableStatementTemplate = defineTemplate({
@@ -166,7 +166,7 @@ export const NextDraftModeDisableStatementTemplate = defineTemplate({
   description: 'Disables Draft Mode with (await draftMode()).disable(). Assumes `draftMode` is in scope from next/headers and the generated code is in a Route Handler.',
   inputs: {},
   output: out('statement'),
-  template: () => `(await draftMode()).disable();`
+  source: `(await draftMode()).disable();`
 })
 
 export const NextUserAgentTemplate = defineTemplate({
@@ -177,7 +177,7 @@ export const NextUserAgentTemplate = defineTemplate({
     request: expressionFragment('Request or NextRequest expression.', requestType)
   },
   output: out('expression', { type: userAgentType }),
-  template: r => `userAgent(${r('request')})`
+  source: `userAgent(${"/** @TYPE expression id=request **/undefined/** @END **/"})`
 })
 
 export const NextAfterStatementTemplate = defineTemplate({
@@ -188,7 +188,7 @@ export const NextAfterStatementTemplate = defineTemplate({
     callback: rawCallbackExpression('Callback expression to run after the response, such as `() => log()` or `async () => sendMetric()`.' )
   },
   output: out('statement'),
-  template: r => `after(${r('callback')});`
+  source: `after(${"/** @TYPE expression id=callback **/undefined/** @END **/"});`
 })
 
 export const NextCacheTagStatementTemplate = defineTemplate({
@@ -199,7 +199,7 @@ export const NextCacheTagStatementTemplate = defineTemplate({
     tag: stringExpressionFragment('Cache tag expression to associate with cached data.')
   },
   output: out('statement'),
-  template: r => `cacheTag(${r('tag')});`
+  source: `cacheTag(${"/** @TYPE expression id=tag **/undefined/** @END **/"});`
 })
 
 export const NextCacheLifeStatementTemplate = defineTemplate({
@@ -210,7 +210,7 @@ export const NextCacheLifeStatementTemplate = defineTemplate({
     profile: cacheLifeProfileLiteral('Cache lifetime profile, such as `seconds`, `minutes`, `hours`, `days`, `weeks`, or `max`.')
   },
   output: out('statement'),
-  template: r => `cacheLife(${r('profile')});`
+  source: `cacheLife(${"/** @TYPE string id=profile **/\"\"/** @END **/"});`
 })
 
 export const nextjsMoreGraphTemplateInputs = [

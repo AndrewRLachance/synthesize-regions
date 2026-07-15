@@ -73,7 +73,8 @@ export const regionKindPattern: P.Pattern<RegionKind> = P.union(
 	'classMember',
 	'enumMember',
 	'importSpecifier',
-	'exportSpecifier'
+	'exportSpecifier',
+	'sourceFile'
 ) satisfies P.Pattern<RegionKind>
 
 /** Runtime `ts-pattern` pattern for graph type metadata. */
@@ -315,7 +316,8 @@ export const outputPortPattern: P.Pattern<OutputPort> = {
 /** Runtime `ts-pattern` pattern for graph fragment source metadata. */
 export const generatedFragmentSourcePattern: P.Pattern<GeneratedFragment['source']> = {
 	templateId: P.string,
-	templateVersion: P.optional(P.string)
+	templateVersion: P.optional(P.string),
+	templateManifestDigest: P.optional(P.string)
 } satisfies P.Pattern<GeneratedFragment['source']>
 
 /** Runtime `ts-pattern` pattern for fragment provenance metadata. */

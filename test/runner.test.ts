@@ -13,7 +13,7 @@ const Source = defineTemplate({
 	modelId: 'Source',
 	inputs: { value: literalPort({ regionKind: 'expression' }) },
 	output: { kind: 'expression' },
-	template: r => r('value')
+	source: "/** @TYPE expression id=value **/undefined/** @END **/"
 })
 
 const NumberSource = defineTemplate({
@@ -22,14 +22,14 @@ const NumberSource = defineTemplate({
 		value: literalPort({ regionKind: 'expression', schema: { type: 'number' } })
 	},
 	output: { kind: 'expression' },
-	template: r => r('value')
+	source: "/** @TYPE expression id=value **/undefined/** @END **/"
 })
 
 const Consumer = defineTemplate({
 	modelId: 'Consumer',
 	inputs: { value: fragmentPort({ regionKind: 'expression', accepts: {} }) },
 	output: { kind: 'expression' },
-	template: r => `consume(${r('value')})`
+	source: `consume(${"/** @TYPE expression id=value **/undefined/** @END **/"})`
 })
 
 const Sum = defineTemplate({
@@ -39,7 +39,7 @@ const Sum = defineTemplate({
 		right: literalPort({ regionKind: 'expression', schema: { type: 'number' } })
 	},
 	output: { kind: 'expression' },
-	template: r => `${r('left')} + ${r('right')}`
+	source: `${"/** @TYPE expression id=left **/undefined/** @END **/"} + ${"/** @TYPE expression id=right **/undefined/** @END **/"}`
 })
 
 const RawExpression = defineTemplate({
@@ -51,7 +51,7 @@ const RawExpression = defineTemplate({
 		})
 	},
 	output: { kind: 'expression' },
-	template: r => `consume(${r('value')})`
+	source: `consume(${"/** @TYPE expression id=value **/undefined/** @END **/"})`
 })
 
 function sourceGraph(value?: unknown): SynthesisGraph {
@@ -235,7 +235,7 @@ describe('graph runner', () => {
 	})
 
 	it('keeps incompatible fragment and rejected raw-code fills retryable', () => {
-		const fragmentRunner = createGraphRunner([Consumer], {
+		const fragmentRunner = createGraphRunner([Consumer, Source], {
 			nodes: [{ id: 'consumer', templateId: 'Consumer', inputs: {} }],
 			finalNodeId: 'consumer'
 		})
@@ -250,7 +250,7 @@ describe('graph runner', () => {
 					kind: 'fragment',
 					fragment: {
 						code: 'const value = 1;', kind: 'statement',
-						source: { templateId: 'manual' }, complete: true
+							source: { templateId: Source.modelId, templateManifestDigest: Source.manifestDigest }, complete: true
 					}
 				}
 			}
@@ -264,7 +264,7 @@ describe('graph runner', () => {
 					kind: 'fragment',
 					fragment: {
 						code: '1', kind: 'expression', type: { ts: 'any' },
-						source: { templateId: 'manual' }, complete: true
+							source: { templateId: Source.modelId, templateManifestDigest: Source.manifestDigest }, complete: true
 					}
 				}
 			}
@@ -279,7 +279,10 @@ describe('graph runner', () => {
 			inputs: {
 				[fragmentInputId]: {
 					kind: 'fragment',
-					fragment: { code: '1', kind: 'expression', source: { templateId: 'manual' }, complete: true }
+					fragment: {
+						code: '1', kind: 'expression',
+							source: { templateId: Source.modelId, templateManifestDigest: Source.manifestDigest }, complete: true
+					}
 				}
 			}
 		})
@@ -310,7 +313,7 @@ describe('graph runner', () => {
 			modelId: 'Assignment',
 			inputs: { value: rawCodePort({ regionKind: 'expression' }) },
 			output: { kind: 'statement' },
-			template: r => `const count: number = ${r('value')};`
+			source: `const count: number = ${"/** @TYPE expression id=value **/undefined/** @END **/"};`
 		})
 		const graph: SynthesisGraph = {
 			nodes: [{ id: 'assignment', templateId: 'Assignment', inputs: {} }],

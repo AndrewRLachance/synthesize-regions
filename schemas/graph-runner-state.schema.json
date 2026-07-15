@@ -437,6 +437,10 @@
         {
           "const": "exportSpecifier",
           "type": "string"
+        },
+        {
+          "const": "sourceFile",
+          "type": "string"
         }
       ]
     },
@@ -751,6 +755,10 @@
         },
         {
           "const": "exportSpecifier",
+          "type": "string"
+        },
+        {
+          "const": "sourceFile",
           "type": "string"
         }
       ]
@@ -1230,6 +1238,9 @@
             },
             "templateVersion": {
               "type": "string"
+            },
+            "templateManifestDigest": {
+              "type": "string"
             }
           }
         },
@@ -1306,6 +1317,9 @@
               "type": "string"
             },
             "templateVersion": {
+              "type": "string"
+            },
+            "templateManifestDigest": {
               "type": "string"
             }
           }

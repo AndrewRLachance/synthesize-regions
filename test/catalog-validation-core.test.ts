@@ -6,6 +6,7 @@ import {
 	fragmentCollectionPort,
 	fragmentPort,
 	literalPort,
+	portRegionKind,
 	rawCodePort,
 	unionPort,
 	validateTemplateCatalog,
@@ -20,11 +21,34 @@ function template(
 	inputs: Record<string, InputPort> = {},
 	outputKind: RegionKind = 'expression'
 ): GraphTemplateDefinition<Record<string, InputPort>, string> {
+	const marker = (inputName: string, port: InputPort): string => {
+		const kind = portRegionKind(port)
+		const fallback = kind === 'statement' ? 'void 0;'
+			: kind === 'expressionSuffix' ? '.value'
+				: kind === 'identifier' ? 'placeholder'
+					: kind === 'string' ? '""'
+						: kind === 'number' ? '0'
+							: kind === 'boolean' ? 'false'
+								: kind === 'null' ? 'null'
+									: 'undefined'
+		return `/** @TYPE ${kind} id=${inputName} **/${fallback}/** @END **/`
+	}
+	const markedInputs = Object.entries(inputs).map(([inputName, port]) => ({
+		kind: portRegionKind(port),
+		code: marker(inputName, port)
+	}))
+	const source = outputKind === 'statement'
+		? markedInputs.map(input => input.kind === 'statement'
+			? input.code
+			: input.kind === 'expressionSuffix'
+				? `undefined${input.code};`
+				: `void (${input.code});`).join('\n') || 'void 0;'
+		: markedInputs.length === 0 ? 'undefined' : `(${markedInputs.map(input => input.code).join(', ')})`
 	return defineTemplate({
 		modelId,
 		inputs,
 		output: { kind: outputKind },
-		template: () => outputKind === 'statement' ? 'void 0;' : 'undefined'
+		source
 	})
 }
 
@@ -125,7 +149,7 @@ describe('catalog validation core', () => {
 					forbiddenPatterns: ['[', '(valid)']
 				}
 			})
-		})
+		}, 'statement')
 
 		expect(diagnosticCodes([invalid])).toEqual([
 			'InvalidCollectionMaximum',
@@ -171,7 +195,7 @@ describe('catalog validation core', () => {
 				})
 			},
 			output: { kind: 'expression', type: { ts: 'Array<' } },
-			template: region => `${region('choice')} ?? ${region('raw')}`
+			source: `${"/** @TYPE expression id=choice **/undefined/** @END **/"} ?? ${"/** @TYPE expression id=raw **/undefined/** @END **/"}`
 		})
 
 		const diagnostics = validateTemplateCatalog([invalid])
@@ -200,7 +224,7 @@ describe('catalog validation core', () => {
 			modelId: 'StringSource',
 			inputs: {},
 			output: { kind: 'expression', type: { ts: 'string' } },
-			template: () => '"value"'
+			source: '"value"'
 		})
 		const missingType = template('MissingType')
 		const consumer = defineTemplate({
@@ -215,7 +239,7 @@ describe('catalog validation core', () => {
 				})
 			},
 			output: { kind: 'expression' },
-			template: region => region('value')
+			source: "/** @TYPE expression id=value **/undefined/** @END **/"
 		})
 
 		const diagnostics = validateTemplateCatalog([consumer, missingType, stringSource])
@@ -230,13 +254,13 @@ describe('catalog validation core', () => {
 			modelId: 'InvalidSource',
 			inputs: {},
 			output: { kind: 'expression', type: { ts: 'any' } },
-			template: () => 'undefined'
+			source: 'undefined'
 		})
 		const validSource = defineTemplate({
 			modelId: 'ValidSource',
 			inputs: {},
 			output: { kind: 'expression', type: { ts: 'string' } },
-			template: () => '"value"'
+			source: '"value"'
 		})
 		const consumer = defineTemplate({
 			modelId: 'Consumer',
@@ -251,7 +275,7 @@ describe('catalog validation core', () => {
 				})
 			},
 			output: { kind: 'expression' },
-			template: region => `${region('invalidProducer')} ?? ${region('invalidConsumer')}`
+			source: `${"/** @TYPE expression id=invalidProducer **/undefined/** @END **/"} ?? ${"/** @TYPE expression id=invalidConsumer **/undefined/** @END **/"}`
 		})
 
 		expect(validateTemplateCatalog([consumer, invalidSource, validSource])
@@ -291,7 +315,7 @@ describe('catalog validation core', () => {
 				type: { schema: { type: 'string' } },
 				schema: { type: 'number' }
 			},
-			template: region => `${region('literal')} ?? ${region('invalidPattern')} ?? ${region('choice')}`
+			source: `${"/** @TYPE expression id=literal **/undefined/** @END **/"} ?? ${"/** @TYPE expression id=invalidPattern **/undefined/** @END **/"} ?? ${"/** @TYPE expression id=choice **/undefined/** @END **/"}`
 		})
 
 		const diagnostics = validateTemplateCatalog([invalid])
@@ -320,7 +344,7 @@ describe('catalog validation core', () => {
 			modelId: 'NumberSource',
 			inputs: {},
 			output: { kind: 'expression', type: { schema: { type: 'number' } } },
-			template: () => '1'
+			source: '1'
 		})
 		const patternedSource = defineTemplate({
 			modelId: 'PatternedSource',
@@ -330,13 +354,13 @@ describe('catalog validation core', () => {
 				type: { schema: { type: 'string', pattern: '^a' } },
 				schema: { type: 'string', pattern: '^a' }
 			},
-			template: () => '"alpha"'
+			source: '"alpha"'
 		})
 		const legacyAliasSource = defineTemplate({
 			modelId: 'LegacyAliasSource',
 			inputs: {},
 			output: { kind: 'expression', schema: { type: 'string' } },
-			template: () => '"legacy"'
+			source: '"legacy"'
 		})
 		const consumer = defineTemplate({
 			modelId: 'Consumer',
@@ -364,7 +388,7 @@ describe('catalog validation core', () => {
 				})
 			},
 			output: { kind: 'expression' },
-			template: region => `${region('wrong')} ?? ${region('uncertain')} ?? ${region('legacy')}`
+			source: `${"/** @TYPE expression id=wrong **/undefined/** @END **/"} ?? ${"/** @TYPE expression id=uncertain **/undefined/** @END **/"} ?? ${"/** @TYPE expression id=legacy **/undefined/** @END **/"}`
 		})
 
 		const diagnostics = validateTemplateCatalog([consumer, legacyAliasSource, numberSource, patternedSource])

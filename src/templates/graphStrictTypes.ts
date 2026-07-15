@@ -82,13 +82,36 @@ type StrictUnionInputPort<T extends UnionInputPort> =
       }
     : never;
 
+type HasValueMetadata<T> =
+  T extends { readonly type: unknown } | { readonly schema: unknown } ? true : false;
+
+type DeclaredFragmentOutputKind<T extends FragmentInputPort | FragmentCollectionInputPort> =
+  T["accepts"] extends { readonly outputKind: infer TOutputKind extends RegionKind }
+    ? TOutputKind
+    : T["regionKind"];
+
+type SourceFileFragmentPortIsValid<T extends FragmentInputPort> =
+  T["regionKind"] extends "sourceFile"
+    ? DeclaredFragmentOutputKind<T> extends "sourceFile"
+      ? T["accepts"] extends { readonly type: unknown } ? false : true
+      : false
+    : DeclaredFragmentOutputKind<T> extends "sourceFile" ? false : true;
+
+type SourceFileCollectionPortIsValid<T extends FragmentCollectionInputPort> =
+  T["regionKind"] extends "sourceFile"
+    ? false
+    : DeclaredFragmentOutputKind<T> extends "sourceFile" ? false : true;
+
 /** Compile-time exact input-port shape used by template authoring helpers. */
 export type StrictInputPort<T extends InputPort> =
   T extends LiteralInputPort
     ? T["regionKind"] extends TypedSyntaxRegionKind ? never : T & ShallowExact<LiteralInputPort, T> :
-  T extends FragmentInputPort ? T & ShallowExact<FragmentInputPort, T> :
-  T extends FragmentCollectionInputPort ? T & ShallowExact<FragmentCollectionInputPort, T> :
-  T extends RawCodeInputPort ? T & ShallowExact<RawCodeInputPort, T> :
+  T extends FragmentInputPort
+    ? SourceFileFragmentPortIsValid<T> extends true ? T & ShallowExact<FragmentInputPort, T> : never :
+  T extends FragmentCollectionInputPort
+    ? SourceFileCollectionPortIsValid<T> extends true ? T & ShallowExact<FragmentCollectionInputPort, T> : never :
+  T extends RawCodeInputPort
+    ? T["regionKind"] extends "sourceFile" ? never : T & ShallowExact<RawCodeInputPort, T> :
   T extends UnionInputPort ? StrictUnionInputPort<T> :
   never;
 
@@ -110,7 +133,10 @@ export type StrictInputPortMap<I extends Record<string, InputPort>> =
       };
 
 /** Compile-time exact output-port shape used by template authoring helpers. */
-export type StrictOutputPort<T extends OutputPort> = T & ShallowExact<OutputPort, T>;
+export type StrictOutputPort<T extends OutputPort> =
+  T["kind"] extends "sourceFile"
+    ? HasValueMetadata<T> extends true ? never : T & ShallowExact<OutputPort, T>
+    : T & ShallowExact<OutputPort, T>;
 
 type IsTuple<T extends readonly unknown[]> =
   number extends T["length"] ? false : true;
@@ -1837,6 +1863,17 @@ type GoalTypeCompatibility<TGoal extends SynthesisGoal, TOutput extends OutputPo
       : "compatible"
   >;
 
+type SourceFileGoalCompatibility<
+  TGoal extends SynthesisGoal,
+  TOutput extends OutputPort | undefined = undefined
+> = HasValueMetadata<TGoal> extends true
+  ? TGoal extends { readonly outputKind: "sourceFile" }
+    ? "incompatible"
+    : TOutput extends OutputPort
+      ? TOutput["kind"] extends "sourceFile" ? "incompatible" : "compatible"
+      : "compatible"
+  : "compatible";
+
 type StrictGoalForFinalNode<
   TProducerIndex,
   TGoal extends SynthesisGoal,
@@ -1845,12 +1882,15 @@ type StrictGoalForFinalNode<
   ? TProducerIndex[TFinalNodeId] extends { readonly output: infer TOutput extends OutputPort }
     ? CombineCompatibility<
         GoalOutputKindCompatibility<TGoal, TOutput>,
-        GoalTypeCompatibility<TGoal, TOutput>
+        CombineCompatibility<
+          GoalTypeCompatibility<TGoal, TOutput>,
+          SourceFileGoalCompatibility<TGoal, TOutput>
+        >
       > extends "incompatible"
       ? never
       : TGoal
     : TGoal
-  : TGoal;
+  : SourceFileGoalCompatibility<TGoal> extends "incompatible" ? never : TGoal;
 
 type StrictGraphGoal<
   TProducerIndex,

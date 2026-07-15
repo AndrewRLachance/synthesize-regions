@@ -77,6 +77,23 @@ export function structuredSemanticDiagnostics(sourceFile: SourceFile): Structure
   });
 }
 
+/** Collect syntactic diagnostics without flattening compiler codes and locations. */
+export function structuredSyntacticDiagnostics(sourceFile: SourceFile): StructuredTypeScriptDiagnostic[] {
+  return sourceFile.getProject().getProgram().getSyntacticDiagnostics(sourceFile).map(diagnostic => {
+    const start = diagnostic.getStart();
+    const length = diagnostic.getLength();
+    const diagnosticSourceFile = diagnostic.getSourceFile();
+    return {
+      code: diagnostic.getCode(),
+      category: diagnosticCategoryName(diagnostic.getCategory()),
+      message: ts.flattenDiagnosticMessageText(diagnostic.compilerObject.messageText, "\n"),
+      ...(diagnosticSourceFile === undefined ? {} : { filePath: diagnosticSourceFile.getFilePath() }),
+      ...(start === undefined ? {} : { start }),
+      ...(length === undefined ? {} : { length })
+    };
+  });
+}
+
 function diagnosticCategoryName(category: ts.DiagnosticCategory): StructuredTypeScriptDiagnostic["category"] {
   switch (category) {
     case ts.DiagnosticCategory.Warning: return "warning";
@@ -199,6 +216,7 @@ function isClassMemberNode(node: ts.Node): boolean {
 function nodeMatchesRegionKind(node: Node, kind: MarkerExpectedKind): boolean {
   const compilerNode = node.compilerNode;
   switch (kind) {
+    case "sourceFile": return ts.isSourceFile(compilerNode);
     case "type": return ts.isTypeNode(compilerNode);
     case "typeMember": return ts.isTypeElement(compilerNode);
     case "typeParameter": return ts.isTypeParameterDeclaration(compilerNode);
@@ -228,13 +246,51 @@ function isTypedSyntaxKind(kind: MarkerExpectedKind): boolean {
   return kind === "type" || kind === "typeMember" || kind === "typeParameter" ||
     kind === "parameter" || kind === "constructorParameter" || kind === "heritageType" ||
     kind === "declaration" || kind === "classMember" || kind === "enumMember" ||
-    kind === "importSpecifier" || kind === "exportSpecifier";
+    kind === "importSpecifier" || kind === "exportSpecifier" || kind === "sourceFile";
+}
+
+/**
+ * Return the complete top-level statements owned by a sourceFile region.
+ * A sourceFile region may sit beside other top-level source, but it cannot
+ * begin or end inside a statement and it cannot occur in a nested context.
+ */
+function statementsInSourceFileRegion(
+  sourceFile: SourceFile,
+  region: ReplacementRegion
+): readonly ts.Statement[] | undefined {
+  const range = trimmedBodyRange(region);
+  if (!range) return undefined;
+
+  const statements = sourceFile.compilerNode.statements;
+  const overlapping = statements.filter(statement =>
+    statement.getEnd() > range.start && statement.getStart(sourceFile.compilerNode, false) < range.end
+  );
+  const contained = overlapping.filter(statement =>
+    statement.getStart(sourceFile.compilerNode, false) >= range.start && statement.getEnd() <= range.end
+  );
+  return contained.length > 0 && contained.length === overlapping.length ? contained : undefined;
+}
+
+function validateSourceFileRegion(sourceFile: SourceFile, region: ReplacementRegion): void {
+  if (region.arity !== "one" || statementsInSourceFileRegion(sourceFile, region) === undefined) {
+    throwInvalidContext(region, "Expected the marked body to contain one or more complete top-level source-file statements.");
+  }
+
+  const project = createProject();
+  const bodySourceFile = createSourceFile(project, region.bodyText, "__source_file_region__.ts");
+  const diagnostics = bodySourceFile.getProject().getProgram().getSyntacticDiagnostics(bodySourceFile);
+  if (diagnostics.length > 0) {
+    throwInvalidContext(region, "Expected the marked body to be a complete TypeScript source-file fragment.");
+  }
 }
 
 /**
  * Infer a marker kind from the placeholder body's AST node.
  */
 export function inferExpectedKind(sourceFile: SourceFile, region: ReplacementRegion): MarkerExpectedKind {
+  const sourceFileStatements = statementsInSourceFileRegion(sourceFile, region);
+  if (sourceFileStatements !== undefined && sourceFileStatements.length > 1) return "sourceFile";
+
   const node = findBestNodeForRegion(sourceFile, region);
   if (!node) {
     throw new InvalidPlaceholderContextError("Cannot infer marker type from an empty or unrecognized region.", {
@@ -309,6 +365,11 @@ export function validateRegionContext(sourceFile: SourceFile, region: Replacemen
 
   if (region.effectiveType === "expressionSuffix") {
     validateExpressionSuffixRegion(region);
+    return;
+  }
+
+  if (region.effectiveType === "sourceFile") {
+    validateSourceFileRegion(sourceFile, region);
     return;
   }
 
@@ -481,7 +542,8 @@ export function validateRawStatementSyntax(code: string, options: GenerateOption
 
 const typedSyntaxKinds = new Set<MarkerExpectedKind>([
   "type", "typeMember", "typeParameter", "parameter", "constructorParameter",
-  "heritageType", "declaration", "classMember", "enumMember", "importSpecifier", "exportSpecifier"
+  "heritageType", "declaration", "classMember", "enumMember", "importSpecifier", "exportSpecifier",
+  "sourceFile"
 ]);
 
 function typedSyntaxMode(kind: MarkerExpectedKind): TemplateMode | undefined {
@@ -497,6 +559,7 @@ function typedSyntaxMode(kind: MarkerExpectedKind): TemplateMode | undefined {
     case "enumMember": return { kind: "enumMemberList" };
     case "importSpecifier": return { kind: "importSpecifierList" };
     case "exportSpecifier": return { kind: "exportSpecifierList" };
+    case "sourceFile": return { kind: "file" };
     default: return undefined;
   }
 }
@@ -579,7 +642,7 @@ export function validateTemplateModeRoot(
   }
 }
 
-/** Parse one raw first-class type/declaration replacement in its exact AST context. */
+/** Parse raw code in its exact typed-syntax or complete source-file context. */
 export function validateRawTypedSyntax(
   kind: MarkerExpectedKind,
   code: string,
@@ -613,6 +676,12 @@ export function validateRawTypedSyntaxCollection(
 ): SourceFile {
   if (!typedSyntaxKinds.has(kind)) {
     throw new TypeError(`Expected a typed syntax kind, received ${kind}.`);
+  }
+  if (kind === "sourceFile") {
+    throw new InvalidReplacementSyntaxError("sourceFile collections are not supported; provide one complete sourceFile replacement.", {
+      ...metadata,
+      bodyText: code
+    });
   }
   const wrapped = wrapTypedSyntaxCollection(kind, code);
   const project = createProject(options);

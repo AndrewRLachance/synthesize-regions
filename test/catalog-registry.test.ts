@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
 	buildGraphCompiler,
+	compileArtifactSet,
 	compileGraph,
 	createGraphRunner,
 	createTemplateRegistry,
@@ -11,9 +12,13 @@ import {
 	literalPort,
 	rawCodePort,
 	templateCatalogDigest,
+	templateCatalogManifestDigest,
 	TemplateCatalogValidationError,
+	type ArtifactSetPlan,
+	type GraphCompiler,
 	type GraphTemplateDefinition,
-	type SynthesisGraph
+	type SynthesisGraph,
+	type TemplateCatalogView
 } from '../src/index.js'
 
 type AnyTemplate = GraphTemplateDefinition<any, string, any>
@@ -32,7 +37,7 @@ function staticExpression(
 		...(options.description === undefined ? {} : { description: options.description }),
 		inputs: {},
 		output: { kind: 'expression' },
-		template: () => options.code ?? 'undefined'
+		source: options.code ?? 'undefined'
 	})
 }
 
@@ -46,7 +51,7 @@ function expressionConsumer(modelId: string, sourceModelIds: string[]): AnyTempl
 			})
 		},
 		output: { kind: 'expression' },
-		template: region => region('value')
+		source: "/** @TYPE expression id=value **/undefined/** @END **/"
 	})
 }
 
@@ -61,6 +66,99 @@ function catalogError(fn: () => unknown): TemplateCatalogValidationError {
 }
 
 describe('validated template registries', () => {
+	it('rejects structural catalog impostors before invoking their executable definitions', () => {
+		let catalogMethodCalls = 0
+		let templateInvocationCalls = 0
+		const forgedTemplate = {
+			modelId: 'Source',
+			inputs: {},
+			output: { kind: 'expression' },
+			source: 'forgedSource()',
+			manifestDigest: `t1_${'0'.repeat(64)}`,
+			invoke() {
+				templateInvocationCalls += 1
+				return {
+					code: 'forgedSource()', kind: 'expression', complete: true,
+					source: { templateId: 'Source', templateManifestDigest: `t1_${'0'.repeat(64)}` }
+				}
+			},
+			invokePartial() {
+				templateInvocationCalls += 1
+				return {
+					code: 'forgedSource()', kind: 'expression', complete: true,
+					source: { templateId: 'Source', templateManifestDigest: `t1_${'0'.repeat(64)}` }
+				}
+			},
+			toReplacementMap() { return {} },
+			summary() { return { modelId: 'Source', inputs: {}, output: { kind: 'expression' } } }
+		} as AnyTemplate
+		const impostor = {
+			contractDigest: `c4_${'0'.repeat(64)}`,
+			manifestDigest: `m1_${'0'.repeat(64)}`,
+			get() { catalogMethodCalls += 1; return forgedTemplate },
+			list() { catalogMethodCalls += 1; return [forgedTemplate] },
+			summaries() { catalogMethodCalls += 1; return [forgedTemplate.summary()] },
+			snapshot() { catalogMethodCalls += 1; return this }
+		} as unknown as TemplateCatalogView & { snapshot(): TemplateCatalogView }
+		const forgedGraph: SynthesisGraph = {
+			nodes: [{ id: 'forged', templateId: 'Source', inputs: {} }],
+			finalNodeId: 'forged'
+		}
+
+		for (const operation of [
+			() => buildGraphCompiler(impostor),
+			() => compileGraph(forgedGraph, impostor),
+			() => createGraphRunner(impostor, forgedGraph)
+		]) {
+			const error = catalogError(operation)
+			expect(error.diagnostics).toMatchObject([{ code: 'UntrustedTemplateCatalogView' }])
+		}
+
+		const plan: ArtifactSetPlan = {
+			artifacts: [{
+				id: 'forged', graph: forgedGraph,
+				target: { kind: 'createFile', path: 'generated/forged.ts' }
+			}]
+		}
+		const artifactSet = compileArtifactSet(plan, impostor)
+		expect(artifactSet).toMatchObject({
+			ok: false,
+			classification: 'templatePolicyFailure',
+			diagnostics: [{ code: 'UntrustedTemplateCatalogView' }]
+		})
+
+		const arrayError = catalogError(() => compileGraph(forgedGraph, [forgedTemplate]))
+		expect(arrayError.diagnostics).toMatchObject([{ code: 'UntrustedTemplateDefinition' }])
+		expect(catalogMethodCalls).toBe(0)
+		expect(templateInvocationCalls).toBe(0)
+	})
+
+	it('rejects callable graph-compiler impostors before a runner can invoke them', () => {
+		const source = staticExpression('CompilerTrustSource', { code: '1' })
+		const catalog = createTemplateRegistry([source]).snapshot()
+		let calls = 0
+		const impostor = Object.assign(
+			() => {
+				calls += 1
+				throw new Error('forged compiler executed')
+			},
+			{
+				contractDigest: catalog.contractDigest,
+				manifestDigest: catalog.manifestDigest,
+				catalog,
+				defineGraph: (graph: unknown) => graph,
+				definePartialGraph: (graph: unknown) => graph
+			}
+		) as unknown as GraphCompiler<readonly AnyTemplate[]>
+		const graph: SynthesisGraph = {
+			nodes: [{ id: 'source', templateId: source.modelId, inputs: {} }],
+			finalNodeId: 'source'
+		}
+
+		expect(() => createGraphRunner(impostor, graph)).toThrow(/only compiler closures created/u)
+		expect(calls).toBe(0)
+	})
+
 	it('rejects duplicate IDs in an initial widened catalog', () => {
 		const first = staticExpression('Duplicate', { code: '1' })
 		const second = staticExpression('Duplicate', { code: '2' })
@@ -135,7 +233,7 @@ describe('validated template registries', () => {
 			version: '2',
 			inputs: {},
 			output: { kind: 'statement' },
-			template: () => 'void 0;'
+			source: 'void 0;'
 		})
 		const dependentError = catalogError(() => registry.replace(incompatibleSource))
 		expect(dependentError.diagnostics.map(diagnostic => diagnostic.code)).toEqual([
@@ -200,13 +298,13 @@ function richCatalog(options: RichContractOptions = {}): AnyTemplate[] {
 		modelId: 'SourceAlpha',
 		inputs: {},
 		output: { kind: 'expression', type: { ts: 'string' } },
-		template: () => '"alpha"'
+		source: '"alpha"'
 	})
 	const sourceBeta = defineTemplate({
 		modelId: 'SourceBeta',
 		inputs: {},
 		output: { kind: 'expression', type: { ts: 'string' } },
-		template: () => '"beta"'
+		source: '"beta"'
 	})
 	const sourceModelIds = options.sourceModelIds
 		?? (options.reverseSetValues ? ['SourceBeta', 'SourceAlpha'] : ['SourceAlpha', 'SourceBeta'])
@@ -259,8 +357,7 @@ function richCatalog(options: RichContractOptions = {}): AnyTemplate[] {
 			type: { ts: options.outputType ?? 'readonly string[]' },
 			schema: options.outputSchema ?? { type: 'array', items: { type: 'string' } }
 		},
-		template: region => options.implementation
-			?? `[${region('literal')}, ${region('fragment')}, ${region('collection')}, ${region('raw')}]`
+		source: `[${"/** @TYPE expression id=literal **/undefined/** @END **/"}, ${"/** @TYPE expression id=fragment **/undefined/** @END **/"}, ${"/** @TYPE expression id=collection **/undefined/** @END **/"}, ${"/** @TYPE expression id=raw **/undefined/** @END **/"}${options.implementation === undefined ? '' : `, ${options.implementation}`}]`
 	})
 
 	return [sourceAlpha, sourceBeta, rich]
@@ -273,7 +370,9 @@ describe('template catalog digests', () => {
 
 		expect(templateCatalogDigest([...canonical].reverse())).toBe(templateCatalogDigest(reordered))
 		expect(createTemplateRegistry(canonical).contractDigest).toBe(templateCatalogDigest(canonical))
-		expect(templateCatalogDigest(canonical)).toMatch(/^c3_[a-f0-9]{64}$/u)
+		expect(templateCatalogDigest(canonical)).toMatch(/^c4_[a-f0-9]{64}$/u)
+		expect(templateCatalogManifestDigest(canonical)).toMatch(/^m1_[a-f0-9]{64}$/u)
+		expect(templateCatalogManifestDigest(canonical)).not.toBe(templateCatalogManifestDigest(reordered))
 	})
 
 	it('canonicalizes schema ordering, legacy aliases, and surrounding TypeScript whitespace', () => {
@@ -292,7 +391,7 @@ describe('template catalog digests', () => {
 				kind: 'expression',
 				type: { ts: 'string | null', schema: { type: ['string', 'null'] } }
 			},
-			template: region => region('value')
+			source: "/** @TYPE expression id=value **/undefined/** @END **/"
 		})
 		const reorderedAndLegacy = defineTemplate({
 			modelId: 'CanonicalMetadata',
@@ -310,7 +409,7 @@ describe('template catalog digests', () => {
 				type: { ts: '  string | null  ' },
 				schema: { type: ['null', 'string'] }
 			},
-			template: region => region('value')
+			source: "/** @TYPE expression id=value **/undefined/** @END **/"
 		})
 
 		expect(templateCatalogDigest([reorderedAndLegacy]))
@@ -352,7 +451,7 @@ describe('template catalog digests', () => {
 				literal: literalPort({ regionKind: 'expression' })
 			},
 			output: { kind: 'expression' },
-			template: region => region('literal')
+			source: `[${"/** @TYPE expression id=fragment **/undefined/** @END **/"}, ${"/** @TYPE expression id=collection **/undefined/** @END **/"}, ${"/** @TYPE expression id=raw **/undefined/** @END **/"}, ${"/** @TYPE expression id=literal **/undefined/** @END **/"}]`
 		})
 		const explicitDefaults = defineTemplate({
 			modelId: 'Defaults',
@@ -377,10 +476,12 @@ describe('template catalog digests', () => {
 				literal: literalPort({ regionKind: 'expression', required: true })
 			},
 			output: { kind: 'expression' },
-			template: () => 'differentImplementation()'
+			source: `[${"/** @TYPE expression id=fragment **/undefined/** @END **/"}, ${"/** @TYPE expression id=collection **/undefined/** @END **/"}, ${"/** @TYPE expression id=raw **/undefined/** @END **/"}, ${"/** @TYPE expression id=literal **/undefined/** @END **/"}, differentImplementation()]`
 		})
 
 		expect(templateCatalogDigest([implicitDefaults])).toBe(templateCatalogDigest([explicitDefaults]))
+		expect(templateCatalogManifestDigest([implicitDefaults]))
+			.not.toBe(templateCatalogManifestDigest([explicitDefaults]))
 
 		const firstImplementation = staticExpression('Implementation', { version: '1', code: 'first()' })
 		const secondImplementation = staticExpression('Implementation', { version: '1', code: 'second()' })
@@ -399,7 +500,7 @@ describe('template catalog digests', () => {
 				})
 			},
 			output: { kind: 'expression' },
-			template: region => region('value')
+			source: "/** @TYPE expression id=value **/undefined/** @END **/"
 		})
 
 		expect(templateCatalogDigest([templateWithSources()]))
@@ -489,7 +590,7 @@ describe('catalog capture in graph sessions', () => {
 			version,
 			inputs: { value: rawCodePort({ regionKind: 'expression' }) },
 			output: { kind: 'expression' },
-			template: region => region('value')
+			source: "/** @TYPE expression id=value **/undefined/** @END **/"
 		})
 		const partialGraph: SynthesisGraph = {
 			nodes: [{ id: 'partial', templateId: 'MissingInput', inputs: {} }],

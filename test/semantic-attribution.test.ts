@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
 	compileGraph,
+	createTemplateRegistry,
 	defineTemplate,
-	fillTemplateArtifact,
+	fillTemplateArtifactWithCatalog,
 	fragmentCollectionPort,
 	fragmentPort,
 	rawCodePort,
@@ -20,7 +21,7 @@ function nestedExpressionTemplates(prefix: string) {
 		modelId: `${prefix}Leaf`,
 		inputs: { value: rawCodePort({ regionKind: 'expression' }) },
 		output: { kind: 'expression' },
-		template: region => region('value')
+		source: "/** @TYPE expression id=value **/undefined/** @END **/"
 	})
 	const middle = defineTemplate({
 		modelId: `${prefix}Middle`,
@@ -28,7 +29,7 @@ function nestedExpressionTemplates(prefix: string) {
 			child: fragmentPort({ regionKind: 'expression', accepts: { outputKind: 'expression' } })
 		},
 		output: { kind: 'expression' },
-		template: region => `(${region('child')})`
+		source: `(${"/** @TYPE expression id=child **/undefined/** @END **/"})`
 	})
 	const root = defineTemplate({
 		modelId: `${prefix}Root`,
@@ -36,7 +37,7 @@ function nestedExpressionTemplates(prefix: string) {
 			child: fragmentPort({ regionKind: 'expression', accepts: { outputKind: 'expression' } })
 		},
 		output: { kind: 'statement' },
-		template: region => `const generated: number = ${region('child')};`
+		source: `const generated: number = ${"/** @TYPE expression id=child **/undefined/** @END **/"};`
 	})
 	return { leaf, middle, root, catalog: [leaf, middle, root] as const }
 }
@@ -86,19 +87,19 @@ describe('graph semantic diagnostic attribution', () => {
 			modelId: 'AttributionFirstStatement',
 			inputs: {},
 			output: { kind: 'statement' },
-			template: () => 'const first = 1;'
+			source: 'const first = 1;'
 		})
 		const bad = defineTemplate({
 			modelId: 'AttributionBadStatement',
 			inputs: { value: rawCodePort({ regionKind: 'expression' }) },
 			output: { kind: 'statement' },
-			template: region => `const second: number = ${region('value')};`
+			source: `const second: number = ${"/** @TYPE expression id=value **/undefined/** @END **/"};`
 		})
 		const third = defineTemplate({
 			modelId: 'AttributionThirdStatement',
 			inputs: {},
 			output: { kind: 'statement' },
-			template: () => 'const third = 3;'
+			source: 'const third = 3;'
 		})
 		const collection = defineTemplate({
 			modelId: 'AttributionStatementCollection',
@@ -111,7 +112,7 @@ describe('graph semantic diagnostic attribution', () => {
 				})
 			},
 			output: { kind: 'statement' },
-			template: region => region('statements')
+			source: "/** @TYPE statement id=statements **/throw new Error(\"placeholder\");/** @END **/"
 		})
 		const catalog = [first, bad, third, collection] as const
 		const graph: SynthesisGraph = {
@@ -158,7 +159,7 @@ describe('graph semantic diagnostic attribution', () => {
 			modelId: 'FormattedAttributionStatement',
 			inputs: { value: rawCodePort({ regionKind: 'expression' }) },
 			output: { kind: 'statement' },
-			template: region => `function generated(){\nconst formatted:number=${region('value')};\n}`
+			source: `function generated(){\nconst formatted:number=${"/** @TYPE expression id=value **/undefined/** @END **/"};\n}`
 		})
 		const graph: SynthesisGraph = {
 			nodes: [{
@@ -202,8 +203,9 @@ describe('graph semantic diagnostic attribution', () => {
 	it('preserves nested ownership through JSON roundtrip and final artifact filling', () => {
 		const prefix = 'FilledAttribution'
 		const templates = nestedExpressionTemplates(prefix)
+		const catalog = createTemplateRegistry(templates.catalog).snapshot()
 		const graph = nestedGraph(prefix, {})
-		const partial = compileGraph(graph, templates.catalog, {
+		const partial = compileGraph(graph, catalog, {
 			mode: 'partial',
 			checkSemanticDiagnostics: true,
 			compilationScope: 'semantic-attribution-roundtrip'
@@ -214,9 +216,9 @@ describe('graph semantic diagnostic attribution', () => {
 		const restored = JSON.parse(JSON.stringify(partial.finalArtifact)) as typeof partial.finalArtifact
 		const unresolved = restored.unresolvedInputs.find(input => input.nodeId === `${prefix}LeafNode` && input.inputName === 'value')
 		expect(unresolved).toBeDefined()
-		const filled = fillTemplateArtifact(restored, {
+		const filled = fillTemplateArtifactWithCatalog(restored, {
 			[unresolved!.id]: { kind: 'rawCode', code: 'missingFilledValue' }
-		}, { checkSemanticDiagnostics: true })
+		}, catalog, { checkSemanticDiagnostics: true })
 
 		expect(filled.ok).toBe(false)
 		if (!filled.ok) expect(filled.classification).toBe('artifactFillable')
@@ -236,13 +238,13 @@ describe('graph semantic diagnostic attribution', () => {
 			modelId: 'VirtualTargetLeaf',
 			inputs: { value: rawCodePort({ regionKind: 'expression' }) },
 			output: { kind: 'expression' },
-			template: region => region('value')
+			source: "/** @TYPE expression id=value **/undefined/** @END **/"
 		})
 		const parent = defineTemplate({
 			modelId: 'VirtualTargetParent',
 			inputs: { child: fragmentPort({ regionKind: 'expression', accepts: { outputKind: 'expression' } }) },
 			output: { kind: 'expression' },
-			template: region => `(${region('child')})`
+			source: `(${"/** @TYPE expression id=child **/undefined/** @END **/"})`
 		})
 		const graph: SynthesisGraph = {
 			nodes: [
@@ -317,7 +319,7 @@ describe('graph semantic diagnostic attribution', () => {
 				modelId: item.modelId,
 				inputs: {},
 				output: item.output,
-				template: () => item.code
+				source: item.code
 			})
 			const nodeId = `advertised-${item.kind}`
 			const result = compileGraph({
@@ -340,7 +342,7 @@ describe('graph semantic diagnostic attribution', () => {
 			modelId: 'InvalidTargetExpression',
 			inputs: {},
 			output: { kind: 'expression' },
-			template: () => '1'
+			source: '1'
 		})
 		const result = compileGraph({
 			nodes: [{ id: 'invalidTarget', templateId: template.modelId, inputs: {} }],

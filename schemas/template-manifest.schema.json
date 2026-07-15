@@ -1,0 +1,714 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.synthesize-regions.dev/template-manifest.schema.json",
+  "title": "synthesize-regions GraphTemplateManifest",
+  "description": "Closed declarative template manifest containing JSON-safe port contracts and marked TypeScript source. Marker correspondence and source syntax are enforced when the manifest is loaded.",
+  "$ref": "#/$defs/GraphTemplateManifest",
+  "$defs": {
+    "JsonValue": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/JsonValue"
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "patternProperties": {
+            "^[\\s\\S]*$": {
+              "$ref": "#/$defs/JsonValue"
+            }
+          }
+        }
+      ]
+    },
+    "SupportedJsonSchema": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "properties": {
+            "$schema": {
+              "const": "https://json-schema.org/draft/2020-12/schema",
+              "type": "string"
+            },
+            "$ref": {
+              "pattern": "^#(?:|/(?:[^~/]|~[01])*(?:/(?:[^~/]|~[01])*)*)$",
+              "type": "string"
+            },
+            "$defs": {
+              "additionalProperties": false,
+              "type": "object",
+              "patternProperties": {
+                "^[\\s\\S]*$": {
+                  "$ref": "#/$defs/SupportedJsonSchema"
+                }
+              }
+            },
+            "$comment": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "default": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "deprecated": {
+              "type": "boolean"
+            },
+            "readOnly": {
+              "type": "boolean"
+            },
+            "writeOnly": {
+              "type": "boolean"
+            },
+            "examples": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/JsonValue"
+              }
+            },
+            "type": {
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "const": "null",
+                      "type": "string"
+                    },
+                    {
+                      "const": "boolean",
+                      "type": "string"
+                    },
+                    {
+                      "const": "object",
+                      "type": "string"
+                    },
+                    {
+                      "const": "array",
+                      "type": "string"
+                    },
+                    {
+                      "const": "number",
+                      "type": "string"
+                    },
+                    {
+                      "const": "string",
+                      "type": "string"
+                    },
+                    {
+                      "const": "integer",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "const": "null",
+                        "type": "string"
+                      },
+                      {
+                        "const": "boolean",
+                        "type": "string"
+                      },
+                      {
+                        "const": "object",
+                        "type": "string"
+                      },
+                      {
+                        "const": "array",
+                        "type": "string"
+                      },
+                      {
+                        "const": "number",
+                        "type": "string"
+                      },
+                      {
+                        "const": "string",
+                        "type": "string"
+                      },
+                      {
+                        "const": "integer",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "const": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "enum": {
+              "minItems": 1,
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/JsonValue"
+              }
+            },
+            "multipleOf": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "maximum": {
+              "type": "number"
+            },
+            "exclusiveMaximum": {
+              "type": "number"
+            },
+            "minimum": {
+              "type": "number"
+            },
+            "exclusiveMinimum": {
+              "type": "number"
+            },
+            "maxLength": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "minLength": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "pattern": {
+              "type": "string"
+            },
+            "format": {
+              "type": "string"
+            },
+            "contentEncoding": {
+              "type": "string"
+            },
+            "contentMediaType": {
+              "type": "string"
+            },
+            "contentSchema": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            },
+            "prefixItems": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SupportedJsonSchema"
+              }
+            },
+            "items": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            },
+            "contains": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            },
+            "minContains": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxContains": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "minItems": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "uniqueItems": {
+              "type": "boolean"
+            },
+            "unevaluatedItems": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            },
+            "properties": {
+              "additionalProperties": false,
+              "type": "object",
+              "patternProperties": {
+                "^[\\s\\S]*$": {
+                  "$ref": "#/$defs/SupportedJsonSchema"
+                }
+              }
+            },
+            "patternProperties": {
+              "additionalProperties": false,
+              "type": "object",
+              "patternProperties": {
+                "^[\\s\\S]*$": {
+                  "$ref": "#/$defs/SupportedJsonSchema"
+                }
+              }
+            },
+            "additionalProperties": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            },
+            "required": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "minProperties": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxProperties": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "dependentRequired": {
+              "additionalProperties": false,
+              "type": "object",
+              "patternProperties": {
+                "^[\\s\\S]*$": {
+                  "uniqueItems": true,
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "dependentSchemas": {
+              "additionalProperties": false,
+              "type": "object",
+              "patternProperties": {
+                "^[\\s\\S]*$": {
+                  "$ref": "#/$defs/SupportedJsonSchema"
+                }
+              }
+            },
+            "unevaluatedProperties": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            },
+            "allOf": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SupportedJsonSchema"
+              }
+            },
+            "anyOf": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SupportedJsonSchema"
+              }
+            },
+            "oneOf": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SupportedJsonSchema"
+              }
+            },
+            "not": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            },
+            "if": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            },
+            "then": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            },
+            "else": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            }
+          }
+        }
+      ]
+    },
+    "CompilationRegionKind": {
+      "anyOf": [
+        {
+          "const": "identifier",
+          "type": "string"
+        },
+        {
+          "const": "expression",
+          "type": "string"
+        },
+        {
+          "const": "expressionSuffix",
+          "type": "string"
+        },
+        {
+          "const": "statement",
+          "type": "string"
+        },
+        {
+          "const": "array",
+          "type": "string"
+        },
+        {
+          "const": "object",
+          "type": "string"
+        },
+        {
+          "const": "string",
+          "type": "string"
+        },
+        {
+          "const": "number",
+          "type": "string"
+        },
+        {
+          "const": "boolean",
+          "type": "string"
+        },
+        {
+          "const": "null",
+          "type": "string"
+        },
+        {
+          "const": "objectProperty",
+          "type": "string"
+        },
+        {
+          "const": "type",
+          "type": "string"
+        },
+        {
+          "const": "typeMember",
+          "type": "string"
+        },
+        {
+          "const": "typeParameter",
+          "type": "string"
+        },
+        {
+          "const": "parameter",
+          "type": "string"
+        },
+        {
+          "const": "constructorParameter",
+          "type": "string"
+        },
+        {
+          "const": "heritageType",
+          "type": "string"
+        },
+        {
+          "const": "declaration",
+          "type": "string"
+        },
+        {
+          "const": "classMember",
+          "type": "string"
+        },
+        {
+          "const": "enumMember",
+          "type": "string"
+        },
+        {
+          "const": "importSpecifier",
+          "type": "string"
+        },
+        {
+          "const": "exportSpecifier",
+          "type": "string"
+        },
+        {
+          "const": "sourceFile",
+          "type": "string"
+        }
+      ]
+    },
+    "CompilationTypeDescriptor": {
+      "additionalProperties": false,
+      "type": "object",
+      "properties": {
+        "ts": {
+          "type": "string"
+        },
+        "schema": {
+          "$ref": "#/$defs/SupportedJsonSchema"
+        }
+      }
+    },
+    "CompilationRawCodePolicy": {
+      "additionalProperties": false,
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "maxLength": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "allowNewlines": {
+          "type": "boolean"
+        },
+        "forbiddenSubstrings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbiddenPatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "FragmentAccepts": {
+      "additionalProperties": false,
+      "type": "object",
+      "properties": {
+        "outputKind": {
+          "$ref": "#/$defs/CompilationRegionKind"
+        },
+        "type": {
+          "$ref": "#/$defs/CompilationTypeDescriptor"
+        },
+        "sourceModelIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "InputPort": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "regionKind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "literal",
+              "type": "string"
+            },
+            "regionKind": {
+              "$ref": "#/$defs/CompilationRegionKind"
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "description": {
+              "type": "string"
+            },
+            "schema": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "regionKind",
+            "accepts"
+          ],
+          "properties": {
+            "kind": {
+              "const": "fragment",
+              "type": "string"
+            },
+            "regionKind": {
+              "$ref": "#/$defs/CompilationRegionKind"
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "description": {
+              "type": "string"
+            },
+            "accepts": {
+              "$ref": "#/$defs/FragmentAccepts"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "regionKind",
+            "accepts"
+          ],
+          "properties": {
+            "kind": {
+              "const": "fragmentCollection",
+              "type": "string"
+            },
+            "regionKind": {
+              "$ref": "#/$defs/CompilationRegionKind"
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "description": {
+              "type": "string"
+            },
+            "accepts": {
+              "$ref": "#/$defs/FragmentAccepts"
+            },
+            "separator": {
+              "type": "string"
+            },
+            "minItems": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "regionKind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "rawCode",
+              "type": "string"
+            },
+            "regionKind": {
+              "$ref": "#/$defs/CompilationRegionKind"
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "description": {
+              "type": "string"
+            },
+            "policy": {
+              "$ref": "#/$defs/CompilationRawCodePolicy"
+            },
+            "type": {
+              "$ref": "#/$defs/CompilationTypeDescriptor"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "options"
+          ],
+          "properties": {
+            "kind": {
+              "const": "union",
+              "type": "string"
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "description": {
+              "type": "string"
+            },
+            "options": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/InputPort"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "OutputPort": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/CompilationRegionKind"
+        },
+        "type": {
+          "$ref": "#/$defs/CompilationTypeDescriptor"
+        },
+        "schema": {
+          "$ref": "#/$defs/SupportedJsonSchema"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "GraphTemplateManifest": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "modelId",
+        "inputs",
+        "output",
+        "source"
+      ],
+      "properties": {
+        "modelId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "inputs": {
+          "type": "object",
+          "patternProperties": {
+            "^(.*)$": {
+              "$ref": "#/$defs/InputPort"
+            }
+          }
+        },
+        "output": {
+          "$ref": "#/$defs/OutputPort"
+        },
+        "source": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

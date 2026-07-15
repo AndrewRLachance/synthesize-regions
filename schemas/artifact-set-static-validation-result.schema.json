@@ -1,0 +1,365 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.synthesize-regions.dev/artifact-set-static-validation-result.schema.json",
+  "title": "synthesize-regions ArtifactSetStaticValidationResult",
+  "description": "Identity-bound result of mandatory syntax and TypeScript semantic validation over an assembled artifact set and immutable workspace snapshot.",
+  "$ref": "#/$defs/ArtifactSetStaticValidationResult",
+  "$defs": {
+    "SynthesisFailureClassification": {
+      "anyOf": [
+        {
+          "const": "graphRepairable",
+          "type": "string"
+        },
+        {
+          "const": "artifactFillable",
+          "type": "string"
+        },
+        {
+          "const": "templatePolicyFailure",
+          "type": "string"
+        },
+        {
+          "const": "terminalFailure",
+          "type": "string"
+        }
+      ]
+    },
+    "SynthesisRepairHint": {
+      "additionalProperties": true,
+      "type": "object",
+      "required": [
+        "kind",
+        "message"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "ArtifactSetDiagnostic": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "stage",
+        "code",
+        "severity",
+        "message"
+      ],
+      "properties": {
+        "stage": {
+          "anyOf": [
+            {
+              "const": "graph",
+              "type": "string"
+            },
+            {
+              "const": "template",
+              "type": "string"
+            },
+            {
+              "const": "input",
+              "type": "string"
+            },
+            {
+              "const": "port",
+              "type": "string"
+            },
+            {
+              "const": "region",
+              "type": "string"
+            },
+            {
+              "const": "ast",
+              "type": "string"
+            },
+            {
+              "const": "type",
+              "type": "string"
+            },
+            {
+              "const": "policy",
+              "type": "string"
+            }
+          ]
+        },
+        "code": {
+          "type": "string"
+        },
+        "severity": {
+          "anyOf": [
+            {
+              "const": "error",
+              "type": "string"
+            },
+            {
+              "const": "warning",
+              "type": "string"
+            }
+          ]
+        },
+        "message": {
+          "type": "string"
+        },
+        "nodeId": {
+          "type": "string"
+        },
+        "templateId": {
+          "type": "string"
+        },
+        "inputName": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "expected": {},
+        "actual": {},
+        "repairHints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SynthesisRepairHint"
+          }
+        },
+        "compilerCode": {
+          "type": "number"
+        },
+        "compilerCategory": {
+          "anyOf": [
+            {
+              "const": "error",
+              "type": "string"
+            },
+            {
+              "const": "warning",
+              "type": "string"
+            },
+            {
+              "const": "suggestion",
+              "type": "string"
+            },
+            {
+              "const": "message",
+              "type": "string"
+            }
+          ]
+        },
+        "line": {
+          "type": "number"
+        },
+        "column": {
+          "type": "number"
+        },
+        "artifactId": {
+          "type": "string"
+        }
+      }
+    },
+    "ArtifactSetTextEdit": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "artifactId",
+        "start",
+        "end",
+        "resultStart",
+        "resultEnd",
+        "replacement",
+        "artifactHash"
+      ],
+      "properties": {
+        "artifactId": {
+          "type": "string"
+        },
+        "start": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "end": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "resultStart": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "resultEnd": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "replacement": {
+          "type": "string"
+        },
+        "artifactHash": {
+          "type": "string"
+        }
+      }
+    },
+    "ArtifactSetChange": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "path",
+            "resultingFileHash",
+            "sourceText",
+            "edits"
+          ],
+          "properties": {
+            "kind": {
+              "const": "createFile",
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "resultingFileHash": {
+              "type": "string"
+            },
+            "sourceText": {
+              "type": "string"
+            },
+            "edits": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ArtifactSetTextEdit"
+              }
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "path",
+            "baseFileHash",
+            "resultingFileHash",
+            "sourceText",
+            "edits"
+          ],
+          "properties": {
+            "kind": {
+              "const": "modifyFile",
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "baseFileHash": {
+              "type": "string"
+            },
+            "resultingFileHash": {
+              "type": "string"
+            },
+            "sourceText": {
+              "type": "string"
+            },
+            "edits": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ArtifactSetTextEdit"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ArtifactSetStaticValidationResult": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "ok",
+            "validation",
+            "changes",
+            "changeSetHash",
+            "contractDigest",
+            "manifestDigest",
+            "workspaceSnapshotHash",
+            "staticPolicyVersion",
+            "diagnostics"
+          ],
+          "properties": {
+            "ok": {
+              "const": true,
+              "type": "boolean"
+            },
+            "validation": {
+              "const": "static",
+              "type": "string"
+            },
+            "changes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ArtifactSetChange"
+              }
+            },
+            "changeSetHash": {
+              "type": "string"
+            },
+            "contractDigest": {
+              "pattern": "^c4_[a-f0-9]{64}$",
+              "type": "string"
+            },
+            "manifestDigest": {
+              "pattern": "^m1_[a-f0-9]{64}$",
+              "type": "string"
+            },
+            "workspaceSnapshotHash": {
+              "pattern": "^ws1_[a-f0-9]{64}$",
+              "type": "string"
+            },
+            "staticPolicyVersion": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "diagnostics": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ArtifactSetDiagnostic"
+              }
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "ok",
+            "classification",
+            "changes",
+            "diagnostics"
+          ],
+          "properties": {
+            "ok": {
+              "const": false,
+              "type": "boolean"
+            },
+            "classification": {
+              "$ref": "#/$defs/SynthesisFailureClassification"
+            },
+            "changes": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 0
+            },
+            "diagnostics": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ArtifactSetDiagnostic"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

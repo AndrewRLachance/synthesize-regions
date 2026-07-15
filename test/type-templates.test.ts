@@ -136,14 +136,14 @@ describe("type syntax graph integration", () => {
     modelId: "ValidType",
     inputs: {},
     output: { kind: "type", type: { ts: "string | number" } },
-    template: () => "string"
+    source: "string"
   });
 
   const InvalidAdvertisedType = defineTemplate({
     modelId: "InvalidAdvertisedType",
     inputs: {},
     output: { kind: "type", type: { ts: "string" } },
-    template: () => "string | number"
+    source: "string | number"
   });
 
   it("semantically proves complete type artifacts against their advertised type", () => {
@@ -176,7 +176,7 @@ describe("type syntax graph integration", () => {
         value: { kind: "literal", regionKind: "type" } as any
       },
       output: { kind: "type" },
-      template: region => region("value", "unknown")
+      source: "/** @TYPE type id=value **/unknown/** @END **/"
     })])).toThrow(TemplateCatalogValidationError);
   });
 
@@ -185,7 +185,7 @@ describe("type syntax graph integration", () => {
       modelId: "RawType",
       inputs: { value: rawCodePort({ regionKind: "type" }) },
       output: { kind: "type" },
-      template: region => region("value", "unknown")
+      source: "/** @TYPE type id=value **/unknown/** @END **/"
     });
     const compiler = buildGraphCompiler(defineTemplateCatalog([RawType] as const));
     const result = compiler({
@@ -201,7 +201,7 @@ describe("type syntax graph integration", () => {
       modelId: "PartialRawType",
       inputs: { value: rawCodePort({ regionKind: "type" }) },
       output: { kind: "type", type: { ts: "string | null" } },
-      template: region => region("value", "unknown")
+      source: "/** @TYPE type id=value **/unknown/** @END **/"
     });
     const compiled = compileGraph({
       nodes: [{ id: "value", templateId: "PartialRawType", inputs: {} }],
@@ -221,10 +221,10 @@ describe("type syntax graph integration", () => {
 
   it("composes typed syntax collections in authored order with provenance", () => {
     const IdMember = defineTemplate({
-      modelId: "IdMember", inputs: {}, output: { kind: "typeMember" }, template: () => "readonly id: string"
+      modelId: "IdMember", inputs: {}, output: { kind: "typeMember" }, source: "readonly id: string"
     });
     const NameMember = defineTemplate({
-      modelId: "NameMember", inputs: {}, output: { kind: "typeMember" }, template: () => "name?: string"
+      modelId: "NameMember", inputs: {}, output: { kind: "typeMember" }, source: "name?: string"
     });
     const InterfaceDeclaration = defineTemplate({
       modelId: "InterfaceDeclaration",
@@ -236,7 +236,7 @@ describe("type syntax graph integration", () => {
         })
       },
       output: { kind: "declaration" },
-      template: region => `export interface User {\n${region("members", "value: unknown")}\n}`
+      source: `export interface User {\n${"/** @TYPE typeMember id=members **/value: unknown/** @END **/"}\n}`
     });
     const result = compileGraph({
       nodes: [

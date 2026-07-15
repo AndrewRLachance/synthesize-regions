@@ -4,6 +4,7 @@ import {
 	createTemplateRegistry,
 	defineTemplate,
 	fillTemplateArtifact,
+	fillTemplateArtifactWithCatalog,
 	finalizeTemplateArtifact,
 	fragmentCollectionPort,
 	fragmentPort,
@@ -18,6 +19,8 @@ import {
 	type TemplateRegistry,
 	type UnresolvedTemplateInput
 } from '../src/index.js'
+
+const TEST_MANIFEST_DIGEST = `t1_${'0'.repeat(64)}`
 
 function partialOptions(compilationScope?: string): GraphCompileOptions & { mode: 'partial' } {
 	return {
@@ -65,7 +68,7 @@ function partialExpression(
 		id,
 		code,
 		kind: 'expression',
-		source: { templateId: 'ExpressionArtifact' },
+		source: { templateId: 'ExpressionArtifact', templateManifestDigest: TEST_MANIFEST_DIGEST },
 		complete: false,
 		unresolvedInputs
 	}
@@ -76,7 +79,7 @@ function completeExpression(code = 'value'): CompleteTemplateArtifact {
 		id: 'complete',
 		code,
 		kind: 'expression',
-		source: { templateId: 'CompleteExpression' },
+		source: { templateId: 'CompleteExpression', templateManifestDigest: TEST_MANIFEST_DIGEST },
 		complete: true
 	}
 }
@@ -103,7 +106,7 @@ function singleInputFixture(nodeId = 'value') {
 			value: rawCodePort({ regionKind: 'expression' })
 		},
 		output: { kind: 'expression' },
-		template: region => region('value')
+		source: "/** @TYPE expression id=value **/undefined/** @END **/"
 	})
 	const graph: SynthesisGraph = {
 		nodes: [{ id: nodeId, templateId: template.modelId, inputs: {} }],
@@ -160,7 +163,7 @@ describe('deterministic unresolved-input identities', () => {
 			modelId: 'CollisionChild',
 			inputs: { value: rawCodePort({ regionKind: 'expression' }) },
 			output: { kind: 'expression' },
-			template: region => region('value')
+			source: "/** @TYPE expression id=value **/undefined/** @END **/"
 		})
 		const pair = defineTemplate({
 			modelId: 'CollisionPair',
@@ -169,7 +172,7 @@ describe('deterministic unresolved-input identities', () => {
 				right: fragmentPort({ regionKind: 'expression', accepts: {} })
 			},
 			output: { kind: 'expression' },
-			template: region => `(${region('left')}) + (${region('right')})`
+			source: `(${"/** @TYPE expression id=left **/undefined/** @END **/"}) + (${"/** @TYPE expression id=right **/undefined/** @END **/"})`
 		})
 		const graph: SynthesisGraph = {
 			nodes: [
@@ -196,6 +199,18 @@ describe('deterministic unresolved-input identities', () => {
 })
 
 describe('artifact fill-key resolution', () => {
+	it('keeps legacy artifacts inspectable but refuses to resume them without exact manifest identity', () => {
+		const artifact = partialExpression(marker('legacy'), [rawInput('legacy')])
+		const legacy = { ...artifact, source: { templateId: artifact.source.templateId } }
+		const result = fillTemplateArtifact(legacy, { legacy: { kind: 'rawCode', code: '1' } })
+		expect(result).toMatchObject({
+			ok: false,
+			classification: 'terminalFailure',
+			diagnostics: [expect.objectContaining({ code: 'MissingTemplateManifestIdentity' })]
+		})
+		expect(validateTemplateArtifactIntegrity(legacy)).toEqual([])
+	})
+
 	it('rejects unknown fill keys instead of silently ignoring them', () => {
 		const artifact = partialExpression(marker('known'), [rawInput('known')])
 		const result = fillTemplateArtifact(artifact, {
@@ -237,10 +252,19 @@ describe('artifact fill-key resolution', () => {
 	})
 
 	it('diagnoses a consumed ID supplied again during a repeated fill', () => {
-		const artifact = partialExpression(
-			`(${marker('left')}) + (${marker('right')})`,
-			[rawInput('left', 'left'), rawInput('right', 'right')]
-		)
+		const template = defineTemplate({
+			modelId: 'RepeatedFillPair',
+			inputs: {
+				left: rawCodePort({ regionKind: 'expression' }),
+				right: rawCodePort({ regionKind: 'expression' })
+			},
+			output: { kind: 'expression' },
+			source: `(${marker('left')}) + (${marker('right')})`
+		})
+		const artifact = requirePartial(compilePartialGraph(
+			{ nodes: [{ id: 'pair', templateId: template.modelId, inputs: {} }], finalNodeId: 'pair' },
+			createTemplateRegistry([template])
+		))
 		const first = fillTemplateArtifact(artifact, {
 			left: { kind: 'rawCode', code: 'one' }
 		})
@@ -310,7 +334,7 @@ describe('artifact marker invariants', () => {
 		const outer = partialExpression(marker('slot'), [slot], 'outer')
 		const invalidChild: CompleteTemplateArtifact = {
 			id: 'child', code: '1', kind: 'expression',
-			source: { templateId: 'ManualChild' }, complete: true,
+			source: { templateId: 'ManualChild', templateManifestDigest: TEST_MANIFEST_DIGEST }, complete: true,
 			sourceMap: {
 				version: 1,
 				spans: [{
@@ -424,7 +448,7 @@ describe('artifact marker invariants', () => {
 			id: 'child',
 			code: '1',
 			kind: 'expression',
-			source: { templateId: 'ManualChild' },
+			source: { templateId: 'ManualChild', templateManifestDigest: TEST_MANIFEST_DIGEST },
 			type: { ts: 'any' },
 			complete: true
 		}
@@ -469,7 +493,7 @@ describe('artifact marker invariants', () => {
 			id: 'statement',
 			code: `${marker('value', 'expression')};`,
 			kind: 'statement',
-			source: { templateId: 'StatementArtifact' },
+			source: { templateId: 'StatementArtifact', templateManifestDigest: TEST_MANIFEST_DIGEST },
 			complete: false,
 			unresolvedInputs: [rawInput('value', 'value', 'statement', 'statement')]
 		}
@@ -477,10 +501,40 @@ describe('artifact marker invariants', () => {
 	})
 
 	it('allows repeated physical regions for one logical unresolved ID', () => {
-		const artifact = partialExpression(
-			`(${marker('shared')}) + (${marker('shared')})`,
-			[rawInput('shared')]
-		)
+		const child = defineTemplate({
+			modelId: 'RepeatedPhysicalChild',
+			inputs: { shared: rawCodePort({ regionKind: 'expression' }) },
+			output: { kind: 'expression' },
+			source: marker('shared')
+		})
+		const pair = defineTemplate({
+			modelId: 'RepeatedPhysicalPair',
+			inputs: {
+				left: fragmentPort({
+					regionKind: 'expression',
+					accepts: { outputKind: 'expression', sourceModelIds: [child.modelId] }
+				}),
+				right: fragmentPort({
+					regionKind: 'expression',
+					accepts: { outputKind: 'expression', sourceModelIds: [child.modelId] }
+				})
+			},
+			output: { kind: 'expression' },
+			source: `(${marker('left')}) + (${marker('right')})`
+		})
+		const artifact = requirePartial(compilePartialGraph(
+			{
+				nodes: [
+					{ id: 'shared', templateId: child.modelId, inputs: {} },
+					{
+						id: 'repeated', templateId: pair.modelId,
+						inputs: { left: { $ref: 'shared' }, right: { $ref: 'shared' } }
+					}
+				],
+				finalNodeId: 'repeated'
+			},
+			createTemplateRegistry([child, pair])
+		))
 		const result = fillTemplateArtifact(artifact, {
 			shared: { kind: 'rawCode', code: 'value' }
 		})
@@ -492,24 +546,45 @@ describe('artifact marker invariants', () => {
 	})
 
 	it('rejects a partial child whose ID collides with a different remaining input', () => {
-		const slot: UnresolvedTemplateInput = {
-			id: 'slot',
-			inputName: 'slot',
-			nodeId: 'outer',
-			templateId: 'Outer',
-			port: fragmentPort({ regionKind: 'expression', accepts: {} })
-		}
-		const existing = rawInput('shared', 'existing', 'outer')
-		const outer = partialExpression(
-			`pair(${marker('slot')}, ${marker('shared')})`,
-			[slot, existing],
-			'outer'
-		)
-		const child = partialExpression(marker('shared'), [rawInput('shared', 'childValue', 'child')], 'child')
-
-		const result = fillTemplateArtifact(outer, {
-			slot: { kind: 'fragment', fragment: child }
+		const childTemplate = defineTemplate({
+			modelId: 'CollisionPartialChild',
+			inputs: { childValue: rawCodePort({ regionKind: 'expression' }) },
+			output: { kind: 'expression' },
+			source: marker('childValue')
 		})
+		const outerTemplate = defineTemplate({
+			modelId: 'CollisionPartialOuter',
+			inputs: {
+				slot: fragmentPort({
+					regionKind: 'expression',
+					accepts: { outputKind: 'expression', sourceModelIds: [childTemplate.modelId] }
+				}),
+				existing: rawCodePort({ regionKind: 'expression' })
+			},
+			output: { kind: 'expression' },
+			source: `pair(${marker('slot')}, ${marker('existing')})`
+		})
+		const catalog = createTemplateRegistry([childTemplate, outerTemplate]).snapshot()
+		const outer = requirePartial(compilePartialGraph(
+			{ nodes: [{ id: 'outer', templateId: outerTemplate.modelId, inputs: {} }], finalNodeId: 'outer' },
+			createTemplateRegistry([childTemplate, outerTemplate])
+		))
+		const child = requirePartial(compilePartialGraph(
+			{ nodes: [{ id: 'child', templateId: childTemplate.modelId, inputs: {} }], finalNodeId: 'child' },
+			createTemplateRegistry([childTemplate, outerTemplate])
+		))
+		const slot = outer.unresolvedInputs.find(input => input.inputName === 'slot')!
+		const existing = outer.unresolvedInputs.find(input => input.inputName === 'existing')!
+		const childInput = child.unresolvedInputs[0]!
+		const collidingChild: PartialTemplateArtifact = {
+			...child,
+			code: child.code.replaceAll(childInput.id, existing.id),
+			unresolvedInputs: [{ ...childInput, id: existing.id }]
+		}
+
+		const result = fillTemplateArtifactWithCatalog(outer, {
+			[slot.id]: { kind: 'fragment', fragment: collidingChild }
+		}, catalog, { trustedBaseArtifact: true })
 		expectDiagnostic(result, 'ArtifactInputIdCollision')
 		if (!result.ok) expect(result.classification).toBe('artifactFillable')
 	})
@@ -521,7 +596,7 @@ describe('nested partial filling and persistence', () => {
 			modelId: 'PartialStructuredArray',
 			inputs: { value: rawCodePort({ regionKind: 'expression' }) },
 			output: { kind: 'array' },
-			template: region => `[${region('value')}]`
+			source: `[${"/** @TYPE expression id=value **/undefined/** @END **/"}]`
 		})
 		const consumer = defineTemplate({
 			modelId: 'ConsumePartialStructuredArray',
@@ -532,7 +607,7 @@ describe('nested partial filling and persistence', () => {
 				})
 			},
 			output: { kind: 'expression' },
-			template: region => `consume(${region('value')})`
+			source: `consume(${"/** @TYPE array id=value **/[]/** @END **/"})`
 		})
 		const compiled = requirePartial(compileGraph({
 			nodes: [
@@ -555,28 +630,47 @@ describe('nested partial filling and persistence', () => {
 	})
 
 	it('propagates a partial child input and completes only after the child is filled', () => {
-		const outerInput: UnresolvedTemplateInput = {
-			id: 'slot',
-			inputName: 'slot',
-			nodeId: 'outer',
-			templateId: 'Outer',
-			port: fragmentPort({ regionKind: 'expression', accepts: {} })
-		}
-		const outer = partialExpression(`wrap(${marker('slot')})`, [outerInput], 'outer')
-		const child = partialExpression(marker('childValue'), [rawInput('childValue', 'value', 'child')], 'child')
+		const childTemplate = defineTemplate({
+			modelId: 'NestedPartialChild',
+			inputs: { value: rawCodePort({ regionKind: 'expression' }) },
+			output: { kind: 'expression' },
+			source: marker('value')
+		})
+		const outerTemplate = defineTemplate({
+			modelId: 'NestedPartialOuter',
+			inputs: {
+				slot: fragmentPort({
+					regionKind: 'expression',
+					accepts: { outputKind: 'expression', sourceModelIds: [childTemplate.modelId] }
+				})
+			},
+			output: { kind: 'expression' },
+			source: `wrap(${marker('slot')})`
+		})
+		const registry = createTemplateRegistry([childTemplate, outerTemplate])
+		const outer = requirePartial(compilePartialGraph(
+			{ nodes: [{ id: 'outer', templateId: outerTemplate.modelId, inputs: {} }], finalNodeId: 'outer' },
+			registry
+		))
+		const child = requirePartial(compilePartialGraph(
+			{ nodes: [{ id: 'child', templateId: childTemplate.modelId, inputs: {} }], finalNodeId: 'child' },
+			registry
+		))
+		const slotId = outer.unresolvedInputs.find(input => input.inputName === 'slot')!.id
 
 		const composed = fillTemplateArtifact(outer, {
-			slot: { kind: 'fragment', fragment: child }
+			[slotId]: { kind: 'fragment', fragment: child }
 		})
 		expect(composed.ok).toBe(true)
 		if (!composed.ok) return
 		expect(composed.artifact.complete).toBe(false)
 		if (composed.artifact.complete !== false) return
-		expect(composed.artifact.unresolvedInputs.map(input => input.id)).toEqual(['childValue'])
-		expect(composed.artifact.code).toContain('id=childValue')
+		const childValueId = composed.artifact.unresolvedInputs[0]!.id
+		expect(composed.artifact.unresolvedInputs.map(input => input.inputName)).toEqual(['value'])
+		expect(composed.artifact.code).toContain(`id=${childValueId}`)
 
 		const completed = fillTemplateArtifact(composed.artifact, {
-			childValue: { kind: 'rawCode', code: 'value' }
+			[childValueId]: { kind: 'rawCode', code: 'value' }
 		})
 		expect(completed.ok).toBe(true)
 		if (!completed.ok) return
@@ -585,37 +679,39 @@ describe('nested partial filling and persistence', () => {
 	})
 
 	it('propagates unresolved inputs from every fragment-collection item', () => {
-		const collectionInput: UnresolvedTemplateInput = {
-			id: 'statements',
-			inputName: 'statements',
-			nodeId: 'outer',
-			templateId: 'StatementCollection',
-			port: fragmentCollectionPort({
-				regionKind: 'statement',
-				accepts: { outputKind: 'statement' },
-				minItems: 1,
-				separator: '\n'
-			})
-		}
-		const outer: PartialTemplateArtifact = {
-			id: 'outer',
-			code: marker('statements', 'statement', 'throw new Error("pending");'),
-			kind: 'statement',
-			source: { templateId: 'StatementCollection' },
-			complete: false,
-			unresolvedInputs: [collectionInput]
-		}
-		const statementChild = (id: string): PartialTemplateArtifact => ({
-			id,
-			code: marker(id, 'statement', 'throw new Error("pending");'),
-			kind: 'statement',
-			source: { templateId: 'PartialStatement' },
-			complete: false,
-			unresolvedInputs: [rawInput(id, 'statement', id, 'statement')]
+		const statementTemplate = defineTemplate({
+			modelId: 'NestedPartialStatement',
+			inputs: { statement: rawCodePort({ regionKind: 'statement' }) },
+			output: { kind: 'statement' },
+			source: marker('statement', 'statement', 'throw new Error("pending");')
 		})
+		const collectionTemplate = defineTemplate({
+			modelId: 'NestedStatementCollection',
+			inputs: {
+				statements: fragmentCollectionPort({
+					regionKind: 'statement',
+					accepts: { outputKind: 'statement', sourceModelIds: [statementTemplate.modelId] },
+					minItems: 1,
+					separator: '\n'
+				})
+			},
+			output: { kind: 'statement' },
+			source: marker('statements', 'statement', 'throw new Error("pending");')
+		})
+		const registry = createTemplateRegistry([statementTemplate, collectionTemplate])
+		const outer = requirePartial(compilePartialGraph(
+			{ nodes: [{ id: 'outer', templateId: collectionTemplate.modelId, inputs: {} }], finalNodeId: 'outer' },
+			registry
+		))
+		const statementChild = (id: string): PartialTemplateArtifact => requirePartial(compilePartialGraph(
+			{ nodes: [{ id, templateId: statementTemplate.modelId, inputs: {} }], finalNodeId: id },
+			registry,
+			partialOptions(`statement-${id}`)
+		))
+		const collectionId = outer.unresolvedInputs[0]!.id
 
 		const composed = fillTemplateArtifact(outer, {
-			statements: {
+			[collectionId]: {
 				kind: 'fragmentCollection',
 				fragments: [statementChild('first'), statementChild('second')]
 			}
@@ -624,12 +720,14 @@ describe('nested partial filling and persistence', () => {
 		if (!composed.ok) return
 		expect(composed.artifact.complete).toBe(false)
 		if (composed.artifact.complete !== false) return
-		expect(new Set(composed.artifact.unresolvedInputs.map(input => input.id)))
+		expect(new Set(composed.artifact.unresolvedInputs.map(input => input.nodeId)))
 			.toEqual(new Set(['first', 'second']))
+		const firstId = composed.artifact.unresolvedInputs.find(input => input.nodeId === 'first')!.id
+		const secondId = composed.artifact.unresolvedInputs.find(input => input.nodeId === 'second')!.id
 
 		const completed = fillTemplateArtifact(composed.artifact, {
-			first: { kind: 'rawCode', code: 'one();' },
-			second: { kind: 'rawCode', code: 'two();' }
+			[firstId]: { kind: 'rawCode', code: 'one();' },
+			[secondId]: { kind: 'rawCode', code: 'two();' }
 		})
 		expect(completed.ok).toBe(true)
 		if (!completed.ok) return
@@ -646,15 +744,16 @@ describe('nested partial filling and persistence', () => {
 				right: rawCodePort({ regionKind: 'expression' })
 			},
 			output: { kind: 'expression' },
-			template: region => `${region('left')} + ${region('right')}`
+			source: `${"/** @TYPE expression id=left **/undefined/** @END **/"} + ${"/** @TYPE expression id=right **/undefined/** @END **/"}`
 		})
 		const graph: SynthesisGraph = {
 			nodes: [{ id: 'pair', templateId: template.modelId, inputs: {} }],
 			finalNodeId: 'pair'
 		}
+		const registry = createTemplateRegistry([template])
 		const compiled = requirePartial(compilePartialGraph(
 			graph,
-			createTemplateRegistry([template]),
+			registry,
 			partialOptions('persisted-repair')
 		))
 		const restored = JSON.parse(JSON.stringify(compiled)) as PartialTemplateArtifact
@@ -662,9 +761,12 @@ describe('nested partial filling and persistence', () => {
 
 		const leftId = restored.unresolvedInputs.find(input => input.inputName === 'left')?.id
 		expect(leftId).toBeDefined()
-		const first = fillTemplateArtifact(restored, {
+		expectDiagnostic(fillTemplateArtifact(restored, {
 			[leftId!]: { kind: 'rawCode', code: 'leftValue' }
-		})
+		}), 'ArtifactCatalogRequired')
+		const first = fillTemplateArtifactWithCatalog(restored, {
+			[leftId!]: { kind: 'rawCode', code: 'leftValue' }
+		}, registry.snapshot())
 		expect(first.ok).toBe(true)
 		if (!first.ok || first.artifact.complete !== false) return
 
@@ -672,9 +774,9 @@ describe('nested partial filling and persistence', () => {
 		expect(restoredAgain).toEqual(first.artifact)
 		const rightId = restoredAgain.unresolvedInputs.find(input => input.inputName === 'right')?.id
 		expect(rightId).toBeDefined()
-		const completed = fillTemplateArtifact(restoredAgain, {
+		const completed = fillTemplateArtifactWithCatalog(restoredAgain, {
 			[rightId!]: { kind: 'rawCode', code: 'rightValue' }
-		})
+		}, registry.snapshot())
 		expect(completed.ok).toBe(true)
 		if (!completed.ok) return
 		expect(completed.artifact.complete).toBe(true)

@@ -1,4 +1,5 @@
 import type { ReplacementRegion, TemplateMode } from '../core/types.js'
+import { enforceSecurityPolicy } from '../validation/securityPolicy.js'
 import { buildReplacementEdits } from '../replacements/serialize.js'
 import { discoverReplacementRegions } from '../regions/discovery.js'
 import { wrapTemplateSource } from './templateMode.js'
@@ -7,11 +8,13 @@ import {
 	createProject,
 	createSourceFile,
 	structuredSemanticDiagnostics,
+	structuredSyntacticDiagnostics,
 	validateRawTypedSyntax
 } from '../validation/ast.js'
 import { graphInputsToReplacementMap } from './converter.js'
 import { canonicalizeJson, createCompilationScope, createUnresolvedInputId } from './artifactIdentity.js'
 import { validateTemplateArtifactIntegrity } from './artifactIntegrity.js'
+import { brandTemplateArtifact, isLibraryOwnedTemplateArtifact } from './artifactTrust.js'
 import type {
 	AuthoredGraphInput,
 	CompleteTemplateArtifact,
@@ -52,12 +55,16 @@ import {
 	fragmentPortOutputKind,
 	portIsRequired,
 	resolveEffectiveTypeDescriptor,
+	summarizeInputPort,
 	type TypeDescriptorCompatibilityIssue
 } from './compatibility.js'
 import { validateJsonValueAgainstSchema } from './schemaCompatibility.js'
+import { captureTemplateCatalogView } from './catalogCapture.js'
+import { TemplateCatalogValidationError } from './catalogValidation.js'
 import { createTemplateRegistry } from './registry.js'
+import { brandGraphCompiler } from './compilerTrust.js'
 import { defaultFragmentCollectionSeparator, templateModeForRegionKind } from './rendering.js'
-import { validateVirtualSemanticTarget } from './semanticTarget.js'
+import { sourcePrologueEnd, validateVirtualSemanticTarget } from './semanticTarget.js'
 import {
 	applySourceMappedTextEdits,
 	coverGeneratedSourceMapRoot,
@@ -133,13 +140,76 @@ function effectiveDescriptor(
 	}
 }
 
+/** Reject runtime-value metadata on whole source-file artifacts and goals. */
+function sourceFileMetadataDiagnostics(
+	type: TemplateArtifact['type'],
+	schema: TemplateArtifact['schema'],
+	typePath: string,
+	schemaPath: string,
+	identity: Pick<SynthesisDiagnostic, 'nodeId' | 'templateId' | 'inputName'> = {}
+): SynthesisDiagnostic[] {
+	return [
+		...(type === undefined ? [] : [errorDiagnostic({
+			stage: 'type',
+			code: 'IncompatibleSourceFileMetadata',
+			message: 'sourceFile artifacts and goals cannot declare value-level TypeDescriptor metadata.',
+			...identity,
+			path: typePath,
+			expected: undefined,
+			actual: type
+		})]),
+		...(schema === undefined ? [] : [errorDiagnostic({
+			stage: 'type',
+			code: 'IncompatibleSourceFileMetadata',
+			message: 'sourceFile artifacts and goals cannot declare value-level JSON Schema metadata.',
+			...identity,
+			path: schemaPath,
+			expected: undefined,
+			actual: schema
+		})])
+	]
+}
+
 const TERMINAL_GRAPH_DIAGNOSTIC_CODES = new Set([
 	'ArtifactInputIdCollision',
 	'CatalogDigestMismatch',
+	'CatalogManifestDigestMismatch',
 	'CompilationScopeInvalid',
 	'InvalidGeneratedSourceMap',
 	'InvalidSemanticTarget'
 ])
+
+/** Compare both captured catalog identities requested by a compilation caller. */
+function catalogIdentityMismatchDiagnostics(
+	options: GraphCompileOptions,
+	registry: TemplateCatalogView
+): SynthesisDiagnostic[] {
+	const diagnostics: SynthesisDiagnostic[] = []
+	if (options.expectedCatalogDigest !== undefined && options.expectedCatalogDigest !== registry.contractDigest) {
+		diagnostics.push(errorDiagnostic({
+			stage: 'template',
+			code: 'CatalogDigestMismatch',
+			message: 'The active template catalog does not match the expected planner contract digest.',
+			path: 'options.expectedCatalogDigest',
+			expected: options.expectedCatalogDigest,
+			actual: registry.contractDigest
+		}))
+	}
+	if (
+		options.expectedCatalogManifestDigest !== undefined
+		&& options.expectedCatalogManifestDigest !== registry.manifestDigest
+	) {
+		diagnostics.push(errorDiagnostic({
+			stage: 'template',
+			code: 'CatalogManifestDigestMismatch',
+			message: 'The active template catalog does not match the expected executable manifest digest.',
+			path: 'options.expectedCatalogManifestDigest',
+			expected: options.expectedCatalogManifestDigest,
+			actual: registry.manifestDigest
+		}))
+	}
+	return diagnostics
+}
 
 const TEMPLATE_POLICY_DIAGNOSTIC_CODES = new Set([
 	'ArtifactMarkerArityMismatch',
@@ -292,19 +362,44 @@ function validateArtifactSemantics(
 	const receiverPrelude = mode.kind === 'expressionSuffix' ? 'declare const __partialReceiver: any;\n' : ''
 	const callerPrelude = options.semanticContext?.prelude
 	const prelude = `${receiverPrelude}${callerPrelude ? `${callerPrelude}\n` : ''}`
-	const artifactStart = prelude.length + wrapped.prefix.length
-	const artifactEnd = artifactStart + artifact.code.length
+	let validationSource: string
+	let artifactOffsetAt: (start: number | undefined) => number | undefined
+	if (mode.kind === 'file') {
+		// Whole-file artifacts may begin with a BOM, hashbang, or triple-slash
+		// directives. Keep that prologue first while adding caller declarations.
+		const insertion = sourcePrologueEnd(artifact.code)
+		validationSource = `${artifact.code.slice(0, insertion)}${prelude}${artifact.code.slice(insertion)}`
+		artifactOffsetAt = start => {
+			if (start === undefined || start < 0) return undefined
+			if (start < insertion) return start
+			if (start < insertion + prelude.length) return undefined
+			const offset = start - prelude.length
+			return offset <= artifact.code.length ? offset : undefined
+		}
+	} else {
+		const artifactStart = prelude.length + wrapped.prefix.length
+		const artifactEnd = artifactStart + artifact.code.length
+		validationSource = `${prelude}${wrapped.wrappedText}`
+		artifactOffsetAt = start => start !== undefined && start >= artifactStart && start <= artifactEnd
+			? start - artifactStart
+			: undefined
+	}
 	const filePath = options.filePath ?? '__graph_semantic_validation__.ts'
 	const project = createProject(options)
-	const sourceFile = createSourceFile(project, `${prelude}${wrapped.wrappedText}`, filePath)
+	const sourceFile = createSourceFile(project, validationSource, filePath)
+	const compilerDiagnostics = [
+		...structuredSyntacticDiagnostics(sourceFile),
+		...structuredSemanticDiagnostics(sourceFile)
+	]
 
-	return structuredSemanticDiagnostics(sourceFile).map(diagnostic => {
-		const artifactLocation = diagnostic.start !== undefined && diagnostic.start >= artifactStart && diagnostic.start <= artifactEnd
-			? artifactLineAndColumn(artifact.code, diagnostic.start - artifactStart)
-			: undefined
-		const identity = diagnostic.start !== undefined && diagnostic.start >= artifactStart && diagnostic.start <= artifactEnd
-			? semanticDiagnosticIdentity(artifact, diagnostic.start - artifactStart, diagnostic.length)
-			: finalArtifactIdentity(artifact)
+	return compilerDiagnostics.map(diagnostic => {
+		const artifactOffset = artifactOffsetAt(diagnostic.start)
+		const artifactLocation = artifactOffset === undefined
+			? undefined
+			: artifactLineAndColumn(artifact.code, artifactOffset)
+		const identity = artifactOffset === undefined
+			? finalArtifactIdentity(artifact)
+			: semanticDiagnosticIdentity(artifact, artifactOffset, diagnostic.length)
 		return {
 			stage: 'type',
 			code: 'TypeScriptSemanticError',
@@ -355,6 +450,252 @@ function validateArtifactSyntax(
 	}
 }
 
+const SECURITY_ERASED_ARTIFACT_KINDS = new Set([
+	'type',
+	'typeMember',
+	'typeParameter',
+	'heritageType',
+	'importSpecifier',
+	'exportSpecifier'
+])
+
+/** Apply the normal raw-fragment security policy to caller-supplied artifact code. */
+function validateArtifactSecurity(
+	artifact: TemplateArtifact,
+	options: GraphCompileOptions,
+	path: string
+): SynthesisDiagnostic[] {
+	if (SECURITY_ERASED_ARTIFACT_KINDS.has(artifact.kind)) return []
+
+	try {
+		const mode = templateModeForArtifact(artifact)
+		const wrapped = wrapTemplateSource(artifact.code, mode)
+		const project = createProject(options)
+		const sourceFile = createSourceFile(project, wrapped.wrappedText, '__artifact_security_validation__.ts')
+		enforceSecurityPolicy(sourceFile, options.securityPolicy, {
+			...(artifact.id ? { id: artifact.id } : {}),
+			bodyText: artifact.code
+		})
+		return []
+	} catch (error) {
+		return [errorDiagnostic({
+			stage: 'policy',
+			code: 'RawCodeRejected',
+			message: error instanceof Error ? error.message : 'Caller-supplied artifact code violates the security policy.',
+			...(artifact.id ? { nodeId: artifact.id } : {}),
+			templateId: artifact.source.templateId,
+			path,
+			actual: error instanceof Error
+				? { name: error.name, message: error.message }
+				: error
+		})]
+	}
+}
+
+/** Compare persisted artifact provenance and contracts with one captured catalog. */
+function artifactCatalogDiagnostics(
+	artifact: TemplateArtifact,
+	catalog: TemplateCatalogView,
+	path: string
+): SynthesisDiagnostic[] {
+	const diagnostics: SynthesisDiagnostic[] = []
+	const missingIdentity = missingManifestIdentityDiagnostic(artifact, `${path}.source.templateManifestDigest`)
+	if (missingIdentity) diagnostics.push(missingIdentity)
+
+	const template = catalog.get(artifact.source.templateId)
+	if (!template) {
+		diagnostics.push(errorDiagnostic({
+			stage: 'template',
+			code: 'UnknownTemplate',
+			message: `Artifact provenance references template ${artifact.source.templateId}, which is absent from the captured catalog.`,
+			...(artifact.id ? { nodeId: artifact.id } : {}),
+			templateId: artifact.source.templateId,
+			path: `${path}.source.templateId`,
+			expected: catalog.list().map(candidate => candidate.modelId),
+			actual: artifact.source.templateId
+		}))
+		return diagnostics
+	}
+
+	if (!missingIdentity && artifact.source.templateManifestDigest !== template.manifestDigest) {
+		diagnostics.push(errorDiagnostic({
+			stage: 'template',
+			code: 'TemplateManifestDigestMismatch',
+			message: `Artifact provenance does not match the captured manifest for template ${template.modelId}.`,
+			...(artifact.id ? { nodeId: artifact.id } : {}),
+			templateId: template.modelId,
+			path: `${path}.source.templateManifestDigest`,
+			expected: template.manifestDigest,
+			actual: artifact.source.templateManifestDigest
+		}))
+	}
+
+	if (artifact.source.templateVersion !== template.version) {
+		diagnostics.push(errorDiagnostic({
+			stage: 'template',
+			code: 'TemplateManifestDigestMismatch',
+			message: `Artifact provenance carries a stale version for template ${template.modelId}.`,
+			...(artifact.id ? { nodeId: artifact.id } : {}),
+			templateId: template.modelId,
+			path: `${path}.source.templateVersion`,
+			expected: template.version,
+			actual: artifact.source.templateVersion
+		}))
+	}
+
+	if (artifact.kind !== template.output.kind) {
+		diagnostics.push(errorDiagnostic({
+			stage: 'port',
+			code: 'IncompatibleFragmentKind',
+			message: `Artifact kind ${artifact.kind} is not the output kind declared by template ${template.modelId}.`,
+			...(artifact.id ? { nodeId: artifact.id } : {}),
+			templateId: template.modelId,
+			path: `${path}.kind`,
+			expected: template.output.kind,
+			actual: artifact.kind
+		}))
+	}
+
+	const artifactType = resolveEffectiveTypeDescriptor(artifact.type, artifact.schema)
+	const templateType = resolveEffectiveTypeDescriptor(template.output.type, template.output.schema)
+	if (artifactType.ok && templateType.ok) {
+		const forward = compareTypeDescriptors(artifactType.type, templateType.type)
+		const reverse = compareTypeDescriptors(templateType.type, artifactType.type)
+		if (forward.status !== 'compatible' || reverse.status !== 'compatible') {
+			diagnostics.push(errorDiagnostic({
+				stage: 'type',
+				code: 'IncompatibleFragmentType',
+				message: `Artifact metadata does not match the output contract declared by template ${template.modelId}.`,
+				...(artifact.id ? { nodeId: artifact.id } : {}),
+				templateId: template.modelId,
+				path: `${path}.type`,
+				expected: templateType.type,
+				actual: artifactType.type
+			}))
+		}
+	}
+
+	if (artifact.complete === false) {
+		for (const [index, unresolved] of artifact.unresolvedInputs.entries()) {
+			const inputPath = `${path}.unresolvedInputs[${index}]`
+			const owner = catalog.get(unresolved.templateId)
+			if (!owner) {
+				diagnostics.push(errorDiagnostic({
+					stage: 'template',
+					code: 'UnknownTemplate',
+					message: `Unresolved artifact input references template ${unresolved.templateId}, which is absent from the captured catalog.`,
+					...(unresolved.nodeId ? { nodeId: unresolved.nodeId } : {}),
+					templateId: unresolved.templateId,
+					inputName: unresolved.inputName,
+					path: `${inputPath}.templateId`,
+					expected: catalog.list().map(candidate => candidate.modelId),
+					actual: unresolved.templateId
+				}))
+				continue
+			}
+
+			const expectedPort = owner.inputs[unresolved.inputName]
+			if (!expectedPort) {
+				diagnostics.push(errorDiagnostic({
+					stage: 'input',
+					code: 'UnknownInput',
+					message: `Unresolved input ${unresolved.inputName} is not declared by template ${owner.modelId}.`,
+					...(unresolved.nodeId ? { nodeId: unresolved.nodeId } : {}),
+					templateId: owner.modelId,
+					inputName: unresolved.inputName,
+					path: `${inputPath}.inputName`,
+					expected: Object.keys(owner.inputs),
+					actual: unresolved.inputName
+				}))
+				continue
+			}
+
+			const expectedSummary = summarizeInputPort(expectedPort)
+			const actualSummary = summarizeInputPort(unresolved.port)
+			if (canonicalizeJson(actualSummary) !== canonicalizeJson(expectedSummary)) {
+				diagnostics.push(errorDiagnostic({
+					stage: 'port',
+					code: 'IncompatibleInputKind',
+					message: `Persisted input contract ${owner.modelId}.${unresolved.inputName} does not match the captured template catalog.`,
+					...(unresolved.nodeId ? { nodeId: unresolved.nodeId } : {}),
+					templateId: owner.modelId,
+					inputName: unresolved.inputName,
+					path: `${inputPath}.port`,
+					expected: expectedSummary,
+					actual: actualSummary
+				}))
+			}
+		}
+	}
+
+	for (const [index, span] of (artifact.sourceMap?.spans ?? []).entries()) {
+		if (catalog.get(span.templateId)) continue
+		diagnostics.push(errorDiagnostic({
+			stage: 'template',
+			code: 'UnknownTemplate',
+			message: `Artifact source-map provenance references template ${span.templateId}, which is absent from the captured catalog.`,
+			...(span.nodeId ? { nodeId: span.nodeId } : {}),
+			templateId: span.templateId,
+			...(span.kind === 'input' ? { inputName: span.inputName } : {}),
+			path: `${path}.sourceMap.spans[${index}].templateId`,
+			actual: span.templateId
+		}))
+	}
+
+	return diagnostics
+}
+
+/** Options for validating externally supplied artifact data against a catalog. */
+export interface TemplateArtifactCatalogValidationOptions extends GraphCompileOptions {
+	/** Disable only when the artifact was produced inside the current trusted compilation. */
+	screenSecurity?: boolean
+}
+
+/**
+ * Validate persisted or caller-supplied artifact data against one captured catalog.
+ *
+ * This is stronger than structural integrity: template identities, output and
+ * unresolved-port contracts, syntax, and source security are checked together.
+ */
+export function validateTemplateArtifactAgainstCatalog(
+	artifact: TemplateArtifact,
+	catalog: TemplateCatalogView,
+	options: TemplateArtifactCatalogValidationOptions = {}
+): SynthesisDiagnostic[] {
+	try {
+		return validateTemplateArtifactAgainstCatalogAtPath(
+			artifact,
+			captureTemplateCatalogView(catalog),
+			options,
+			'artifact'
+		)
+	} catch (error) {
+		if (error instanceof TemplateCatalogValidationError) return [...error.diagnostics]
+		throw error
+	}
+}
+
+function validateTemplateArtifactAgainstCatalogAtPath(
+	artifact: TemplateArtifact,
+	catalog: TemplateCatalogView,
+	options: TemplateArtifactCatalogValidationOptions,
+	path: string
+): SynthesisDiagnostic[] {
+	const identityDiagnostics = catalogIdentityMismatchDiagnostics(options, catalog)
+	const integrityDiagnostics = validateTemplateArtifactIntegrity(artifact)
+	if (integrityDiagnostics.some(diagnostic => diagnostic.severity === 'error')) {
+		return [...identityDiagnostics, ...integrityDiagnostics]
+	}
+
+	const catalogDiagnostics = artifactCatalogDiagnostics(artifact, catalog, path)
+	const syntaxDiagnostics = validateArtifactSyntax(artifact, options)
+	const diagnostics = [...identityDiagnostics, ...catalogDiagnostics, ...syntaxDiagnostics]
+	if (diagnostics.some(diagnostic => diagnostic.severity === 'error') || options.screenSecurity === false) {
+		return diagnostics
+	}
+	return [...diagnostics, ...validateArtifactSecurity(artifact, options, `${path}.code`)]
+}
+
 /** Detect shorthand graph references of the form `{ "$ref": "nodeId" }`. */
 function isRefShorthand(input: SynthesisInput): input is { $ref: string } {
 	return typeof input === 'object' && input !== null && '$ref' in input && typeof input.$ref === 'string'
@@ -393,6 +734,10 @@ export function definePartialGraph<
 export type GraphCompiler<TTemplates extends readonly GraphTemplateDefinition<any, string>[]> = {
 	/** Stable planner-contract digest captured when this compiler was built. */
 	readonly contractDigest: string
+	/** Stable executable-manifest digest captured when this compiler was built. */
+	readonly manifestDigest: string
+	/** Immutable catalog captured by this compiler for trusted artifact validation. */
+	readonly catalog: TemplateRegistrySnapshot
 	/** Compile a previously defined graph with strict required-input behavior. */
 	(graph: DefinedSynthesisGraph<TTemplates>): GraphCompilationResult
 	/** Compile an inline typed graph with strict required-input behavior. */
@@ -436,27 +781,18 @@ export function buildGraphCompiler(
 	const compiler = (graph: SynthesisGraph, callOptions?: GraphCompileOptions & { mode?: 'strict' | 'partial' }) =>
 		compileGraph(graph as never, catalog, { ...options, ...callOptions } as never)
 	Object.defineProperty(compiler, 'contractDigest', { value: catalog.contractDigest, enumerable: true })
+	Object.defineProperty(compiler, 'manifestDigest', { value: catalog.manifestDigest, enumerable: true })
+	Object.defineProperty(compiler, 'catalog', { value: catalog, enumerable: true })
 	compiler.defineGraph = (graph: AuthoredGraphInput) => graph as never
 	compiler.definePartialGraph = (graph: AuthoredGraphInput) => graph as never
-	return compiler as unknown as GraphCompiler<readonly GraphTemplateDefinition<any, string>[]>
-}
-
-/** Distinguish a template catalog array from a registry instance. */
-function isTemplateCatalog(
-	value: TemplateCatalogView | readonly GraphTemplateDefinition<any, string>[]
-): value is readonly GraphTemplateDefinition<any, string>[] {
-	return Array.isArray(value)
+	return brandGraphCompiler(compiler as unknown as GraphCompiler<readonly GraphTemplateDefinition<any, string>[]>)
 }
 
 /** Capture either supported template source as one immutable validated catalog. */
 function templateRegistryFromInput(
 	registryOrTemplates: TemplateCatalogView | readonly GraphTemplateDefinition<any, string>[]
 ): TemplateRegistrySnapshot {
-	if (isTemplateCatalog(registryOrTemplates)) return createTemplateRegistry(registryOrTemplates).snapshot()
-	if ('snapshot' in registryOrTemplates && typeof registryOrTemplates.snapshot === 'function') {
-		return registryOrTemplates.snapshot()
-	}
-	return createTemplateRegistry(registryOrTemplates.list()).snapshot()
+	return captureTemplateCatalogView(registryOrTemplates)
 }
 
 /** Expand inline nodes and shorthand references before validation/execution. */
@@ -572,6 +908,14 @@ function validateStaticGraph(
 	}
 
 	if (graph.goal) {
+		if (graph.goal.outputKind === 'sourceFile') {
+			diagnostics.push(...sourceFileMetadataDiagnostics(
+				graph.goal.type,
+				graph.goal.schema,
+				'goal.type',
+				'goal.schema'
+			))
+		}
 		const goalDescriptor = effectiveDescriptor(graph.goal.type, graph.goal.schema, 'goal.type')
 		diagnostics.push(...goalDescriptor.diagnostics)
 	}
@@ -945,6 +1289,11 @@ function validateFinalGoal(graph: SynthesisGraph, finalFragment: TemplateArtifac
 		)
 	}
 
+	const sourceFileMetadata = finalFragment.kind === 'sourceFile' && goal.outputKind !== 'sourceFile'
+		? sourceFileMetadataDiagnostics(goal.type, goal.schema, 'goal.type', 'goal.schema')
+		: []
+	diagnostics.push(...sourceFileMetadata)
+
 	const goalDescriptor = effectiveDescriptor(goal.type, goal.schema, 'goal.type')
 	const finalDescriptor = effectiveDescriptor(
 		finalFragment.type,
@@ -956,7 +1305,9 @@ function validateFinalGoal(graph: SynthesisGraph, finalFragment: TemplateArtifac
 		}
 	)
 	diagnostics.push(...goalDescriptor.diagnostics, ...finalDescriptor.diagnostics)
-	if (goalDescriptor.diagnostics.length > 0 || finalDescriptor.diagnostics.length > 0) return diagnostics
+	if (sourceFileMetadata.length > 0
+		|| goalDescriptor.diagnostics.length > 0
+		|| finalDescriptor.diagnostics.length > 0) return diagnostics
 
 	const comparison = compareTypeDescriptors(finalDescriptor.type, goalDescriptor.type)
 	if (comparison.status === 'invalid') {
@@ -1011,7 +1362,9 @@ function templateModeForArtifact(artifact: TemplateArtifact): TemplateMode {
 
 /** Return a complete artifact shape for complete fragments/artifacts. */
 function completeArtifact(artifact: TemplateArtifact): TemplateArtifact {
-	return artifact.complete === false ? artifact : { ...artifact, complete: true }
+	if (artifact.complete === false) return artifact
+	const complete = { ...artifact, complete: true } as CompleteTemplateArtifact
+	return isLibraryOwnedTemplateArtifact(artifact) ? brandTemplateArtifact(complete) : complete
 }
 
 /** Return partial child artifacts carried by a resolved fill value. */
@@ -1245,6 +1598,43 @@ function fillArtifacts(fill: TemplateArtifactInput): TemplateArtifact[] {
 	return []
 }
 
+/** Require exact manifest provenance before a persisted artifact can resume. */
+function missingManifestIdentityDiagnostic(
+	artifact: TemplateArtifact,
+	path = 'artifact.source.templateManifestDigest'
+): SynthesisDiagnostic | undefined {
+	return typeof artifact.source.templateManifestDigest === 'string'
+		&& /^t1_[a-f0-9]{64}$/u.test(artifact.source.templateManifestDigest)
+		? undefined
+		: errorDiagnostic({
+			stage: 'template',
+			code: 'MissingTemplateManifestIdentity',
+			message: 'Persisted artifacts require an exact t1_ template manifest identity before filling or finalization.',
+			...(artifact.id ? { nodeId: artifact.id } : {}),
+			templateId: artifact.source.templateId,
+			path,
+			expected: 't1_<sha256>',
+			actual: artifact.source.templateManifestDigest
+		})
+}
+
+/** Require a captured catalog whenever artifact provenance crossed a process boundary. */
+function artifactCatalogRequiredDiagnostic(
+	artifact: TemplateArtifact,
+	path = 'artifact'
+): SynthesisDiagnostic {
+	return errorDiagnostic({
+		stage: 'template',
+		code: 'ArtifactCatalogRequired',
+		message: 'Serialized, cloned, or caller-constructed artifacts must be filled or finalized with a captured template catalog.',
+		...(artifact.id ? { nodeId: artifact.id } : {}),
+		templateId: artifact.source.templateId,
+		path,
+		expected: 'fillTemplateArtifactWithCatalog or finalizeTemplateArtifactWithCatalog',
+		actual: 'artifact without the non-serializable in-process trust capability'
+	})
+}
+
 /**
  * Transactionally fill matching unresolved inputs in a template artifact.
  *
@@ -1257,14 +1647,89 @@ export function fillTemplateArtifact(
 	inputs: TemplateArtifactInputMap,
 	options: GraphCompileOptions = {}
 ): TemplateArtifactResult {
-	const integrityDiagnostics = validateTemplateArtifactIntegrity(artifact)
-	if (integrityDiagnostics.some(diagnostic => diagnostic.severity === 'error')) {
-		return { kind: 'templateArtifact', ok: false, classification: 'terminalFailure', diagnostics: integrityDiagnostics, artifact }
-	}
+	return fillTemplateArtifactInternal(artifact, inputs, options)
+}
 
-	const syntaxDiagnostics = validateArtifactSyntax(artifact, options)
-	if (syntaxDiagnostics.some(diagnostic => diagnostic.severity === 'error')) {
-		return { kind: 'templateArtifact', ok: false, classification: 'terminalFailure', diagnostics: syntaxDiagnostics, artifact }
+/** Catalog-aware fill options for persisted or externally supplied artifacts. */
+export interface CatalogArtifactFillOptions extends GraphCompileOptions {
+	/** Set only when the base artifact was produced inside the current trusted compilation session. */
+	trustedBaseArtifact?: boolean
+}
+
+/**
+ * Fill an artifact while binding all artifact provenance and persisted ports to
+ * one captured catalog. Caller-supplied nested fragments are always security
+ * screened, even when the base artifact is trusted.
+ */
+export function fillTemplateArtifactWithCatalog(
+	artifact: TemplateArtifact,
+	inputs: TemplateArtifactInputMap,
+	catalog: TemplateCatalogView,
+	options: CatalogArtifactFillOptions = {}
+): TemplateArtifactResult {
+	try {
+		return fillTemplateArtifactInternal(
+			artifact,
+			inputs,
+			options,
+			captureTemplateCatalogView(catalog)
+		)
+	} catch (error) {
+		if (error instanceof TemplateCatalogValidationError) {
+			return {
+				kind: 'templateArtifact',
+				ok: false,
+				classification: 'templatePolicyFailure',
+				diagnostics: [...error.diagnostics],
+				artifact
+			}
+		}
+		throw error
+	}
+}
+
+function fillTemplateArtifactInternal(
+	artifact: TemplateArtifact,
+	inputs: TemplateArtifactInputMap,
+	options: CatalogArtifactFillOptions,
+	catalog?: TemplateCatalogView
+): TemplateArtifactResult {
+	let baseRequiresCatalog = false
+	if (catalog) {
+		const trustedBaseArtifact = options.trustedBaseArtifact === true
+			&& isLibraryOwnedTemplateArtifact(artifact)
+		const catalogDiagnostics = validateTemplateArtifactAgainstCatalogAtPath(
+			artifact,
+			catalog,
+			{ ...options, screenSecurity: !trustedBaseArtifact },
+			'artifact'
+		)
+		if (catalogDiagnostics.some(diagnostic => diagnostic.severity === 'error')) {
+			return {
+				kind: 'templateArtifact', ok: false, classification: 'terminalFailure',
+				diagnostics: catalogDiagnostics, artifact
+			}
+		}
+		brandTemplateArtifact(artifact)
+	} else {
+		const integrityDiagnostics = validateTemplateArtifactIntegrity(artifact)
+		if (integrityDiagnostics.some(diagnostic => diagnostic.severity === 'error')) {
+			return { kind: 'templateArtifact', ok: false, classification: 'terminalFailure', diagnostics: integrityDiagnostics, artifact }
+		}
+		const missingManifestIdentity = missingManifestIdentityDiagnostic(artifact)
+		if (missingManifestIdentity) {
+			return {
+				kind: 'templateArtifact', ok: false, classification: 'terminalFailure',
+				diagnostics: [missingManifestIdentity], artifact
+			}
+		}
+
+		const syntaxDiagnostics = validateArtifactSyntax(artifact, options)
+		if (syntaxDiagnostics.some(diagnostic => diagnostic.severity === 'error')) {
+			return { kind: 'templateArtifact', ok: false, classification: 'terminalFailure', diagnostics: syntaxDiagnostics, artifact }
+		}
+
+		baseRequiresCatalog = !isLibraryOwnedTemplateArtifact(artifact)
 	}
 
 	if (artifact.complete !== false) {
@@ -1288,9 +1753,16 @@ export function fillTemplateArtifact(
 			}
 		}
 		const diagnostics = validateArtifactSemantics(complete, options)
-		return diagnostics.some(diagnostic => diagnostic.severity === 'error')
-			? { kind: 'templateArtifact', ok: false, classification: 'terminalFailure', artifact: complete, diagnostics }
-			: { kind: 'templateArtifact', ok: true, artifact: complete, diagnostics }
+		if (diagnostics.some(diagnostic => diagnostic.severity === 'error')) {
+			return { kind: 'templateArtifact', ok: false, classification: 'terminalFailure', artifact: complete, diagnostics }
+		}
+		if (baseRequiresCatalog) {
+			return {
+				kind: 'templateArtifact', ok: false, classification: 'terminalFailure', artifact,
+				diagnostics: [artifactCatalogRequiredDiagnostic(artifact)]
+			}
+		}
+		return { kind: 'templateArtifact', ok: true, artifact: complete, diagnostics }
 	}
 
 	const plan = planArtifactFills(artifact, inputs)
@@ -1307,11 +1779,35 @@ export function fillTemplateArtifact(
 	}
 
 	for (const { unresolvedInput, fill } of plan.fills.values()) {
-		for (const childArtifact of fillArtifacts(fill)) {
-			const childIntegrity = validateTemplateArtifactIntegrity(childArtifact)
-			diagnostics.push(...childIntegrity)
-			if (!childIntegrity.some(diagnostic => diagnostic.severity === 'error')) {
-				diagnostics.push(...validateArtifactSyntax(childArtifact, options))
+		for (const [childIndex, childArtifact] of fillArtifacts(fill).entries()) {
+			const childPath = fill.kind === 'fragmentCollection'
+				? `inputs.${unresolvedInput.id}.fragments[${childIndex}]`
+				: `inputs.${unresolvedInput.id}.fragment`
+			if (catalog) {
+				diagnostics.push(...validateTemplateArtifactAgainstCatalogAtPath(
+					childArtifact,
+					catalog,
+					{ ...options, screenSecurity: true },
+					childPath
+				))
+			} else {
+				const childIntegrity = validateTemplateArtifactIntegrity(childArtifact)
+				diagnostics.push(...childIntegrity)
+				if (!childIntegrity.some(diagnostic => diagnostic.severity === 'error')) {
+					const missingChildIdentity = missingManifestIdentityDiagnostic(
+						childArtifact,
+						`${childPath}.source.templateManifestDigest`
+					)
+					if (missingChildIdentity) diagnostics.push(missingChildIdentity)
+					else {
+						diagnostics.push(...validateArtifactSyntax(childArtifact, options))
+						if (!isLibraryOwnedTemplateArtifact(childArtifact)) {
+							diagnostics.push(artifactCatalogRequiredDiagnostic(childArtifact, childPath))
+						} else if (!diagnostics.some(diagnostic => diagnostic.severity === 'error')) {
+							diagnostics.push(...validateArtifactSecurity(childArtifact, options, `${childPath}.code`))
+						}
+					}
+				}
 			}
 		}
 		if (diagnostics.some(diagnostic => diagnostic.severity === 'error')) continue
@@ -1353,6 +1849,12 @@ export function fillTemplateArtifact(
 
 	if (diagnostics.some((diagnostic) => diagnostic.severity === 'error')) {
 		return { kind: 'templateArtifact', ok: false, classification: 'artifactFillable', diagnostics, artifact }
+	}
+	if (baseRequiresCatalog) {
+		return {
+			kind: 'templateArtifact', ok: false, classification: 'terminalFailure', artifact,
+			diagnostics: [artifactCatalogRequiredDiagnostic(artifact)]
+		}
 	}
 
 	try {
@@ -1451,13 +1953,13 @@ export function fillTemplateArtifact(
 				: 'artifactFillable' as const
 			return diagnostics.some(diagnostic => diagnostic.severity === 'error')
 				? { kind: 'templateArtifact', ok: false, classification, artifact: complete, diagnostics }
-				: { kind: 'templateArtifact', ok: true, artifact: complete, diagnostics }
+				: { kind: 'templateArtifact', ok: true, artifact: brandTemplateArtifact(complete), diagnostics }
 		}
 
 		return {
 			kind: 'templateArtifact',
 			ok: true,
-			artifact: candidate,
+			artifact: brandTemplateArtifact(candidate),
 			diagnostics
 		}
 	} catch (error) {
@@ -1484,11 +1986,20 @@ export function finalizeTemplateArtifact(
 	inputs: TemplateArtifactInputMap = {},
 	options: GraphCompileOptions = {}
 ): TemplateArtifactResult {
+	return finalizedArtifactResult(fillTemplateArtifact(artifact, inputs, options))
+}
 
-	const filled = Object.keys(inputs).length > 0 ? 
-		fillTemplateArtifact(artifact, inputs, options) : 
-		fillTemplateArtifact(artifact, {}, options)
+/** Catalog-bound terminal artifact fill/finalization. */
+export function finalizeTemplateArtifactWithCatalog(
+	artifact: TemplateArtifact,
+	inputs: TemplateArtifactInputMap,
+	catalog: TemplateCatalogView,
+	options: CatalogArtifactFillOptions = {}
+): TemplateArtifactResult {
+	return finalizedArtifactResult(fillTemplateArtifactWithCatalog(artifact, inputs, catalog, options))
+}
 
+function finalizedArtifactResult(filled: TemplateArtifactResult): TemplateArtifactResult {
 	if (!filled.ok) return filled
 	if (filled.artifact.complete === false) {
 		return {
@@ -1542,20 +2053,14 @@ function compileGraphPartial(
 	options: GraphCompileOptions = {}
 ): GraphPartialCompilationResult {
 	const registry = templateRegistryFromInput(registryOrTemplates)
-	if (options.expectedCatalogDigest !== undefined && options.expectedCatalogDigest !== registry.contractDigest) {
+	const identityDiagnostics = catalogIdentityMismatchDiagnostics(options, registry)
+	if (identityDiagnostics.length > 0) {
 		return {
 			kind: 'graphCompilation',
 			mode: 'partial',
 			ok: false,
 			classification: 'terminalFailure',
-			diagnostics: [errorDiagnostic({
-				stage: 'template',
-				code: 'CatalogDigestMismatch',
-				message: 'The active template catalog does not match the expected planner contract digest.',
-				path: 'options.expectedCatalogDigest',
-				expected: options.expectedCatalogDigest,
-				actual: registry.contractDigest
-			})]
+			diagnostics: identityDiagnostics
 		}
 	}
 	const normalized = normalizeSynthesisGraph(graph).graph
@@ -1570,7 +2075,12 @@ function compileGraphPartial(
 		if (scope) return scope
 		if (scopeFailed) return undefined
 		try {
-			scope = createCompilationScope(normalized, options.compilationScope, registry.contractDigest)
+			scope = createCompilationScope(
+				normalized,
+				options.compilationScope,
+				registry.contractDigest,
+				registry.manifestDigest
+			)
 			return scope
 		} catch (error) {
 			scopeFailed = true
@@ -1727,6 +2237,7 @@ function compileGraphPartial(
 				executing.delete(nodeId)
 				return undefined
 			}
+			brandTemplateArtifact(artifact)
 			artifacts.set(node.id, artifact)
 			executing.delete(nodeId)
 			return artifact
@@ -1830,20 +2341,14 @@ export function compileGraph(
 	options: GraphCompileOptions & { mode?: 'strict' | 'partial' } = {}
 ): GraphCompilationResult | GraphPartialCompilationResult {
 	const registry = templateRegistryFromInput(registryOrTemplates)
-	if (options.expectedCatalogDigest !== undefined && options.expectedCatalogDigest !== registry.contractDigest) {
+	const identityDiagnostics = catalogIdentityMismatchDiagnostics(options, registry)
+	if (identityDiagnostics.length > 0) {
 		return {
 			kind: 'graphCompilation',
 			mode: options.mode === 'partial' ? 'partial' : 'strict',
 			ok: false,
 			classification: 'terminalFailure',
-			diagnostics: [errorDiagnostic({
-				stage: 'template',
-				code: 'CatalogDigestMismatch',
-				message: 'The active template catalog does not match the expected planner contract digest.',
-				path: 'options.expectedCatalogDigest',
-				expected: options.expectedCatalogDigest,
-				actual: registry.contractDigest
-			})]
+			diagnostics: identityDiagnostics
 		} as GraphCompilationResult | GraphPartialCompilationResult
 	}
 	if (options.mode === 'partial') {

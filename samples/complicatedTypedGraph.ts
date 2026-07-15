@@ -16,7 +16,7 @@ const StringLiteral = defineTemplate({
 		kind: 'string',
 		type: { ts: 'string' }
 	},
-	template: (r) => r('value')
+	source: "/** @TYPE string id=value **/\"\"/** @END **/"
 })
 
 const NumberLiteral = defineTemplate({
@@ -32,7 +32,7 @@ const NumberLiteral = defineTemplate({
 		kind: 'number',
 		type: { ts: 'number' }
 	},
-	template: (r) => r('value')
+	source: "/** @TYPE number id=value **/0/** @END **/"
 })
 
 const EndpointExpression = defineTemplate({
@@ -46,14 +46,14 @@ const EndpointExpression = defineTemplate({
 				allowNewlines: false,
 				forbiddenSubstrings: ['eval', 'Function', 'require', 'process']
 			},
-			type: { ts: 'string | URL' }
+			type: { ts: 'string' }
 		})
 	},
 	output: {
 		kind: 'expression',
-		type: { ts: 'string | URL' }
+		type: { ts: 'string' }
 	},
-	template: (r) => r('code')
+	source: "/** @TYPE expression id=code **/undefined/** @END **/"
 })
 
 const ParseBody = defineTemplate({
@@ -61,7 +61,7 @@ const ParseBody = defineTemplate({
 	version: '1.0.0',
 	inputs: {},
 	output: { kind: 'statement' },
-	template: () => 'const body = await request.json();'
+	source: 'const body = await request.json();'
 })
 
 const ValidateBody = defineTemplate({
@@ -78,8 +78,9 @@ const ValidateBody = defineTemplate({
 		})
 	},
 	output: { kind: 'statement' },
-	template: (r) => `if (typeof body[${r('field')}] !== 'string') {
-	return Response.json({ error: 'Invalid field: ' + ${r('field')} }, { status: 400 });
+	source: `const requiredField = ${"/** @TYPE string id=field **/\"\"/** @END **/"};
+if (typeof body[requiredField] !== 'string') {
+	return Response.json({ error: 'Invalid field: ' + requiredField }, { status: 400 });
 }`
 })
 
@@ -91,7 +92,7 @@ const FetchProfile = defineTemplate({
 			regionKind: 'expression',
 			accepts: {
 				outputKind: 'expression',
-				type: { ts: 'string | URL' },
+				type: { ts: 'string' },
 				sourceModelIds: [EndpointExpression.modelId]
 			}
 		}),
@@ -105,8 +106,8 @@ const FetchProfile = defineTemplate({
 		})
 	},
 	output: { kind: 'statement' },
-	template: (r) => `const upstreamResponse = await fetch(${r('endpoint')}, {
-	method: ${r('method')},
+	source: `const upstreamResponse = await fetch(${"/** @TYPE expression id=endpoint **/undefined/** @END **/"}, {
+	method: ${"/** @TYPE string id=method **/\"\"/** @END **/"},
 	headers: { 'content-type': 'application/json' },
 	body: JSON.stringify(body)
 });
@@ -129,7 +130,7 @@ const AuditProfile = defineTemplate({
 		})
 	},
 	output: { kind: 'statement' },
-	template: (r) => `console.info(${r('event')}, {
+	source: `console.info(${"/** @TYPE string id=event **/\"\"/** @END **/"}, {
 	requestId: request.headers.get('x-request-id'),
 	upstreamStatus: upstreamResponse.status
 });`
@@ -149,8 +150,8 @@ const ReturnProfile = defineTemplate({
 		})
 	},
 	output: { kind: 'statement' },
-	template: (r) => `const profile = await upstreamResponse.json();
-return Response.json({ profile }, { status: ${r('status')} });`
+	source: `const profile = await upstreamResponse.json();
+return Response.json({ profile }, { status: ${"/** @TYPE number id=status **/0/** @END **/"} });`
 })
 
 const routeStatementModelIds = [
@@ -176,8 +177,8 @@ const PostRoute = defineTemplate({
 		})
 	},
 	output: { kind: 'statement' },
-	template: (r) => `export async function POST(request: Request) {
-${r('statements')}
+	source: `export async function POST(request: Request) {
+${"/** @TYPE statement id=statements **/throw new Error(\"placeholder\");/** @END **/"}
 }`
 })
 

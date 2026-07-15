@@ -27,6 +27,7 @@ export type MarkerExpectedKindClassMember = "classMember";
 export type MarkerExpectedKindEnumMember = "enumMember";
 export type MarkerExpectedKindImportSpecifier = "importSpecifier";
 export type MarkerExpectedKindExportSpecifier = "exportSpecifier";
+export type MarkerExpectedKindSourceFile = "sourceFile";
 
 /**
  * The syntactic category promised by a `@TYPE` marker or inferred from its
@@ -54,7 +55,8 @@ export type MarkerExpectedKind =
   | MarkerExpectedKindClassMember
   | MarkerExpectedKindEnumMember
   | MarkerExpectedKindImportSpecifier
-  | MarkerExpectedKindExportSpecifier;
+  | MarkerExpectedKindExportSpecifier
+  | MarkerExpectedKindSourceFile;
 
 export type MarkerArityOne = "one";
 export type MarkerArityMany = "many";
@@ -140,6 +142,7 @@ export type ClassMemberCode = string;
 export type EnumMemberCode = string;
 export type ImportSpecifierCode = string;
 export type ExportSpecifierCode = string;
+export type SourceFileCode = string;
 
 export type ReplacementType = { kind: "type"; code: TypeCode };
 export type ReplacementTypeMember = { kind: "typeMember"; code: TypeMemberCode };
@@ -152,6 +155,7 @@ export type ReplacementClassMember = { kind: "classMember"; code: ClassMemberCod
 export type ReplacementEnumMember = { kind: "enumMember"; code: EnumMemberCode };
 export type ReplacementImportSpecifier = { kind: "importSpecifier"; code: ImportSpecifierCode };
 export type ReplacementExportSpecifier = { kind: "exportSpecifier"; code: ExportSpecifierCode };
+export type ReplacementSourceFile = { kind: "sourceFile"; code: SourceFileCode };
 
 export type ReplacementTypedSyntax =
   | ReplacementType
@@ -164,7 +168,8 @@ export type ReplacementTypedSyntax =
   | ReplacementClassMember
   | ReplacementEnumMember
   | ReplacementImportSpecifier
-  | ReplacementExportSpecifier;
+  | ReplacementExportSpecifier
+  | ReplacementSourceFile;
 
 export type ReplacementObjectProperty = {
   kind: "objectProperty";
@@ -185,7 +190,9 @@ export type Replacement =
   | ReplacementTypedSyntax;
 
 export type SingleReplacement = Replacement;
-export type ManyReplacement = Replacement[];
+/** Replacement variants that support variadic marker arity. */
+export type ManyReplacementItem = Exclude<Replacement, ReplacementSourceFile>;
+export type ManyReplacement = ManyReplacementItem[];
 
 export type ReplacementValue =
   | SingleReplacement
@@ -399,7 +406,8 @@ export const markerExpectedKinds = [
   "classMember",
   "enumMember",
   "importSpecifier",
-  "exportSpecifier"
+  "exportSpecifier",
+  "sourceFile"
 ] as const satisfies readonly MarkerExpectedKind[];
 
 /**

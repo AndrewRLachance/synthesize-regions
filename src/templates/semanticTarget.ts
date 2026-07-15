@@ -166,7 +166,7 @@ function addPrelude(sourceText: string, prelude: string | undefined): {
 }
 
 /** Keep a BOM, shebang, and leading triple-slash directives ahead of a prelude. */
-function sourcePrologueEnd(sourceText: string): number {
+export function sourcePrologueEnd(sourceText: string): number {
 	let offset = sourceText.charCodeAt(0) === 0xfeff ? 1 : 0
 	if (sourceText.startsWith('#!', offset)) {
 		const newline = sourceText.indexOf('\n', offset)

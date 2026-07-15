@@ -8,14 +8,14 @@ import type {
 	PartialTemplateArtifact,
 	SynthesisDiagnostic,
 	SynthesisGraph,
-	TemplateCatalogView,
-	TemplateRegistry
+	TemplateCatalogView
 } from './graphTypes.js'
 import { GRAPH_PATCH_ACTION_KIND_VALUES } from './graphTypes.js'
-import { compileGraph, fillTemplateArtifact, type GraphCompiler } from './graph.js'
+import { compileGraph, fillTemplateArtifactWithCatalog, type GraphCompiler } from './graph.js'
 import { GraphRunnerActionSchema, checkContract } from './graphContracts.js'
 import { applyGraphPatch } from './graphPatch.js'
-import { createTemplateRegistry } from './registry.js'
+import { captureTemplateCatalogView } from './catalogCapture.js'
+import { isLibraryOwnedGraphCompiler } from './compilerTrust.js'
 
 export type GraphRunnerState =
 	| { kind: 'ready'; graph: SynthesisGraph }
@@ -27,14 +27,10 @@ export type GraphRunnerState =
 export interface GraphRunner {
 	/** Stable planner-contract digest captured for this runner session. */
 	readonly contractDigest: string
+	/** Stable executable-manifest digest captured for this runner session. */
+	readonly manifestDigest: string
 	readonly state: GraphRunnerState
 	advance(action?: GraphRunnerAction): GraphRunnerState
-}
-
-function isTemplateArray(
-	value: TemplateCatalogView | readonly GraphTemplateDefinition<any, string>[]
-): value is readonly GraphTemplateDefinition<any, string>[] {
-	return Array.isArray(value)
 }
 
 const graphPatchActionKinds = new Set<string>(GRAPH_PATCH_ACTION_KIND_VALUES)
@@ -88,22 +84,24 @@ export function createGraphRunner(
 	graph: SynthesisGraph,
 	options: GraphCompileOptions = {}
 ): GraphRunner {
+	if (typeof compilerOrTemplates === 'function' && !isLibraryOwnedGraphCompiler(compilerOrTemplates)) {
+		throw new TypeError('Graph runners accept only compiler closures created by buildGraphCompiler().')
+	}
 	const catalog = typeof compilerOrTemplates === 'function'
-		? undefined
-		: isTemplateArray(compilerOrTemplates)
-			? createTemplateRegistry(compilerOrTemplates).snapshot()
-			: 'snapshot' in compilerOrTemplates && typeof compilerOrTemplates.snapshot === 'function'
-				? (compilerOrTemplates as TemplateRegistry).snapshot()
-				: createTemplateRegistry(compilerOrTemplates.list()).snapshot()
+			? captureTemplateCatalogView(compilerOrTemplates.catalog)
+		: captureTemplateCatalogView(compilerOrTemplates)
 	const contractDigest = typeof compilerOrTemplates === 'function'
 		? compilerOrTemplates.contractDigest
-		: catalog!.contractDigest
+			: catalog.contractDigest
+	const manifestDigest = typeof compilerOrTemplates === 'function'
+		? compilerOrTemplates.manifestDigest
+			: catalog.manifestDigest
 	let state: GraphRunnerState = { kind: 'ready', graph }
 
 	function compileRunnerGraph(candidateGraph: SynthesisGraph): GraphRunnerState {
 		const result = typeof compilerOrTemplates === 'function'
 			? compilerOrTemplates(candidateGraph, { ...options, mode: 'partial' })
-			: compileGraph(candidateGraph, catalog!, { ...options, mode: 'partial' })
+				: compileGraph(candidateGraph, catalog, { ...options, mode: 'partial' })
 		if (!result.ok) {
 			if (result.classification === 'graphRepairable') {
 				return {
@@ -153,6 +151,7 @@ export function createGraphRunner(
 
 	const runner: GraphRunner = {
 		contractDigest,
+		manifestDigest,
 		get state() { return state },
 		advance(action) {
 			if (state.kind === 'ready') {
@@ -185,7 +184,10 @@ export function createGraphRunner(
 
 			if (state.kind === 'needsArtifactInputs' && action?.kind === 'fill') {
 				const pending = state
-				const filled = fillTemplateArtifact(state.artifact, action.inputs, options)
+				const filled = fillTemplateArtifactWithCatalog(state.artifact, action.inputs, catalog, {
+					...options,
+					trustedBaseArtifact: true
+				})
 				if (!filled.ok) {
 					if (filled.classification === 'artifactFillable') {
 						return state = { ...pending, diagnostics: filled.diagnostics }

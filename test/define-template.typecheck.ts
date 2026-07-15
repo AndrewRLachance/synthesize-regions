@@ -9,10 +9,12 @@ import {
   fragmentCollectionPort,
   fragmentPort,
   literalPort,
+  outputPort,
   rawCodePort,
   type GraphTemplateDefinition,
-  type InputPort,
-  type StrictTemplateCatalog,
+	type InputPort,
+	type ReplacementMap,
+	type StrictTemplateCatalog,
   type SynthesisGraph,
   unionPort
 } from "../src/index.js";
@@ -30,7 +32,7 @@ defineTemplate({
     })
   },
   output: { kind: "expression" },
-  template: r => `${r("value")}${r("suffix", ".value")}`
+  source: `${"/** @TYPE expression id=value **/undefined/** @END **/"}${"/** @TYPE expressionSuffix id=suffix **/.value/** @END **/"}`
 });
 
 defineTemplate({
@@ -64,40 +66,40 @@ defineTemplate({
     kind: "expression",
     type: { ts: "number" }
   },
-  template: r => `${r("source")} ?? ${r("fallback")}`
+  source: `${"/** @TYPE expression id=source **/undefined/** @END **/"} ?? ${"/** @TYPE expression id=fallback **/undefined/** @END **/"}`
 });
 
-// @ts-expect-error directly authored finite unions must contain an option.
 defineTemplate({
   modelId: "EmptyDirectUnion",
   inputs: {
-    value: {
+		// @ts-expect-error directly authored finite unions must contain an option.
+		value: {
       kind: "union",
       options: []
     }
   },
   output: { kind: "expression" },
-  template: r => r("value")
+  source: "/** @TYPE expression id=value **/undefined/** @END **/"
 });
 
-// @ts-expect-error empty nested unions are rejected recursively.
 defineTemplate({
   modelId: "NestedEmptyDirectUnion",
   inputs: {
     value: {
       kind: "union",
-      options: [{ kind: "union", options: [] }]
+			// @ts-expect-error empty nested unions are rejected recursively.
+			options: [{ kind: "union", options: [] }]
     }
   },
   output: { kind: "expression" },
-  template: r => r("value")
+  source: "/** @TYPE expression id=value **/undefined/** @END **/"
 });
 
-// @ts-expect-error directly authored finite unions cannot mix effective marker regions.
 defineTemplate({
   modelId: "MixedDirectUnion",
   inputs: {
-    value: {
+		// @ts-expect-error directly authored finite unions cannot mix effective marker regions.
+		value: {
       kind: "union",
       options: [
         { kind: "literal", regionKind: "expression" },
@@ -109,37 +111,36 @@ defineTemplate({
     }
   },
   output: { kind: "expression" },
-  template: r => r("value")
+  source: "/** @TYPE expression id=value **/undefined/** @END **/"
 });
 
-// @ts-expect-error regionKind must be a supported RegionKind.
 defineTemplate({
   modelId: "BadRegionKind",
   inputs: {
     value: {
       kind: "literal",
-      regionKind: "notARegion"
+			// @ts-expect-error regionKind must be a supported RegionKind.
+			regionKind: "notARegion"
     }
   },
   output: { kind: "expression" },
-  template: r => r("value")
+  source: "/** @TYPE expression id=value **/undefined/** @END **/"
 });
 
-// @ts-expect-error literal ports cannot declare fragment accepts.
 defineTemplate({
   modelId: "LiteralWithFragmentFields",
   inputs: {
     value: {
       kind: "literal",
       regionKind: "expression",
-      accepts: {}
+			// @ts-expect-error literal ports cannot declare fragment accepts.
+			accepts: {}
     }
   },
   output: { kind: "expression" },
-  template: r => r("value")
+  source: "/** @TYPE expression id=value **/undefined/** @END **/"
 });
 
-// @ts-expect-error sourceModelIds must contain strings.
 defineTemplate({
   modelId: "MalformedSourceModelIds",
   inputs: {
@@ -147,29 +148,29 @@ defineTemplate({
       kind: "fragment",
       regionKind: "expression",
       accepts: {
-        sourceModelIds: [1]
+			// @ts-expect-error sourceModelIds must contain strings.
+			sourceModelIds: [1]
       }
     }
   },
   output: { kind: "expression" },
-  template: r => r("source")
+  source: "/** @TYPE expression id=source **/undefined/** @END **/"
 });
 
-// @ts-expect-error raw-code ports reject unknown top-level fields.
 defineTemplate({
   modelId: "RawCodeWithUnknownField",
   inputs: {
     value: {
       kind: "rawCode",
       regionKind: "expression",
-      extra: true
+			// @ts-expect-error raw-code ports reject unknown top-level fields.
+			extra: true
     }
   },
   output: { kind: "expression" },
-  template: r => r("value")
+  source: "/** @TYPE expression id=value **/undefined/** @END **/"
 });
 
-// @ts-expect-error union options are exact InputPort shapes too.
 defineTemplate({
   modelId: "UnionWithInvalidNestedOption",
   inputs: {
@@ -179,23 +180,24 @@ defineTemplate({
         {
           kind: "literal",
           regionKind: "expression",
-          extra: true
+				// @ts-expect-error union options are exact InputPort shapes too.
+				extra: true
         }
       ]
     }
   },
   output: { kind: "expression" },
-  template: r => r("value")
+  source: "/** @TYPE expression id=value **/undefined/** @END **/"
 });
 
-// @ts-expect-error output.kind must be a supported RegionKind.
 defineTemplate({
   modelId: "BadOutputKind",
   inputs: {},
   output: {
-    kind: "notARegion"
+		// @ts-expect-error output.kind must be a supported RegionKind.
+		kind: "notARegion"
   },
-  template: () => "undefined"
+  source: "undefined"
 });
 
 // @ts-expect-error helper-created literal ports reject fragment-only fields.
@@ -253,7 +255,7 @@ defineTemplate({
     value: { kind: "union", options: widenedUnionOptions }
   },
   output: { kind: "expression" },
-  template: r => r("value")
+  source: "/** @TYPE expression id=value **/undefined/** @END **/"
 });
 
 rawCodePort({ regionKind: "expression", policy: { allowNewlines: false } });
@@ -264,7 +266,7 @@ const NumberLiteral = defineTemplate({
     value: literalPort({ regionKind: "expression" })
   },
   output: { kind: "expression" },
-  template: r => r("value")
+  source: "/** @TYPE expression id=value **/undefined/** @END **/"
 });
 
 const DuplicateNumberLiteral = defineTemplate({
@@ -273,7 +275,7 @@ const DuplicateNumberLiteral = defineTemplate({
     value: literalPort({ regionKind: "expression" })
   },
   output: { kind: "expression" },
-  template: r => r("value")
+  source: "/** @TYPE expression id=value **/undefined/** @END **/"
 });
 
 const duplicateLiteralCatalog = [NumberLiteral, DuplicateNumberLiteral] as const;
@@ -322,7 +324,7 @@ const OptionalRawExpression = defineTemplate({
     })
   },
   output: { kind: "expression" },
-  template: r => r("value", "undefined")
+  source: "/** @TYPE expression id=value **/undefined/** @END **/"
 });
 
 const InlineRawExpression = defineTemplate({
@@ -334,7 +336,7 @@ const InlineRawExpression = defineTemplate({
     }
   },
   output: { kind: "expression" },
-  template: r => r("value")
+  source: "/** @TYPE expression id=value **/undefined/** @END **/"
 });
 
 const ExpressionConsumer = defineTemplate({
@@ -346,7 +348,7 @@ const ExpressionConsumer = defineTemplate({
     })
   },
   output: { kind: "expression" },
-  template: r => `consume(${r("source")})`
+  source: `consume(${"/** @TYPE expression id=source **/undefined/** @END **/"})`
 });
 
 const UnionConsumer = defineTemplate({
@@ -361,7 +363,7 @@ const UnionConsumer = defineTemplate({
     })
   },
   output: { kind: "expression" },
-  template: r => r("value")
+  source: "/** @TYPE expression id=value **/undefined/** @END **/"
 });
 
 const StatementTemplate = defineTemplate({
@@ -370,7 +372,7 @@ const StatementTemplate = defineTemplate({
     body: rawCodePort({ regionKind: "statement" })
   },
   output: { kind: "statement" },
-  template: r => r("body")
+  source: "/** @TYPE statement id=body **/throw new Error(\"placeholder\");/** @END **/"
 });
 
 const AllowNumberLiteralOnly = defineTemplate({
@@ -384,7 +386,7 @@ const AllowNumberLiteralOnly = defineTemplate({
     })
   },
   output: { kind: "expression" },
-  template: r => r("source")
+  source: "/** @TYPE expression id=source **/undefined/** @END **/"
 });
 
 const graphTemplates = defineTemplateCatalog([
@@ -866,7 +868,7 @@ const StatementCollection = defineTemplate({
     })
   },
   output: { kind: "statement" },
-  template: r => r("statements")
+  source: "/** @TYPE statement id=statements **/throw new Error(\"placeholder\");/** @END **/"
 });
 
 const recursiveGraphTemplates = defineTemplateCatalog([...graphTemplates, StatementCollection]);
@@ -1353,7 +1355,7 @@ const StaticNumberProducer = defineTemplate({
     kind: "expression",
     type: { ts: "number", schema: { type: "number" } }
   },
-  template: () => "1"
+  source: "1"
 });
 
 const StaticIntegerArrayProducer = defineTemplate({
@@ -1366,7 +1368,7 @@ const StaticIntegerArrayProducer = defineTemplate({
       schema: { type: "array", items: { type: "integer" } }
     }
   },
-  template: () => "[1]"
+  source: "[1]"
 });
 
 const StaticStringProducer = defineTemplate({
@@ -1376,14 +1378,14 @@ const StaticStringProducer = defineTemplate({
     kind: "expression",
     type: { ts: "string", schema: { type: "string" } }
   },
-  template: () => "'value'"
+  source: "'value'"
 });
 
 const StaticUntypedProducer = defineTemplate({
   modelId: "StaticUntypedProducer",
   inputs: {},
   output: { kind: "expression" },
-  template: () => "undefined"
+  source: "undefined"
 });
 
 const StaticObjectWithoutRequiredProducer = defineTemplate({
@@ -1399,7 +1401,7 @@ const StaticObjectWithoutRequiredProducer = defineTemplate({
       }
     }
   },
-  template: () => "({})"
+  source: "({})"
 });
 
 const StaticTupleProducer = defineTemplate({
@@ -1415,7 +1417,7 @@ const StaticTupleProducer = defineTemplate({
       }
     }
   },
-  template: () => "[1, 'value']"
+  source: "[1, 'value']"
 });
 
 const StaticNumberConsumer = defineTemplate({
@@ -1427,7 +1429,7 @@ const StaticNumberConsumer = defineTemplate({
     })
   },
   output: { kind: "expression" },
-  template: r => r("source")
+  source: "/** @TYPE expression id=source **/undefined/** @END **/"
 });
 
 const StaticUnknownTsConsumer = defineTemplate({
@@ -1439,7 +1441,7 @@ const StaticUnknownTsConsumer = defineTemplate({
     })
   },
   output: { kind: "expression" },
-  template: r => r("source")
+  source: "/** @TYPE expression id=source **/undefined/** @END **/"
 });
 
 const StaticNumberArrayCollection = defineTemplate({
@@ -1454,7 +1456,7 @@ const StaticNumberArrayCollection = defineTemplate({
     }
   },
   output: { kind: "expression" },
-  template: r => `[${r("sources")}]`
+  source: `[${"/** @TYPE expression id=sources **/undefined/** @END **/"}]`
 });
 
 const StaticRequiredObjectConsumer = defineTemplate({
@@ -1476,7 +1478,7 @@ const StaticRequiredObjectConsumer = defineTemplate({
     }
   },
   output: { kind: "expression" },
-  template: r => r("source")
+  source: "/** @TYPE expression id=source **/undefined/** @END **/"
 });
 
 const StaticNumberTupleConsumer = defineTemplate({
@@ -1497,7 +1499,7 @@ const StaticNumberTupleConsumer = defineTemplate({
     }
   },
   output: { kind: "expression" },
-  template: r => r("source")
+  source: "/** @TYPE expression id=source **/undefined/** @END **/"
 });
 
 const StaticLiteralConsumer = defineTemplate({
@@ -1534,7 +1536,7 @@ const StaticLiteralConsumer = defineTemplate({
     }
   },
   output: { kind: "expression" },
-  template: () => "undefined"
+  source: "undefined"
 });
 
 const compatibilityTemplates = defineTemplateCatalog([
@@ -1713,7 +1715,7 @@ const TsOnlyNumberConsumer = defineTemplate({
     })
   },
   output: { kind: "expression" },
-  template: r => r("source")
+  source: "/** @TYPE expression id=source **/undefined/** @END **/"
 });
 const tsDeferredCompiler = buildGraphCompiler([
   StaticStringProducer,
@@ -1737,7 +1739,7 @@ const WidenedSchemaProducer = defineTemplate({
   modelId: "WidenedSchemaProducer",
   inputs: {},
   output: { kind: "expression", type: { schema: widenedCompatibilitySchema } },
-  template: () => "'value'"
+  source: "'value'"
 });
 const WidenedSchemaConsumer = defineTemplate({
   modelId: "WidenedSchemaConsumer",
@@ -1749,7 +1751,7 @@ const WidenedSchemaConsumer = defineTemplate({
     }
   },
   output: { kind: "expression" },
-  template: r => r("source")
+  source: "/** @TYPE expression id=source **/undefined/** @END **/"
 });
 const PatternSchemaConsumer = defineTemplate({
   modelId: "PatternSchemaConsumer",
@@ -1760,7 +1762,7 @@ const PatternSchemaConsumer = defineTemplate({
     })
   },
   output: { kind: "expression" },
-  template: r => r("source")
+  source: "/** @TYPE expression id=source **/undefined/** @END **/"
 });
 const deferredCompatibilityCompiler = buildGraphCompiler([
   WidenedSchemaProducer,
@@ -1805,7 +1807,7 @@ const FirstClassType = defineTemplate({
     value: rawCodePort({ regionKind: "type" })
   },
   output: { kind: "type", type: { ts: "string | number" } },
-  template: r => r("value", "unknown")
+  source: "/** @TYPE type id=value **/unknown/** @END **/"
 });
 const TypeMemberConsumer = defineTemplate({
   modelId: "TypeMemberConsumer",
@@ -1813,7 +1815,7 @@ const TypeMemberConsumer = defineTemplate({
     member: fragmentPort({ regionKind: "typeMember", accepts: { outputKind: "typeMember" } })
   },
   output: { kind: "declaration" },
-  template: r => `interface Value { ${r("member", "value: unknown")} }`
+  source: `interface Value { ${"/** @TYPE typeMember id=member **/value: unknown/** @END **/"} }`
 });
 const TypeConsumer = defineTemplate({
   modelId: "TypeConsumer",
@@ -1821,7 +1823,7 @@ const TypeConsumer = defineTemplate({
     value: fragmentPort({ regionKind: "type", accepts: { outputKind: "type" } })
   },
   output: { kind: "type" },
-  template: r => `ReadonlyArray<${r("value", "unknown")}>`
+  source: `ReadonlyArray<${"/** @TYPE type id=value **/unknown/** @END **/"}>`
 });
 
 // @ts-expect-error literal ports cannot target first-class type/declaration syntax.
@@ -1869,3 +1871,98 @@ firstClassTypeCompiler.defineGraph({
   ],
   finalNodeId: "consumer"
 });
+
+const SourceFileProducer = defineTemplate({
+  modelId: "SourceFileProducer",
+  inputs: {},
+  output: { kind: "sourceFile" },
+  source: "export const value = 1;"
+});
+const SourceFileConsumer = defineTemplate({
+  modelId: "SourceFileConsumer",
+  inputs: {
+    module: fragmentPort({
+      regionKind: "sourceFile",
+      accepts: { outputKind: "sourceFile" }
+    })
+  },
+  output: { kind: "sourceFile" },
+  source: "/** @TYPE sourceFile id=module **/export {};/** @END **/"
+});
+const SourceFileWrongKind = defineTemplate({
+  modelId: "SourceFileWrongKind",
+  inputs: {},
+  output: { kind: "declaration" },
+  source: "export const value = 1;"
+});
+
+const validVariadicReplacementMap: ReplacementMap = {
+  statements: [{ kind: "statement", code: "return;" }]
+};
+void validVariadicReplacementMap;
+// @ts-expect-error one sourceFile replacement represents the whole file and cannot be variadic.
+const invalidVariadicSourceFileMap: ReplacementMap = { modules: [{ kind: "sourceFile", code: "export {};" }] };
+void invalidVariadicSourceFileMap;
+
+// @ts-expect-error sourceFile ports accept scalar fragments, not literal values.
+literalPort({ regionKind: "sourceFile" });
+// @ts-expect-error sourceFile ports do not permit arbitrary raw-code inputs.
+rawCodePort({ regionKind: "sourceFile" });
+// @ts-expect-error sourceFile fragment collections are not a supported composition context.
+fragmentCollectionPort({ regionKind: "sourceFile", accepts: { outputKind: "sourceFile" } });
+// @ts-expect-error sourceFile fragments cannot carry value-level TypeDescriptor requirements.
+fragmentPort({ regionKind: "sourceFile", accepts: { outputKind: "sourceFile", type: { ts: "string" } } });
+// @ts-expect-error sourceFile fragment compatibility is exact across the marker and producer contexts.
+fragmentPort({ regionKind: "sourceFile", accepts: { outputKind: "expression" } });
+// @ts-expect-error sourceFile outputs cannot advertise value-level metadata.
+outputPort({ kind: "sourceFile", type: { ts: "string" } });
+// @ts-expect-error sourceFile outputs cannot advertise deprecated schema aliases either.
+outputPort({ kind: "sourceFile", schema: { type: "object" } });
+
+const sourceFileCompiler = buildGraphCompiler([
+  SourceFileProducer,
+  SourceFileConsumer,
+  SourceFileWrongKind
+] as const);
+sourceFileCompiler.defineGraph({
+  nodes: [
+    { id: "source", templateId: "SourceFileProducer", inputs: {} },
+    {
+      id: "consumer",
+      templateId: "SourceFileConsumer",
+      inputs: { module: { $ref: "source" } }
+    }
+  ],
+  finalNodeId: "consumer",
+  goal: { outputKind: "sourceFile" }
+});
+
+const sourceFileWrongReference = {
+  nodes: [
+    { id: "declaration", templateId: "SourceFileWrongKind", inputs: {} },
+    {
+      id: "consumer",
+      templateId: "SourceFileConsumer",
+      inputs: { module: { $ref: "declaration" } }
+    }
+  ],
+  finalNodeId: "consumer"
+} as const;
+// @ts-expect-error sourceFile fragment references require a sourceFile producer.
+sourceFileCompiler.defineGraph(sourceFileWrongReference);
+
+const sourceFileGoalWithMetadata = {
+  nodes: [{ id: "source", templateId: "SourceFileProducer", inputs: {} }],
+  finalNodeId: "source",
+  goal: { outputKind: "sourceFile", type: { ts: "string" } }
+} as const;
+// @ts-expect-error sourceFile goals cannot describe runtime-value types.
+sourceFileCompiler.defineGraph(sourceFileGoalWithMetadata);
+
+const inferredSourceFileGoalWithMetadata = {
+  nodes: [{ id: "source", templateId: "SourceFileProducer", inputs: {} }],
+  finalNodeId: "source",
+  goal: { schema: { type: "object" } }
+} as const;
+// @ts-expect-error the known sourceFile final output also rejects value-level goal schemas.
+sourceFileCompiler.defineGraph(inferredSourceFileGoalWithMetadata);

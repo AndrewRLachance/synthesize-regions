@@ -437,6 +437,10 @@
         {
           "const": "exportSpecifier",
           "type": "string"
+        },
+        {
+          "const": "sourceFile",
+          "type": "string"
         }
       ]
     },

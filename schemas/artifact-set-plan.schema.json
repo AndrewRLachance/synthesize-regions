@@ -1,0 +1,862 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.synthesize-regions.dev/artifact-set-plan.schema.json",
+  "title": "synthesize-regions ArtifactSetPlan",
+  "description": "Closed static synthesis plan containing independently compiled graphs and authorized create-file or replace-range targets.",
+  "$ref": "#/$defs/ArtifactSetPlan",
+  "$defs": {
+    "JsonValue": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/JsonValue"
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "patternProperties": {
+            "^[\\s\\S]*$": {
+              "$ref": "#/$defs/JsonValue"
+            }
+          }
+        }
+      ]
+    },
+    "SupportedJsonSchema": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "properties": {
+            "$schema": {
+              "const": "https://json-schema.org/draft/2020-12/schema",
+              "type": "string"
+            },
+            "$ref": {
+              "pattern": "^#(?:|/(?:[^~/]|~[01])*(?:/(?:[^~/]|~[01])*)*)$",
+              "type": "string"
+            },
+            "$defs": {
+              "additionalProperties": false,
+              "type": "object",
+              "patternProperties": {
+                "^[\\s\\S]*$": {
+                  "$ref": "#/$defs/SupportedJsonSchema"
+                }
+              }
+            },
+            "$comment": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "default": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "deprecated": {
+              "type": "boolean"
+            },
+            "readOnly": {
+              "type": "boolean"
+            },
+            "writeOnly": {
+              "type": "boolean"
+            },
+            "examples": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/JsonValue"
+              }
+            },
+            "type": {
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "const": "null",
+                      "type": "string"
+                    },
+                    {
+                      "const": "boolean",
+                      "type": "string"
+                    },
+                    {
+                      "const": "object",
+                      "type": "string"
+                    },
+                    {
+                      "const": "array",
+                      "type": "string"
+                    },
+                    {
+                      "const": "number",
+                      "type": "string"
+                    },
+                    {
+                      "const": "string",
+                      "type": "string"
+                    },
+                    {
+                      "const": "integer",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "const": "null",
+                        "type": "string"
+                      },
+                      {
+                        "const": "boolean",
+                        "type": "string"
+                      },
+                      {
+                        "const": "object",
+                        "type": "string"
+                      },
+                      {
+                        "const": "array",
+                        "type": "string"
+                      },
+                      {
+                        "const": "number",
+                        "type": "string"
+                      },
+                      {
+                        "const": "string",
+                        "type": "string"
+                      },
+                      {
+                        "const": "integer",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            "const": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "enum": {
+              "minItems": 1,
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/JsonValue"
+              }
+            },
+            "multipleOf": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "maximum": {
+              "type": "number"
+            },
+            "exclusiveMaximum": {
+              "type": "number"
+            },
+            "minimum": {
+              "type": "number"
+            },
+            "exclusiveMinimum": {
+              "type": "number"
+            },
+            "maxLength": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "minLength": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "pattern": {
+              "type": "string"
+            },
+            "format": {
+              "type": "string"
+            },
+            "contentEncoding": {
+              "type": "string"
+            },
+            "contentMediaType": {
+              "type": "string"
+            },
+            "contentSchema": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            },
+            "prefixItems": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SupportedJsonSchema"
+              }
+            },
+            "items": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            },
+            "contains": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            },
+            "minContains": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxContains": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "minItems": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "uniqueItems": {
+              "type": "boolean"
+            },
+            "unevaluatedItems": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            },
+            "properties": {
+              "additionalProperties": false,
+              "type": "object",
+              "patternProperties": {
+                "^[\\s\\S]*$": {
+                  "$ref": "#/$defs/SupportedJsonSchema"
+                }
+              }
+            },
+            "patternProperties": {
+              "additionalProperties": false,
+              "type": "object",
+              "patternProperties": {
+                "^[\\s\\S]*$": {
+                  "$ref": "#/$defs/SupportedJsonSchema"
+                }
+              }
+            },
+            "additionalProperties": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            },
+            "required": {
+              "uniqueItems": true,
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "minProperties": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxProperties": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "dependentRequired": {
+              "additionalProperties": false,
+              "type": "object",
+              "patternProperties": {
+                "^[\\s\\S]*$": {
+                  "uniqueItems": true,
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "dependentSchemas": {
+              "additionalProperties": false,
+              "type": "object",
+              "patternProperties": {
+                "^[\\s\\S]*$": {
+                  "$ref": "#/$defs/SupportedJsonSchema"
+                }
+              }
+            },
+            "unevaluatedProperties": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            },
+            "allOf": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SupportedJsonSchema"
+              }
+            },
+            "anyOf": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SupportedJsonSchema"
+              }
+            },
+            "oneOf": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SupportedJsonSchema"
+              }
+            },
+            "not": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            },
+            "if": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            },
+            "then": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            },
+            "else": {
+              "$ref": "#/$defs/SupportedJsonSchema"
+            }
+          }
+        }
+      ]
+    },
+    "GraphRegionKind": {
+      "anyOf": [
+        {
+          "const": "identifier",
+          "type": "string"
+        },
+        {
+          "const": "expression",
+          "type": "string"
+        },
+        {
+          "const": "expressionSuffix",
+          "type": "string"
+        },
+        {
+          "const": "statement",
+          "type": "string"
+        },
+        {
+          "const": "array",
+          "type": "string"
+        },
+        {
+          "const": "object",
+          "type": "string"
+        },
+        {
+          "const": "string",
+          "type": "string"
+        },
+        {
+          "const": "number",
+          "type": "string"
+        },
+        {
+          "const": "boolean",
+          "type": "string"
+        },
+        {
+          "const": "null",
+          "type": "string"
+        },
+        {
+          "const": "objectProperty",
+          "type": "string"
+        },
+        {
+          "const": "type",
+          "type": "string"
+        },
+        {
+          "const": "typeMember",
+          "type": "string"
+        },
+        {
+          "const": "typeParameter",
+          "type": "string"
+        },
+        {
+          "const": "parameter",
+          "type": "string"
+        },
+        {
+          "const": "constructorParameter",
+          "type": "string"
+        },
+        {
+          "const": "heritageType",
+          "type": "string"
+        },
+        {
+          "const": "declaration",
+          "type": "string"
+        },
+        {
+          "const": "classMember",
+          "type": "string"
+        },
+        {
+          "const": "enumMember",
+          "type": "string"
+        },
+        {
+          "const": "importSpecifier",
+          "type": "string"
+        },
+        {
+          "const": "exportSpecifier",
+          "type": "string"
+        },
+        {
+          "const": "sourceFile",
+          "type": "string"
+        }
+      ]
+    },
+    "GraphTypeDescriptor": {
+      "additionalProperties": false,
+      "type": "object",
+      "properties": {
+        "ts": {
+          "type": "string"
+        },
+        "schema": {
+          "$ref": "#/$defs/SupportedJsonSchema"
+        }
+      }
+    },
+    "SynthesisInput": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "const": "literal",
+              "type": "string"
+            },
+            "value": {}
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "nodeId"
+          ],
+          "properties": {
+            "kind": {
+              "const": "ref",
+              "type": "string"
+            },
+            "nodeId": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "code"
+          ],
+          "properties": {
+            "kind": {
+              "const": "rawCode",
+              "type": "string"
+            },
+            "code": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "items"
+          ],
+          "properties": {
+            "kind": {
+              "const": "fragmentCollection",
+              "type": "string"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "nodeId"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "ref",
+                        "type": "string"
+                      },
+                      "nodeId": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "additionalProperties": false,
+                    "type": "object",
+                    "required": [
+                      "$ref"
+                    ],
+                    "properties": {
+                      "$ref": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "additionalProperties": false,
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "node"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "const": "inline",
+                        "type": "string"
+                      },
+                      "node": {
+                        "$ref": "#/$defs/SynthesisNode"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "$ref"
+          ],
+          "properties": {
+            "$ref": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "node"
+          ],
+          "properties": {
+            "kind": {
+              "const": "inline",
+              "type": "string"
+            },
+            "node": {
+              "$ref": "#/$defs/SynthesisNode"
+            }
+          }
+        }
+      ]
+    },
+    "SynthesisNode": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "id",
+        "templateId",
+        "inputs"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "templateId": {
+          "type": "string"
+        },
+        "inputs": {
+          "type": "object",
+          "patternProperties": {
+            "^(.*)$": {
+              "$ref": "#/$defs/SynthesisInput"
+            }
+          }
+        }
+      }
+    },
+    "SynthesisGoal": {
+      "additionalProperties": false,
+      "type": "object",
+      "properties": {
+        "outputKind": {
+          "$ref": "#/$defs/GraphRegionKind"
+        },
+        "type": {
+          "$ref": "#/$defs/GraphTypeDescriptor"
+        },
+        "schema": {
+          "$ref": "#/$defs/SupportedJsonSchema"
+        }
+      }
+    },
+    "SynthesisGraph": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "nodes",
+        "finalNodeId"
+      ],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SynthesisNode"
+          }
+        },
+        "finalNodeId": {
+          "type": "string"
+        },
+        "goal": {
+          "$ref": "#/$defs/SynthesisGoal"
+        }
+      }
+    },
+    "CompilationRegionKind": {
+      "anyOf": [
+        {
+          "const": "identifier",
+          "type": "string"
+        },
+        {
+          "const": "expression",
+          "type": "string"
+        },
+        {
+          "const": "expressionSuffix",
+          "type": "string"
+        },
+        {
+          "const": "statement",
+          "type": "string"
+        },
+        {
+          "const": "array",
+          "type": "string"
+        },
+        {
+          "const": "object",
+          "type": "string"
+        },
+        {
+          "const": "string",
+          "type": "string"
+        },
+        {
+          "const": "number",
+          "type": "string"
+        },
+        {
+          "const": "boolean",
+          "type": "string"
+        },
+        {
+          "const": "null",
+          "type": "string"
+        },
+        {
+          "const": "objectProperty",
+          "type": "string"
+        },
+        {
+          "const": "type",
+          "type": "string"
+        },
+        {
+          "const": "typeMember",
+          "type": "string"
+        },
+        {
+          "const": "typeParameter",
+          "type": "string"
+        },
+        {
+          "const": "parameter",
+          "type": "string"
+        },
+        {
+          "const": "constructorParameter",
+          "type": "string"
+        },
+        {
+          "const": "heritageType",
+          "type": "string"
+        },
+        {
+          "const": "declaration",
+          "type": "string"
+        },
+        {
+          "const": "classMember",
+          "type": "string"
+        },
+        {
+          "const": "enumMember",
+          "type": "string"
+        },
+        {
+          "const": "importSpecifier",
+          "type": "string"
+        },
+        {
+          "const": "exportSpecifier",
+          "type": "string"
+        },
+        {
+          "const": "sourceFile",
+          "type": "string"
+        }
+      ]
+    },
+    "ArtifactTarget": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "path"
+          ],
+          "properties": {
+            "kind": {
+              "const": "createFile",
+              "type": "string"
+            },
+            "path": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "path",
+            "start",
+            "end",
+            "baseFileHash",
+            "regionKind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "replaceRange",
+              "type": "string"
+            },
+            "path": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "start": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "end": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "baseFileHash": {
+              "type": "string"
+            },
+            "regionKind": {
+              "$ref": "#/$defs/CompilationRegionKind"
+            }
+          }
+        }
+      ]
+    },
+    "ArtifactSetUnit": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "id",
+        "graph",
+        "target"
+      ],
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "graph": {
+          "$ref": "#/$defs/SynthesisGraph"
+        },
+        "target": {
+          "$ref": "#/$defs/ArtifactTarget"
+        }
+      }
+    },
+    "ArtifactSetPlan": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "artifacts"
+      ],
+      "properties": {
+        "artifacts": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ArtifactSetUnit"
+          }
+        }
+      }
+    }
+  }
+}

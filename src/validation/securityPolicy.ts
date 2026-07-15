@@ -67,7 +67,11 @@ export function enforceSecurityPolicy(
 
 function isStaticImport(node: Node): boolean {
   const kind = node.getKind();
-  return kind === SyntaxKind.ImportDeclaration || kind === SyntaxKind.ImportEqualsDeclaration;
+  if (kind === SyntaxKind.ImportDeclaration || kind === SyntaxKind.ImportEqualsDeclaration) return true;
+
+  // A re-export with a module specifier participates in static module loading
+  // just like an import declaration. Local exports (`export { value }`) do not.
+  return Node.isExportDeclaration(node) && node.getModuleSpecifier() !== undefined;
 }
 
 function isDynamicImport(node: Node): boolean {

@@ -1,4 +1,3 @@
-import { P } from "ts-pattern";
 import { describe, expect, it } from "vitest";
 import {
   buildGraphCompiler,
@@ -43,7 +42,7 @@ function createGraphRegistry() {
         items: { type: "boolean" }
       }
     },
-    template: r => r("values")
+    source: "/** @TYPE expression id=values **/undefined/** @END **/"
   });
 
   const mapper = defineTemplate({
@@ -61,7 +60,7 @@ function createGraphRegistry() {
       kind: "expression",
       type: { ts: "boolean[]" }
     },
-    template: r => `${r("source")}.map(x => Boolean(x))`
+    source: `${"/** @TYPE expression id=source **/undefined/** @END **/"}.map(x => Boolean(x))`
   });
 
   const expectsStatement = defineTemplate({
@@ -77,7 +76,7 @@ function createGraphRegistry() {
     output: {
       kind: "statement"
     },
-    template: r => r("source")
+    source: "/** @TYPE statement id=source **/throw new Error(\"placeholder\");/** @END **/"
   });
 
   const expectsNumbers = defineTemplate({
@@ -95,7 +94,7 @@ function createGraphRegistry() {
       kind: "expression",
       type: { ts: "number[]" }
     },
-    template: r => r("source")
+    source: "/** @TYPE expression id=source **/undefined/** @END **/"
   });
 
   return createTemplateRegistry([source, mapper, expectsStatement, expectsNumbers]);
@@ -141,7 +140,7 @@ function createRawPolicyRegistry() {
       kind: "expression",
       type: { ts: "number" }
     },
-    template: r => r("value")
+		source: "/** @TYPE expression id=value **/undefined/** @END **/"
   });
 
   return createTemplateRegistry([rawExpression]);
@@ -172,7 +171,7 @@ function createStructuredConversionRegistry() {
       })
     },
     output: { kind: "array" },
-    template: r => r("value")
+    source: "/** @TYPE array id=value **/[]/** @END **/"
   });
 
   const objectLiteral = defineTemplate({
@@ -184,7 +183,7 @@ function createStructuredConversionRegistry() {
       })
     },
     output: { kind: "object" },
-    template: r => r("value")
+    source: "/** @TYPE object id=value **/{}/** @END **/"
   });
 
   const stringLiteral = defineTemplate({
@@ -196,7 +195,7 @@ function createStructuredConversionRegistry() {
       })
     },
     output: { kind: "string" },
-    template: r => r("value")
+    source: "/** @TYPE string id=value **/\"\"/** @END **/"
   });
 
   const numberLiteral = defineTemplate({
@@ -208,7 +207,7 @@ function createStructuredConversionRegistry() {
       })
     },
     output: { kind: "number" },
-    template: r => r("value")
+    source: "/** @TYPE number id=value **/0/** @END **/"
   });
 
   const booleanLiteral = defineTemplate({
@@ -220,7 +219,7 @@ function createStructuredConversionRegistry() {
       })
     },
     output: { kind: "boolean" },
-    template: r => r("value")
+    source: "/** @TYPE boolean id=value **/false/** @END **/"
   });
 
   const nullLiteral = defineTemplate({
@@ -232,7 +231,7 @@ function createStructuredConversionRegistry() {
       })
     },
     output: { kind: "null" },
-    template: r => r("value")
+    source: "/** @TYPE null id=value **/null/** @END **/"
   });
 
   const objectPropertyLiteral = defineTemplate({
@@ -250,7 +249,7 @@ function createStructuredConversionRegistry() {
       })
     },
     output: { kind: "objectProperty" },
-    template: r => r("prop")
+    source: "/** @TYPE objectProperty id=prop **/placeholder: undefined/** @END **/"
   });
 
   const arrayConsumer = defineTemplate({
@@ -262,7 +261,7 @@ function createStructuredConversionRegistry() {
       })
     },
     output: { kind: "expression" },
-    template: r => `${r("source")}.length`
+    source: `${"/** @TYPE array id=source **/[]/** @END **/"}.length`
   });
 
   const objectConsumer = defineTemplate({
@@ -274,7 +273,7 @@ function createStructuredConversionRegistry() {
       })
     },
     output: { kind: "expression" },
-    template: r => `Object.keys(${r("source")})`
+    source: `Object.keys(${"/** @TYPE object id=source **/{}/** @END **/"})`
   });
 
   const scalarConsumer = defineTemplate({
@@ -298,7 +297,7 @@ function createStructuredConversionRegistry() {
       })
     },
     output: { kind: "expression" },
-    template: r => `({ label: ${r("label")}, count: ${r("count")}, enabled: ${r("enabled")}, empty: ${r("empty")} })`
+    source: `({ label: ${"/** @TYPE string id=label **/\"\"/** @END **/"}, count: ${"/** @TYPE number id=count **/0/** @END **/"}, enabled: ${"/** @TYPE boolean id=enabled **/false/** @END **/"}, empty: ${"/** @TYPE null id=empty **/null/** @END **/"} })`
   });
 
   const objectPropertyConsumer = defineTemplate({
@@ -310,7 +309,7 @@ function createStructuredConversionRegistry() {
       })
     },
     output: { kind: "expression" },
-    template: r => `({ ${r("prop")} })`
+    source: `({ ${"/** @TYPE objectProperty id=prop **/placeholder: undefined/** @END **/"} })`
   });
 
   const rawArray = defineTemplate({
@@ -321,7 +320,7 @@ function createStructuredConversionRegistry() {
       })
     },
     output: { kind: "expression" },
-    template: r => `${r("value")}.length`
+    source: `${"/** @TYPE array id=value **/[]/** @END **/"}.length`
   });
 
   const rawObjectProperty = defineTemplate({
@@ -332,7 +331,7 @@ function createStructuredConversionRegistry() {
       })
     },
     output: { kind: "expression" },
-    template: r => `({ ${r("prop")} })`
+    source: `({ ${"/** @TYPE objectProperty id=prop **/placeholder: undefined/** @END **/"} })`
   });
 
   const unionExpression = defineTemplate({
@@ -352,7 +351,7 @@ function createStructuredConversionRegistry() {
       })
     },
     output: { kind: "expression" },
-    template: r => `${r("value")} + 1`
+    source: `${"/** @TYPE expression id=value **/undefined/** @END **/"} + 1`
   });
 
   return createTemplateRegistry([
@@ -381,18 +380,18 @@ describe("schema-driven synthesis graph", () => {
         param: rawCodePort({ regionKind: "identifier" })
       },
       output: { kind: "expression" },
-      template: r => `(${r("param", "x")}) => x`
+      source: `(${"/** @TYPE identifier id=param **/x/** @END **/"}) => x`
     })).toThrow("Expected the marked body to be an identifier.");
   });
 
   it("returns authored graphs unchanged from defineGraph", () => {
-    const source = defineTemplate({
-      modelId: "DefineGraphSource",
+	    const source = defineTemplate({
+	      modelId: "DefineGraphSource",
       inputs: {
         value: literalPort({ regionKind: "expression" })
       },
-      output: { kind: "expression" },
-      template: r => r("value")
+	      output: { kind: "expression" },
+	      source: "/** @TYPE expression id=value **/undefined/** @END **/"
     });
     const graph = {
       nodes: [
@@ -417,7 +416,7 @@ describe("schema-driven synthesis graph", () => {
         value: literalPort({ regionKind: "expression" })
       },
       output: { kind: "expression" },
-      template: r => r("value")
+      source: "/** @TYPE expression id=value **/undefined/** @END **/"
     });
     const consumer = defineTemplate({
       modelId: "CatalogCompileConsumer",
@@ -425,7 +424,7 @@ describe("schema-driven synthesis graph", () => {
         source: fragmentPort({ regionKind: "expression", accepts: {} })
       },
       output: { kind: "expression" },
-      template: r => `wrap(${r("source")})`
+      source: `wrap(${"/** @TYPE expression id=source **/undefined/** @END **/"})`
     });
     const templates = defineTemplateCatalog([source, consumer]);
     const graph = {
@@ -464,7 +463,7 @@ describe("schema-driven synthesis graph", () => {
         value: literalPort({ regionKind: "expression" })
       },
       output: { kind: "expression" },
-      template: r => r("value")
+      source: "/** @TYPE expression id=value **/undefined/** @END **/"
     });
     const consumer = defineTemplate({
       modelId: "BuiltCompilerConsumer",
@@ -472,7 +471,7 @@ describe("schema-driven synthesis graph", () => {
         source: fragmentPort({ regionKind: "expression", accepts: {} })
       },
       output: { kind: "expression" },
-      template: r => `built(${r("source")})`
+      source: `built(${"/** @TYPE expression id=source **/undefined/** @END **/"})`
     });
     const templates = defineTemplateCatalog([source, consumer]);
     const compiler = buildGraphCompiler(templates);
@@ -567,13 +566,13 @@ describe("schema-driven synthesis graph", () => {
           ]
         })
       },
-      output: {
-        kind: "expression",
-        type: { ts: "boolean" },
-        description: "Boolean expression."
-      },
-      template: r => r("value")
-    });
+	      output: {
+	        kind: "expression",
+	        type: { ts: "boolean" },
+	        description: "Boolean expression."
+	      },
+	      source: `(${"/** @TYPE expression id=fragment **/undefined/** @END **/"}, ${"/** @TYPE expression id=value **/undefined/** @END **/"})`
+	    });
 
     const registry = createTemplateRegistry([template]);
     const summary = registry.summaries()[0];
@@ -633,7 +632,7 @@ describe("schema-driven synthesis graph", () => {
         })
       },
       output: { kind: "expression" },
-      template: r => r("value")
+      source: "/** @TYPE expression id=value **/undefined/** @END **/"
     });
 
     const consumer = defineTemplate({
@@ -645,7 +644,7 @@ describe("schema-driven synthesis graph", () => {
         })
       },
       output: { kind: "expression" },
-      template: r => `${r("source")} + 1`
+      source: `${"/** @TYPE expression id=source **/undefined/** @END **/"} + 1`
     });
 
     const result = compileGraph(
@@ -833,7 +832,7 @@ describe("schema-driven synthesis graph", () => {
         })
       },
       output: { kind: "expression" },
-      template: r => r("value")
+      source: "/** @TYPE expression id=value **/undefined/** @END **/"
     });
 
     let thrown: unknown;
@@ -1109,14 +1108,21 @@ describe("schema-driven synthesis graph", () => {
   });
 
   it("partial-compiles missing required inputs into fillable marker artifacts", () => {
+    const manualExpression = defineTemplate({
+      modelId: "ManualExpression",
+      inputs: {},
+      output: { kind: "expression" },
+      source: "value"
+    });
     const wrapper = defineTemplate({
       modelId: "PartialWrapper",
       inputs: {
         source: fragmentPort({ regionKind: "expression", accepts: {} })
       },
       output: { kind: "expression" },
-      template: r => `wrap(${r("source", "fallback")})`
+      source: `wrap(${"/** @TYPE expression id=source **/fallback/** @END **/"})`
     });
+    const registry = createTemplateRegistry([manualExpression, wrapper]);
 
     const result = compileGraph(
       {
@@ -1129,7 +1135,7 @@ describe("schema-driven synthesis graph", () => {
         ],
         finalNodeId: "wrap"
       },
-      createTemplateRegistry([wrapper]),
+      registry,
       { mode: "partial" }
     );
 
@@ -1145,15 +1151,17 @@ describe("schema-driven synthesis graph", () => {
       templateId: "PartialWrapper"
     });
 
+    const manual = compileGraph({
+      nodes: [{ id: "manual", templateId: manualExpression.modelId, inputs: {} }],
+      finalNodeId: "manual"
+    }, registry);
+    expect(manual.ok).toBe(true);
+    if (!manual.ok) return;
+
     const filled = fillTemplateArtifact(result.finalArtifact, {
       source: {
         kind: "fragment",
-        fragment: {
-          code: "value",
-          kind: "expression",
-          source: { templateId: "ManualExpression" },
-          complete: true
-        }
+        fragment: manual.finalArtifact
       }
     });
 
@@ -1170,7 +1178,7 @@ describe("schema-driven synthesis graph", () => {
         value: literalPort({ regionKind: "expression" })
       },
       output: { kind: "expression" },
-      template: r => r("value")
+      source: "/** @TYPE expression id=value **/undefined/** @END **/"
     });
     const suffix = defineTemplate({
       modelId: "PartialSuffix",
@@ -1178,7 +1186,7 @@ describe("schema-driven synthesis graph", () => {
         handler: fragmentPort({ regionKind: "expression", accepts: {} })
       },
       output: { kind: "expressionSuffix" },
-      template: r => `.with(${r("handler", "x => x")})`
+      source: `.with(${"/** @TYPE expression id=handler **/x => x/** @END **/"})`
     });
     const applySuffix = defineTemplate({
       modelId: "PartialApplySuffix",
@@ -1190,8 +1198,15 @@ describe("schema-driven synthesis graph", () => {
         })
       },
       output: { kind: "expression" },
-      template: r => `${r("source")}${r("suffix")}`
+      source: `${"/** @TYPE expression id=source **/undefined/** @END **/"}${"/** @TYPE expressionSuffix id=suffix **/.value/** @END **/"}`
     });
+    const handler = defineTemplate({
+      modelId: "ManualHandler",
+      inputs: {},
+      output: { kind: "expression" },
+      source: "x => x.ok"
+    });
+    const registry = createTemplateRegistry([source, suffix, applySuffix, handler]);
 
     const result = compileGraph(
       {
@@ -1225,7 +1240,7 @@ describe("schema-driven synthesis graph", () => {
         ],
         finalNodeId: "twice"
       },
-      createTemplateRegistry([source, suffix, applySuffix]),
+      registry,
       { mode: "partial" }
     );
 
@@ -1238,16 +1253,17 @@ describe("schema-driven synthesis graph", () => {
     const unresolvedId = result.finalArtifact.unresolvedInputs[0]!.id;
     const occurrences = result.finalArtifact.code.match(new RegExp(`id=${unresolvedId}`, "g")) ?? [];
     expect(occurrences).toHaveLength(2);
+    const compiledHandler = compileGraph({
+      nodes: [{ id: "handler", templateId: handler.modelId, inputs: {} }],
+      finalNodeId: "handler"
+    }, registry);
+    expect(compiledHandler.ok).toBe(true);
+    if (!compiledHandler.ok) return;
 
     const finalized = finalizeTemplateArtifact(result.finalArtifact, {
       [unresolvedId]: {
         kind: "fragment",
-        fragment: {
-          code: "x => x.ok",
-          kind: "expression",
-          source: { templateId: "ManualHandler" },
-          complete: true
-        }
+        fragment: compiledHandler.finalArtifact
       }
     });
 
@@ -1264,7 +1280,7 @@ describe("schema-driven synthesis graph", () => {
         value: fragmentPort({ regionKind: "expression", accepts: {} })
       },
       output: { kind: "expression" },
-      template: r => r("value", "fallback")
+      source: "/** @TYPE expression id=value **/fallback/** @END **/"
     });
     const graph: SynthesisGraph = {
       nodes: [
@@ -1312,7 +1328,7 @@ describe("schema-driven synthesis graph", () => {
         })
       },
       output: { kind: "expression" },
-      template: r => `maybe(${r("value", "fallback")})`
+      source: `maybe(${"/** @TYPE expression id=value **/fallback/** @END **/"})`
     });
 
     const result = compileGraph(
@@ -1535,7 +1551,7 @@ describe("schema-driven synthesis graph", () => {
         kind: "expression",
         type: { schema: { type: "string", pattern: "^producer" } }
       },
-      template: () => '"producer"'
+      source: '"producer"'
     });
     const consumer = defineTemplate({
       modelId: "PatternConsumer",
@@ -1546,7 +1562,7 @@ describe("schema-driven synthesis graph", () => {
         })
       },
       output: { kind: "expression" },
-      template: region => `consume(${region("value")})`
+      source: `consume(${"/** @TYPE expression id=value **/undefined/** @END **/"})`
     });
 
     const result = compileGraph({
@@ -1561,30 +1577,23 @@ describe("schema-driven synthesis graph", () => {
     expect(result.diagnostics.map(diagnostic => diagnostic.code)).toContain("SchemaCompatibilityIndeterminate");
   });
 
-  it("preserves legacy pattern-based defineTemplate compatibility", () => {
-    const legacy = defineTemplate({
+  it("rejects the removed executable legacy template shape", () => {
+    expect(() => defineTemplate({
       modelId: "LegacyAddOne",
       outputKind: "expression",
-      pattern: {
-        value: {
-          input: P.number,
-          output: "number"
-        }
-      },
-      template: r => `${r("value", "oldValue")} + 1`
-    });
-
-    expect(legacy.apply({ value: 1 }).code).toBe("1 + 1");
+      pattern: { value: { output: "number" } },
+      source: `${"/** @TYPE expression id=value **/oldValue/** @END **/"} + 1`
+    } as never)).toThrow(/unknown property outputKind/u);
   });
 
   it("compiles ordered variadic fragment collections", () => {
     const first = defineTemplate({
       modelId: "FirstStatement", inputs: {}, output: { kind: "statement" },
-      template: () => "const first = 1;"
+      source: "const first = 1;"
     });
     const second = defineTemplate({
       modelId: "SecondStatement", inputs: {}, output: { kind: "statement" },
-      template: () => "const second = 2;"
+      source: "const second = 2;"
     });
     const statementList = defineTemplate({
       modelId: "StatementList",
@@ -1596,7 +1605,7 @@ describe("schema-driven synthesis graph", () => {
         })
       },
       output: { kind: "statement" },
-      template: r => r("statements")
+      source: "/** @TYPE statement id=statements **/throw new Error(\"placeholder\");/** @END **/"
     });
 
     const result = compileGraph({
@@ -1625,7 +1634,7 @@ describe("schema-driven synthesis graph", () => {
         })
       },
       output: { kind: "statement" },
-      template: r => r("statements")
+      source: "/** @TYPE statement id=statements **/throw new Error(\"placeholder\");/** @END **/"
     });
     const result = compileGraph({
       nodes: [{
@@ -1645,7 +1654,7 @@ describe("schema-driven synthesis graph", () => {
       modelId: "SemanticMismatch",
       inputs: {},
       output: { kind: "statement" },
-      template: () => 'const value: number = "wrong";'
+      source: 'const value: number = "wrong";'
     });
     const graph: SynthesisGraph = {
       nodes: [{ id: "invalid", templateId: "SemanticMismatch", inputs: {} }],
@@ -1679,7 +1688,7 @@ describe("schema-driven synthesis graph", () => {
       modelId: "IncorrectlyAdvertisedExpression",
       inputs: {},
       output: { kind: "expression", type: { ts: "number" } },
-      template: () => '"not a number"'
+      source: '"not a number"'
     });
 
     expect(compileGraph({
@@ -1708,7 +1717,7 @@ describe("schema-driven synthesis graph", () => {
       modelId: "IncorrectlyAdvertisedSuffix",
       inputs: {},
       output: { kind: "expressionSuffix", type: { ts: "boolean" } },
-      template: () => ".length"
+      source: ".length"
     });
 
     const graph: SynthesisGraph = {
@@ -1732,7 +1741,7 @@ describe("schema-driven synthesis graph", () => {
       modelId: "AdvertisedConcreteSuffix",
       inputs: {},
       output: { kind: "expressionSuffix", type: { ts: "boolean" } },
-      template: () => " as boolean"
+      source: " as boolean"
     });
     expect(compileGraph({
       nodes: [{ id: "suffix", templateId: explicitlyNarrowed.modelId, inputs: {} }],
@@ -1745,7 +1754,7 @@ describe("schema-driven synthesis graph", () => {
       modelId: "ExternalExpression",
       inputs: {},
       output: { kind: "expression" },
-      template: () => "externalValue + 1"
+      source: "externalValue + 1"
     });
     const graph: SynthesisGraph = {
       nodes: [{ id: "external", templateId: "ExternalExpression", inputs: {} }],
@@ -1770,7 +1779,7 @@ describe("schema-driven synthesis graph", () => {
         value: rawCodePort({ regionKind: "expression" })
       },
       output: { kind: "statement" },
-      template: r => `const value: number = ${r("value")};`
+      source: `const value: number = ${"/** @TYPE expression id=value **/undefined/** @END **/"};`
     });
     const graph: SynthesisGraph = {
       nodes: [{ id: "partial", templateId: "PartialSemanticMismatch", inputs: {} }],
@@ -1805,7 +1814,7 @@ describe("schema-driven synthesis graph", () => {
         modelId: item.modelId,
         inputs: {},
         output: { kind: item.kind },
-        template: () => item.code
+        source: item.code
       });
       const result = compileGraph({
         nodes: [{ id: "bad", templateId: item.modelId, inputs: {} }],

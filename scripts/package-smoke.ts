@@ -47,6 +47,14 @@ try {
 		join(packedPackageDirectory, 'GLOSSARY.md'),
 		'The packed package must contain the glossary linked from its README.'
 	)
+	await assertPathExists(
+		join(packedPackageDirectory, 'docs', 'TEMPLATES.md'),
+		'The packed package must contain the graph template authoring guide.'
+	)
+	await assertPathExists(
+		join(packedPackageDirectory, 'docs', 'SYNTHESIS_GRAPHS.md'),
+		'The packed package must contain the synthesis graph guide.'
+	)
 	await verifyManifestTargets(packedPackageDirectory, packedManifest)
 
 	const schemaSubpaths = getJsonExportSubpaths(packedManifest)
@@ -256,6 +264,31 @@ assert.equal(
 	'string | null'
 )
 
+const manifestFixture = fixtures.find(fixture => fixture.specifier.endsWith('/template-manifest.schema.json')).value
+const artifactSetPlanFixture = fixtures.find(fixture => fixture.specifier.endsWith('/artifact-set-plan.schema.json')).value
+assert.equal(packageModule.checkContract(packageModule.GraphTemplateManifestSchema, manifestFixture), true)
+assert.equal(packageModule.checkContract(packageModule.ArtifactSetPlanSchema, artifactSetPlanFixture), true)
+const manifestRegistry = packageModule.createTemplateRegistryFromManifests([manifestFixture])
+assert.match(manifestRegistry.manifestDigest, /^m1_[a-f0-9]{64}$/u)
+const catalogPartialSchema = packageModule.templateRegistryToPartialSynthesisGraphJsonSchema(manifestRegistry)
+const catalogStrictSchema = packageModule.templateRegistryToSynthesisGraphJsonSchema(manifestRegistry)
+const omittedRequiredInputGraph = {
+	nodes: [{ id: 'packed', templateId: 'PackedDeclaration', inputs: {} }],
+	finalNodeId: 'packed'
+}
+const compiledArtifactSet = packageModule.compileArtifactSet(artifactSetPlanFixture, manifestRegistry)
+assert.equal(compiledArtifactSet.ok, true)
+assert.equal(compiledArtifactSet.complete, true)
+assert.equal(
+	packageModule.checkContract(packageModule.ArtifactSetCompilationResultSchema, compiledArtifactSet),
+	true
+)
+const staticValidation = packageModule.validateArtifactSetStatic(
+	artifactSetPlanFixture,
+	manifestRegistry
+)
+assert.equal(staticValidation.ok, true)
+
 const require = createRequire(import.meta.url)
 const { default: Ajv2020 } = await import('ajv/dist/2020.js')
 const ajv = new Ajv2020({ allErrors: true, strict: true })
@@ -277,6 +310,11 @@ for (const fixture of loadedSchemas) {
 		\`Packed schema rejected its representative value (\${fixture.specifier}): \${JSON.stringify(validate.errors)}\`
 	)
 }
+
+const partialGraphValidate = ajv.compile(catalogPartialSchema)
+const strictGraphValidate = ajv.compile(catalogStrictSchema)
+assert.equal(partialGraphValidate(omittedRequiredInputGraph), true)
+assert.equal(strictGraphValidate(omittedRequiredInputGraph), false)
 `, 'utf8')
 
 	run(process.execPath, ['--no-warnings', runtimeFile], {
@@ -308,12 +346,21 @@ import {
 	REGION_KIND_VALUES,
 	REGION_SYNTAX_ENGINE_VERSION,
 	GeneratedSourceMapSchema,
+	ArtifactSetCompilationResultSchema,
+	ArtifactSetPlanSchema,
+	ArtifactSetStaticValidationResultSchema,
+	GraphTemplateManifestSchema,
 	checkContract,
+	compileArtifactSet,
 	compareJsonSchemas,
 	compareTypeDescriptors,
 	compareTypeScriptTypes,
+	createTemplateRegistryFromManifests,
 	discoverSourceTemplates,
 	generateSourceTemplateWithReplacements,
+	templateRegistryToPartialSynthesisGraphJsonSchema,
+	templateRegistryToSynthesisGraphJsonSchema,
+	validateArtifactSetStatic,
 	validateJsonValueAgainstSchema,
 	validateSupportedJsonSchema,
 	validateTypeScriptType,
@@ -324,14 +371,19 @@ import {
 	type GeneratedSourceSpan,
 	type JsonValue,
 	type ReplacementType,
+	type ArtifactSetCompilationResult,
+	type ArtifactSetPlan,
+	type ArtifactSetStaticValidationResult,
 	type GraphCompilationResult,
+	type GraphTemplateManifest,
 	type GraphRunnerAction,
 	type GraphRunnerState,
 	type GraphSemanticContext,
 	type SemanticTargetFileContext,
 	type SupportedJsonSchema,
 	type SynthesisGraph,
-	type TemplateSummary
+	type TemplateSummary,
+	type ValidatedArtifactChangeSet
 } from ${JSON.stringify(packageName)}
 ${schemaImports}
 
@@ -341,6 +393,10 @@ const result: GraphCompilationResult = ${JSON.stringify(result, null, 2)}
 const runnerAction: GraphRunnerAction = ${JSON.stringify(fixtureForSchema('./schemas/graph-runner-action.schema.json'), null, 2)}
 const runnerState: GraphRunnerState = ${JSON.stringify(fixtureForSchema('./schemas/graph-runner-state.schema.json'), null, 2)}
 const supportedSchema: SupportedJsonSchema = ${JSON.stringify(fixtureForSchema('./schemas/supported-json-schema.schema.json'), null, 2)}
+const templateManifest: GraphTemplateManifest = ${JSON.stringify(fixtureForSchema('./schemas/template-manifest.schema.json'), null, 2)}
+const artifactSetPlan: ArtifactSetPlan = ${JSON.stringify(fixtureForSchema('./schemas/artifact-set-plan.schema.json'), null, 2)}
+const artifactSetResult: ArtifactSetCompilationResult = ${JSON.stringify(fixtureForSchema('./schemas/artifact-set-compilation-result.schema.json'), null, 2)}
+const artifactSetStaticResult: ArtifactSetStaticValidationResult = ${JSON.stringify(fixtureForSchema('./schemas/artifact-set-static-validation-result.schema.json'), null, 2)}
 const jsonValue: JsonValue = { values: [1, 'two', null] }
 const descriptorComparison: TypeDescriptorComparisonResult = compareTypeDescriptors(
 	{ ts: 'string', schema: { type: 'string' } },
@@ -371,6 +427,31 @@ const generatedTemplateCode: string = generateSourceTemplateWithReplacements(
 	'Value',
 	{ value: { kind: 'number', value: 42 } }
 ).code
+const manifestRegistry = createTemplateRegistryFromManifests([templateManifest])
+const catalogPartialSchema: Record<string, unknown> = templateRegistryToPartialSynthesisGraphJsonSchema(manifestRegistry)
+const catalogStrictSchema: Record<string, unknown> = templateRegistryToSynthesisGraphJsonSchema(manifestRegistry)
+const compiledArtifactSet: ArtifactSetCompilationResult = compileArtifactSet(artifactSetPlan, manifestRegistry)
+const validatedChangeSet: ValidatedArtifactChangeSet = artifactSetResult.ok && artifactSetResult.complete
+	? {
+		validation: artifactSetResult.validation,
+		changes: artifactSetResult.changes,
+		changeSetHash: artifactSetResult.changeSetHash,
+		contractDigest: artifactSetResult.contractDigest,
+		manifestDigest: artifactSetResult.manifestDigest,
+		workspaceSnapshotHash: artifactSetResult.workspaceSnapshotHash,
+		staticPolicyVersion: artifactSetResult.staticPolicyVersion
+	}
+	: {
+		validation: 'static', changes: [], changeSetHash: 'cs1_unavailable',
+		contractDigest: 'c4_${'0'.repeat(64)}',
+		manifestDigest: 'm1_${'0'.repeat(64)}',
+		workspaceSnapshotHash: 'ws1_${'0'.repeat(64)}',
+		staticPolicyVersion: 1
+	}
+const manifestMatchesContract: boolean = checkContract(GraphTemplateManifestSchema, templateManifest)
+const planMatchesContract: boolean = checkContract(ArtifactSetPlanSchema, artifactSetPlan)
+const resultMatchesContract: boolean = checkContract(ArtifactSetCompilationResultSchema, artifactSetResult)
+const staticResultMatchesContract: boolean = checkContract(ArtifactSetStaticValidationResultSchema, artifactSetStaticResult)
 
 void graph
 void summary
@@ -378,6 +459,10 @@ void result
 void runnerAction
 void runnerState
 void supportedSchema
+void templateManifest
+void artifactSetPlan
+void artifactSetResult
+void artifactSetStaticResult
 void jsonValue
 void descriptorComparison
 void generatedSourceMap
@@ -391,11 +476,20 @@ void sourceMapMatchesContract
 void sourceMapGuarded
 void discoveredTemplate
 void generatedTemplateCode
+void catalogPartialSchema
+void catalogStrictSchema
+void compiledArtifactSet
+void validatedChangeSet
+void manifestMatchesContract
+void planMatchesContract
+void resultMatchesContract
+void staticResultMatchesContract
 void compareJsonSchemas
 void compareTypeScriptTypes
 void validateJsonValueAgainstSchema
 void validateSupportedJsonSchema
 void validateTypeScriptType
+void validateArtifactSetStatic
 void [${schemaFixtures.map((_, index) => `schema${index}`).join(', ')}]
 `, 'utf8')
 
@@ -444,6 +538,18 @@ function fixtureForSchema(subpath: string): unknown {
 				minItems: 1,
 				maxItems: 1
 			}
+
+		case 'template-manifest.schema.json':
+			return templateManifestFixture()
+
+		case 'artifact-set-plan.schema.json':
+			return artifactSetPlanFixture()
+
+	case 'artifact-set-compilation-result.schema.json':
+			return artifactSetCompilationResultFixture()
+
+		case 'artifact-set-static-validation-result.schema.json':
+			return artifactSetStaticValidationResultFixture()
 
 		case 'synthesis-graph.schema.json':
 			return {
@@ -567,6 +673,120 @@ function fixtureForSchema(subpath: string): unknown {
 
 		default:
 			throw new Error(`No packed-package smoke fixture is defined for ${subpath}.`)
+	}
+}
+
+function templateManifestFixture(): unknown {
+	return {
+		modelId: 'PackedDeclaration',
+		version: '1.0.0',
+		description: 'A declarative manifest loaded by the packed consumer.',
+		inputs: {
+			value: {
+				kind: 'rawCode',
+				regionKind: 'expression',
+				policy: { allowNewlines: false }
+			}
+		},
+		output: { kind: 'sourceFile' },
+		source: 'export const packedValue = /** @TYPE expression id=value **/0/** @END **/;'
+	}
+}
+
+function artifactSetPlanFixture(): unknown {
+	return {
+		artifacts: [{
+			id: 'packed-file',
+			graph: {
+				nodes: [{
+					id: 'packed',
+					templateId: 'PackedDeclaration',
+					inputs: { value: { kind: 'rawCode', code: '1' } }
+				}],
+				finalNodeId: 'packed'
+			},
+			target: { kind: 'createFile', path: 'src/packed.ts' }
+		}]
+	}
+}
+
+function artifactSetCompilationResultFixture(): unknown {
+	const plan = artifactSetPlanFixture() as {
+		artifacts: Array<{
+			id: string
+			graph: { nodes: unknown[]; finalNodeId: string }
+			target: { kind: 'createFile'; path: string }
+		}>
+	}
+	const unit = plan.artifacts[0]!
+	const code = 'export const packedValue = 1;'
+	const artifact = {
+		id: 'packed',
+		code,
+		kind: 'sourceFile',
+		source: { templateId: 'PackedDeclaration' },
+		complete: true
+	}
+	return {
+		kind: 'artifactSetCompilation',
+		mode: 'strict',
+		ok: true,
+		complete: true,
+		validation: 'static',
+		contractDigest: `c4_${'1'.repeat(64)}`,
+		manifestDigest: `m1_${'2'.repeat(64)}`,
+		workspaceSnapshotHash: `ws1_${'3'.repeat(64)}`,
+		staticPolicyVersion: 1,
+		plan,
+		units: [{
+			artifactId: unit.id,
+			graphHash: 'g1_package_smoke',
+			target: unit.target,
+			compilation: {
+				kind: 'graphCompilation',
+				mode: 'partial',
+				ok: true,
+				finalArtifact: artifact,
+				artifacts: { packed: artifact },
+				diagnostics: []
+			},
+			artifact,
+			artifactHash: 'a1_package_smoke',
+			appliedFills: [],
+			diagnostics: []
+		}],
+		changes: [{
+			kind: 'createFile',
+			path: unit.target.path,
+			resultingFileHash: 'f1_package_smoke',
+			sourceText: code,
+			edits: [{
+				artifactId: unit.id,
+				start: 0,
+				end: 0,
+				resultStart: 0,
+				resultEnd: code.length,
+				replacement: code,
+				artifactHash: 'a1_package_smoke'
+			}]
+		}],
+		changeSetHash: 'cs1_package_smoke',
+		diagnostics: []
+	}
+}
+
+function artifactSetStaticValidationResultFixture(): unknown {
+	const result = artifactSetCompilationResultFixture() as Record<string, unknown>
+	return {
+		ok: true,
+		validation: result.validation,
+		changes: result.changes,
+		changeSetHash: result.changeSetHash,
+		contractDigest: result.contractDigest,
+		manifestDigest: result.manifestDigest,
+		workspaceSnapshotHash: result.workspaceSnapshotHash,
+		staticPolicyVersion: result.staticPolicyVersion,
+		diagnostics: []
 	}
 }
 

@@ -1,8 +1,9 @@
-import type { GenerateOptions, MarkerExpectedKind } from '../core/types.js'
+import type { GenerateOptions } from '../core/types.js'
 import { generateWithReplacements } from '../generation/generate.js'
 import { buildReplacementEdits } from '../replacements/serialize.js'
 import { discoverReplacementRegions } from '../regions/discovery.js'
 import { portRegionKind, summarizeInputPort, summarizeOutputPort } from './compatibility.js'
+import { templateManifestDigest } from './catalogDigest.js'
 import { defaultFragmentCollectionSeparator, templateModeForRegionKind } from './rendering.js'
 import {
 	applySourceMappedTextEdits,
@@ -20,20 +21,11 @@ import {
 	type SourceMappedTextEdit
 } from './sourceSpans.js'
 
-import { isMatching } from 'ts-pattern'
-import {
-	SpecPattern,
-	InputPatternMap,
-	ReplacementFor,
-	toReplacements,
-	GeneratedCode,
-	generatedCode,
-	graphInputsToReplacementMap
-} from './converter.js'
+import { graphInputsToReplacementMap } from './converter.js'
 import type {
 	GeneratedFragment,
 	GeneratedSourceMap,
-	GraphRegionBuilder,
+	GraphTemplateManifest,
 	GraphTemplateDefinition,
 	GraphTemplateInvocation,
 	GraphTemplatePartialInvocation,
@@ -49,128 +41,30 @@ import type {
 	UnresolvedTemplateInput
 } from './graphTypes.js'
 
-
-/**
- * Extract the runtime `ts-pattern` matcher object from a template spec.
- */
-export function getInputPatternMap<S extends SpecPattern>(spec: S): InputPatternMap<S> {
-    return Object.fromEntries(Object.entries(spec).map(([key, value]) => [key, value.input])) as InputPatternMap<S>
+interface GraphTemplateMarkerContract {
+    readonly regionKind: RegionKind
+    readonly arity: 'one'
+    readonly occurrences: number
 }
 
-/**
- * Runtime matcher typed so successful matches narrow to the replacement input
- * required by the spec.
- */
-export const isMatchingInputPatternMap = isMatching as unknown as <S extends SpecPattern>(
-    pattern: InputPatternMap<S>,
-    value: unknown
-) => value is ReplacementFor<S>
+const templateMarkerContracts = new WeakMap<object, Readonly<Record<string, GraphTemplateMarkerContract>>>()
+const manifestPropertyNames = new Set(['modelId', 'version', 'description', 'inputs', 'output', 'source'])
 
-/**
- * A reusable source template plus its input pattern and output marker kind.
- */
-export type LegacyTemplateDefinition<S extends SpecPattern, O extends MarkerExpectedKind, M extends string> = {
-    /** Stable template/model identifier preserved on generated output. */
-    readonly modelId: M
-    /** Marker kind produced by this legacy template. */
-    readonly outputKind: O
-    /** Runtime input matchers and output marker kinds for each region key. */
-    readonly pattern: S
-
-    /** Generate branded code by applying replacement inputs to the template. */
-    apply(replacements: ReplacementFor<S>, options?: GenerateOptions): GeneratedCode<O, M>
+/** Internal authenticity check used by registries to reject forged executable definitions. */
+export function isLibraryOwnedTemplateDefinition(value: unknown): value is GraphTemplateDefinition<any, string, any> {
+	return typeof value === 'object' && value !== null && templateMarkerContracts.has(value)
 }
 
-export type TemplateDefinition<S extends SpecPattern, O extends MarkerExpectedKind, M extends string> =
-    LegacyTemplateDefinition<S, O, M>
-
-/**
- * Helper passed to template functions for embedding replacement regions.
- */
-export type RegionBuilder<S extends SpecPattern> = <K extends Extract<keyof S, string>>(key: K, body: string) => string
-
-/** Declarative input shape accepted by the graph-template overload. */
+/** Declarative input shape accepted by the graph-template API. */
 export type GraphTemplateDefinitionInput<
     M extends string,
     I extends Record<string, InputPort>,
     O extends OutputPort = OutputPort
-> = {
-    /** Stable template/model identifier used by graph nodes and provenance. */
-    readonly modelId: M
-    /** Optional template version copied into generated fragment provenance. */
-    readonly version?: string
-    /** Optional human-readable summary surfaced in template summaries. */
-    readonly description?: string
-    /** Named graph input ports accepted by the template. */
-    readonly inputs: StrictInputPortMap<I>
-    /** Output fragment contract advertised by the template. */
-    readonly output: StrictOutputPort<O>
-    /** Source-template factory; call `region` to create marked placeholders. */
-    readonly template: (region: GraphRegionBuilder<I>) => string
-}
-
-export type LegacyTemplateDefinitionInput<
-    M extends string,
-    O extends MarkerExpectedKind,
-    S extends SpecPattern
-> = {
-    /** Stable template/model identifier preserved on generated output. */
-    readonly modelId: M
-    /** Marker kind produced by this legacy template. */
-    readonly outputKind: O
-    /** Runtime input matchers and output marker kinds for each region key. */
-    readonly pattern: S
-    /** Source-template factory; call `region` to create marked placeholders. */
-    readonly template: (region: RegionBuilder<S>) => string
-}
-
-/** Default placeholder body used when a graph template marks an input without a fallback. */
-function defaultPlaceholder(kind: RegionKind): string {
-    switch (kind) {
-        case 'identifier':
-            return 'placeholder'
-        case 'expression':
-            return 'undefined'
-        case 'expressionSuffix':
-            return '.value'
-        case 'statement':
-            return 'throw new Error("placeholder");'
-        case 'array':
-            return '[]'
-        case 'object':
-            return '{}'
-        case 'string':
-            return '""'
-        case 'number':
-            return '0'
-        case 'boolean':
-            return 'false'
-        case 'null':
-            return 'null'
-        case 'objectProperty':
-            return 'placeholder: undefined'
-        case 'type':
-            return 'unknown'
-        case 'typeMember':
-            return 'placeholder: unknown;'
-        case 'typeParameter':
-            return 'Placeholder'
-        case 'parameter':
-            return 'placeholder: unknown'
-        case 'constructorParameter':
-            return 'private placeholder: unknown'
-        case 'heritageType':
-            return 'Placeholder'
-        case 'declaration':
-            return 'type Placeholder = unknown;'
-        case 'classMember':
-            return 'placeholder: unknown;'
-        case 'enumMember':
-        case 'importSpecifier':
-        case 'exportSpecifier':
-            return 'Placeholder'
-    }
-}
+> = GraphTemplateManifest<
+    StrictInputPortMap<I>,
+    M,
+    StrictOutputPort<O>
+>
 
 /** Render a replacement marker opening comment with the scoped artifact ID. */
 function markerComment(kind: RegionKind, arity: 'one' | 'many', id: string): string {
@@ -178,14 +72,89 @@ function markerComment(kind: RegionKind, arity: 'one' | 'many', id: string): str
     return `/** @TYPE ${markerKind} id=${id} **/`
 }
 
+/** Clone and recursively freeze declarative manifest data. */
+function freezeManifestValue<T>(value: T, path: string, ancestors = new Set<object>()): T {
+    if (value === null || value === undefined) return value
+    if (typeof value !== 'object') {
+        if (typeof value === 'function' || typeof value === 'symbol' || typeof value === 'bigint') {
+            throw new TypeError(`${path} must contain declarative JSON-like values.`)
+        }
+        return value
+    }
+    if (ancestors.has(value)) throw new TypeError(`${path} must not contain cyclic values.`)
+
+    const nextAncestors = new Set(ancestors)
+    nextAncestors.add(value)
+    if (Array.isArray(value)) {
+        return Object.freeze(value.map((item, index) => freezeManifestValue(item, `${path}[${index}]`, nextAncestors))) as T
+    }
+
+    const prototype = Object.getPrototypeOf(value)
+    if (prototype !== Object.prototype && prototype !== null) {
+        throw new TypeError(`${path} must contain only plain objects and arrays.`)
+    }
+    const clone = Object.fromEntries(
+        Object.entries(value).map(([key, child]) => [key, freezeManifestValue(child, `${path}.${key}`, nextAncestors)])
+    )
+    return Object.freeze(clone) as T
+}
+
+/** Validate source markers against declared ports and capture their frozen contracts. */
+function markerContractsFor<I extends Record<string, InputPort>>(
+    modelId: string,
+    source: string,
+    inputs: I,
+    output: OutputPort
+): Readonly<Record<Extract<keyof I, string>, GraphTemplateMarkerContract>> {
+    const regions = discoverReplacementRegions(source, { templateMode: templateModeForRegionKind(output.kind) })
+    const occurrences = new Map<string, number>()
+
+    for (const region of regions) {
+        const port = inputs[region.id]
+        if (!port) {
+            throw new TypeError(`Template ${modelId} source contains marker ${region.id} with no declared input port.`)
+        }
+        const expectedKind = portRegionKind(port)
+        if (region.effectiveType !== expectedKind) {
+            throw new TypeError(
+                `Template ${modelId} marker ${region.id} has kind ${region.effectiveType}; its input port requires ${expectedKind}.`
+            )
+        }
+        if (region.arity !== 'one') {
+            throw new TypeError(
+                `Template ${modelId} marker ${region.id} must have scalar arity; graph collection ports serialize their collection into one region.`
+            )
+        }
+        occurrences.set(region.id, (occurrences.get(region.id) ?? 0) + 1)
+    }
+
+    const contracts: Record<string, GraphTemplateMarkerContract> = {}
+    for (const inputName of Object.keys(inputs).sort()) {
+        const count = occurrences.get(inputName) ?? 0
+        if (count !== 1) {
+            throw new TypeError(
+                `Template ${modelId} input ${inputName} must have exactly one marker in source; found ${count}.`
+            )
+        }
+        contracts[inputName] = Object.freeze({
+            regionKind: portRegionKind(inputs[inputName]!),
+            arity: 'one',
+            occurrences: count
+        })
+    }
+    return Object.freeze(contracts) as Readonly<Record<Extract<keyof I, string>, GraphTemplateMarkerContract>>
+}
+
 /** Build the fragment source metadata shared by strict and partial outputs. */
 function fragmentSource<M extends string>(
     modelId: M,
-    version: string | undefined
+    version: string | undefined,
+	manifestDigest: string
 ): GeneratedFragment['source'] {
     return {
         templateId: modelId,
-        ...(version ? { templateVersion: version } : {})
+		...(version ? { templateVersion: version } : {}),
+		templateManifestDigest: manifestDigest
     }
 }
 
@@ -320,51 +289,52 @@ export function defineTemplate<
     const M extends string,
     const I extends Record<string, InputPort>,
     const O extends OutputPort
->(definition: GraphTemplateDefinitionInput<M, I, O>): GraphTemplateDefinition<I, M, O>
+>(definition: GraphTemplateDefinitionInput<M, I, O>): GraphTemplateDefinition<I, M, O> {
+	if (typeof definition !== 'object' || definition === null || Array.isArray(definition)) {
+		throw new TypeError('Template manifest must be a plain object.')
+	}
+	for (const propertyName of Object.keys(definition)) {
+		if (!manifestPropertyNames.has(propertyName)) {
+			throw new TypeError(`Template manifest contains unknown property ${propertyName}.`)
+		}
+	}
+	const modelId = definition.modelId
+	if (typeof modelId !== 'string' || modelId.length === 0) {
+		throw new TypeError('template.modelId must be a non-empty string.')
+	}
+	const version = definition.version
+	const description = definition.description
+	if (version !== undefined && typeof version !== 'string') throw new TypeError('template.version must be a string.')
+	if (description !== undefined && typeof description !== 'string') throw new TypeError('template.description must be a string.')
+	const inputs = freezeManifestValue(definition.inputs, 'template.inputs') as I
+	const output = freezeManifestValue(definition.output, 'template.output') as O
+	if (typeof definition.source !== 'string') throw new TypeError('template.source must be a string.')
+	const templateSource = definition.source.replace(/\r\n?/gu, '\n')
+	const markerContracts = markerContractsFor(modelId, templateSource, inputs, output)
+	const templateMode = templateModeForRegionKind(output.kind)
+	const advertisedOutputType = effectiveOutputType(output)
+	const summary = () => ({
+		modelId,
+		...(version ? { version } : {}),
+		...(description ? { description } : {}),
+		inputs: Object.fromEntries(
+			Object.entries(inputs).map(([key, port]) => [key, summarizeInputPort(port)])
+		),
+		output: summarizeOutputPort(output)
+	})
+	const manifestDigest = templateManifestDigest({ source: templateSource, summary })
+	const executable: GraphTemplateDefinition<I, M, O> = {
+		modelId,
+		...(version ? { version } : {}),
+		...(description ? { description } : {}),
+		inputs,
+		output,
+		source: templateSource,
+		manifestDigest,
 
-export function defineTemplate<
-    const M extends string,
-    const O extends MarkerExpectedKind,
-    const S extends SpecPattern
->(definition: LegacyTemplateDefinitionInput<M, O, S>): LegacyTemplateDefinition<S, O, M>
-
-export function defineTemplate<
-    const M extends string,
-    const O extends MarkerExpectedKind,
-    const S extends SpecPattern
->(definition: {
-    readonly modelId: M
-    readonly outputKind: O
-    readonly pattern: S
-    readonly template: (region: RegionBuilder<S>) => string
-} | GraphTemplateDefinitionInput<M, Record<string, InputPort>>): LegacyTemplateDefinition<S, O, M> | GraphTemplateDefinition<Record<string, InputPort>, M> {
-	if ('inputs' in definition) {
-		const advertisedOutputType = effectiveOutputType(definition.output)
-        const region: GraphRegionBuilder<Record<string, InputPort>> = (key, body) => {
-            const port = definition.inputs[key]
-            if (!port) {
-                throw new Error(`Unknown template input: ${key}`)
-            }
-
-            const marker = portRegionKind(port)
-            return `/** @TYPE ${marker} id=${key} **/${body ?? defaultPlaceholder(marker)}/** @END **/`
-        }
-
-                const templateMode = templateModeForRegionKind(definition.output.kind)
-        const templateSource = definition.template(region)
-        discoverReplacementRegions(templateSource, { templateMode })
-
-        return {
-            modelId: definition.modelId,
-            ...(definition.version ? { version: definition.version } : {}),
-            ...(definition.description ? { description: definition.description } : {}),
-            inputs: definition.inputs,
-            output: definition.output,
-            template: definition.template,
-
-            toReplacementMap(inputs) {
-                return graphInputsToReplacementMap(inputs)
-            },
+		toReplacementMap(inputs) {
+				return graphInputsToReplacementMap(inputs)
+		},
 
             invoke(invocation: GraphTemplateInvocation): GeneratedFragment {
                 const replacements = graphInputsToReplacementMap(invocation.inputs)
@@ -382,13 +352,13 @@ export function defineTemplate<
 					templateSource,
 					nodeGeneratedSourceMap(templateSource.length, {
 						...(invocation.nodeId ? { nodeId: invocation.nodeId } : {}),
-						templateId: definition.modelId
+						templateId: modelId
 					}),
-					sourceMappedTemplateEdits(sourceEdits, invocation, definition.modelId)
+					sourceMappedTemplateEdits(sourceEdits, invocation, modelId)
 				)
 				const sourceIdentity = {
 					...(invocation.nodeId ? { nodeId: invocation.nodeId } : {}),
-					templateId: definition.modelId
+					templateId: modelId
 				}
 				const sourceMap = coverGeneratedSourceMapRoot(
 					remapGeneratedSourceMap(mapped.code, result.code, mapped.sourceMap),
@@ -399,10 +369,10 @@ export function defineTemplate<
                 return {
                     ...(invocation.nodeId ? { id: invocation.nodeId } : {}),
                     code: result.code,
-                    kind: definition.output.kind,
-                    source: fragmentSource(definition.modelId, definition.version),
+					kind: output.kind,
+					source: fragmentSource(modelId, version, manifestDigest),
 					...(advertisedOutputType ? { type: advertisedOutputType } : {}),
-                    ...(definition.output.schema === undefined ? {} : { schema: definition.output.schema }),
+					...(output.schema === undefined ? {} : { schema: output.schema }),
                     provenance: fragmentProvenance(invocation),
 					sourceMap
                 }
@@ -467,9 +437,9 @@ export function defineTemplate<
 					templateSource,
 					nodeGeneratedSourceMap(templateSource.length, {
 						...(invocation.nodeId ? { nodeId: invocation.nodeId } : {}),
-						templateId: definition.modelId
+						templateId: modelId
 					}),
-					sourceMappedTemplateEdits(edits, invocation, definition.modelId)
+					sourceMappedTemplateEdits(edits, invocation, modelId)
 				)
 				if (generationOptions.format === 'ts-morph') {
 					mapped = formatSourceMappedFragment(mapped.code, mapped.sourceMap, templateMode, {
@@ -480,7 +450,7 @@ export function defineTemplate<
 				const { code } = mapped
 				const sourceMap = coverGeneratedSourceMapRoot(mapped.sourceMap, code.length, {
 					...(invocation.nodeId ? { nodeId: invocation.nodeId } : {}),
-					templateId: definition.modelId
+					templateId: modelId
 				})
                 discoverReplacementRegions(code, { ...generationOptions, filePath: '__partial_template_artifact__.ts' })
 
@@ -492,10 +462,10 @@ export function defineTemplate<
                 const base = {
                     ...(invocation.nodeId ? { id: invocation.nodeId } : {}),
                     code,
-                    kind: definition.output.kind,
-                    source: fragmentSource(definition.modelId, definition.version),
+					kind: output.kind,
+					source: fragmentSource(modelId, version, manifestDigest),
 					...(advertisedOutputType ? { type: advertisedOutputType } : {}),
-                    ...(definition.output.schema === undefined ? {} : { schema: definition.output.schema }),
+					...(output.schema === undefined ? {} : { schema: output.schema }),
                     provenance: fragmentProvenance(invocation),
 					sourceMap
                 }
@@ -511,45 +481,10 @@ export function defineTemplate<
                 } satisfies PartialTemplateArtifact
             },
 
-            summary() {
-                return {
-                    modelId: definition.modelId,
-                    ...(definition.version ? { version: definition.version } : {}),
-                    ...(definition.description ? { description: definition.description } : {}),
-                    inputs: Object.fromEntries(
-                        Object.entries(definition.inputs).map(([key, port]) => [key, summarizeInputPort(port)])
-                    ),
-                    output: summarizeOutputPort(definition.output)
-                }
-            }
-        }
-    }
+		summary
+	}
 
-    const region: RegionBuilder<S> = (key, body) => {
-        const marker = definition.pattern[key]?.output
-
-        return `/** @TYPE ${marker} id=${key} **/${body}/** @END **/`
-    }
-
-    return {
-        modelId: definition.modelId,
-        outputKind: definition.outputKind,
-        pattern: definition.pattern,
-
-        apply(replacements, options) {
-            const inputPattern = getInputPatternMap(definition.pattern)
-
-            if (!isMatchingInputPatternMap(inputPattern, replacements)) {
-                throw new Error('Invalid replacement map')
-            }
-
-            const result = generateWithReplacements(
-                definition.template(region),
-                toReplacements(definition.pattern, replacements),
-                options
-            )
-
-            return generatedCode(definition.outputKind, definition.modelId, result.code)
-        }
-    }
+	const frozen = Object.freeze(executable)
+	templateMarkerContracts.set(frozen, markerContracts)
+	return frozen
 }

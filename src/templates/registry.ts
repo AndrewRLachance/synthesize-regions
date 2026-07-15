@@ -13,9 +13,13 @@ import { portIsRequired } from "./compatibility.js";
 import { SupportedJsonSchemaSchema } from './schemaContract.js'
 import { schemaWithResourceId } from './schemaCompatibility.js'
 import { assertTemplateCatalogValid, TemplateCatalogValidationError } from "./catalogValidation.js";
+import { brandTemplateCatalogView } from './catalogTrust.js'
+import { defineTemplate, isLibraryOwnedTemplateDefinition } from './definition.js'
+import { checkContract, GraphTemplateManifestSchema } from './graphContracts.js'
 import {
   cloneTemplateSummaries,
-  templateCatalogDigest,
+  templateCatalogManifestDigest,
+  templateManifestDigest,
   templateSummaryContractDigest
 } from "./catalogDigest.js";
 
@@ -307,7 +311,8 @@ export function graphTemplateDefinitionToNodeSchema(
 
 function graphTemplateDefinitionToNodeSchemaWithResources(
   template: GraphTemplateDefinition<any, string>,
-  resources?: Map<string, Record<string, unknown>>
+  resources?: Map<string, Record<string, unknown>>,
+  requireTemplateInputs = true
 ): Record<string, unknown> {
   const inputEntries = Object.entries(template.inputs) as Array<[string, InputPort]>;
   const contractDigest = templateSummaryContractDigest([template.summary()]);
@@ -334,7 +339,7 @@ function graphTemplateDefinitionToNodeSchemaWithResources(
       inputs: {
         type: "object",
         additionalProperties: false,
-        required: requiredInputs,
+        required: requireTemplateInputs ? requiredInputs : [],
         properties: inputProperties
       }
     }
@@ -376,11 +381,30 @@ export function graphTemplateDefinitionToJsonSchema(
 export function templateRegistryToSynthesisGraphJsonSchema(
   registry: TemplateCatalogView
 ): Record<string, unknown> {
+  return templateRegistryToGraphJsonSchema(registry, false);
+}
+
+/**
+ * Build a catalog-specific schema for repairable partial graphs.
+ *
+ * Supplied inputs remain catalog-checked, while required template inputs may
+ * be omitted and reference/final IDs may remain dangling for graph repair.
+ */
+export function templateRegistryToPartialSynthesisGraphJsonSchema(
+  registry: TemplateCatalogView
+): Record<string, unknown> {
+  return templateRegistryToGraphJsonSchema(registry, true);
+}
+
+function templateRegistryToGraphJsonSchema(
+  registry: TemplateCatalogView,
+  partial: boolean
+): Record<string, unknown> {
   const templates = registry.list();
   const resources = new Map<string, Record<string, unknown>>();
   const templateNodeSchemaEntries = templates.map((template, index) => [
     `template${index}`,
-    graphTemplateDefinitionToNodeSchemaWithResources(template, resources)
+    graphTemplateDefinitionToNodeSchemaWithResources(template, resources, !partial)
   ] as const);
 
   const synthesisNodeSchema: Record<string, unknown> = templateNodeSchemaEntries.length === 0
@@ -400,7 +424,7 @@ export function templateRegistryToSynthesisGraphJsonSchema(
     properties: {
       nodes: {
         type: "array",
-        minItems: 1,
+        minItems: partial ? 0 : 1,
         items: { $ref: "#/$defs/synthesisNode" }
       },
       finalNodeId: { type: "string" },
@@ -418,11 +442,12 @@ export function templateRegistryToSynthesisGraphJsonSchema(
 
 /** Alias with the shorter name used by callers that already work in registry scope. */
 export const registryToGraphJsonSchema = templateRegistryToSynthesisGraphJsonSchema;
+export const registryToPartialGraphJsonSchema = templateRegistryToPartialSynthesisGraphJsonSchema;
 
 export function defineTemplateCatalog<const T extends readonly GraphTemplateDefinition<any, string, any>[]>(
   templates: StrictTemplateCatalog<T>
 ): T {
-  templateCatalogDigest(templates);
+  createCatalogState(templates);
   return templates;
 }
 
@@ -430,6 +455,7 @@ interface CatalogState {
   readonly templates: Map<string, GraphTemplateDefinition<any, string>>;
   readonly summaries: TemplateSummary[];
   readonly contractDigest: string;
+  readonly manifestDigest: string;
 }
 
 function compareTemplates(
@@ -442,14 +468,44 @@ function compareTemplates(
 function createCatalogState(
   templates: readonly GraphTemplateDefinition<any, string>[]
 ): CatalogState {
+  const forgedDiagnostics = templates.flatMap((template, index) =>
+    isLibraryOwnedTemplateDefinition(template) ? [] : [{
+      stage: "template" as const,
+      code: "UntrustedTemplateDefinition",
+      severity: "error" as const,
+      message: "Template registries accept only definitions compiled from declarative manifests by defineTemplate().",
+      path: `templates[${index}]`,
+      actual: typeof template === 'object' && template !== null ? Object.keys(template) : template
+    }]
+  );
+  if (forgedDiagnostics.length > 0) throw new TemplateCatalogValidationError(forgedDiagnostics);
   assertTemplateCatalogValid(templates);
   const sortedTemplates = [...templates].sort(compareTemplates);
   let summaries: TemplateSummary[];
   let contractDigest: string;
+  let manifestDigest: string;
   try {
     summaries = cloneTemplateSummaries(sortedTemplates.map(template => template.summary()));
     contractDigest = templateSummaryContractDigest(summaries);
+    const invalidManifestDigests = sortedTemplates.flatMap((template, index) => {
+      const expected = templateManifestDigest(template);
+      return template.manifestDigest === expected ? [] : [{
+        stage: "template" as const,
+        code: "TemplateManifestDigestMismatch",
+        severity: "error" as const,
+        message: `Template ${template.modelId} manifest digest does not match its source and contract.`,
+        templateId: template.modelId,
+        path: `templates[${index}].manifestDigest`,
+        expected,
+        actual: template.manifestDigest
+      }];
+    });
+    if (invalidManifestDigests.length > 0) {
+      throw new TemplateCatalogValidationError(invalidManifestDigests);
+    }
+    manifestDigest = templateCatalogManifestDigest(sortedTemplates);
   } catch (error) {
+    if (error instanceof TemplateCatalogValidationError) throw error;
     throw new TemplateCatalogValidationError([{
       stage: "template",
       code: "CatalogContractNotSerializable",
@@ -462,15 +518,46 @@ function createCatalogState(
   return {
     templates: new Map(sortedTemplates.map(template => [template.modelId, template])),
     summaries,
-    contractDigest
+    contractDigest,
+    manifestDigest
   };
+}
+
+/** Compile and validate JSON-safe manifests into one captured template registry. */
+export function createTemplateRegistryFromManifests(
+  manifests: readonly import('./graphTypes.js').GraphTemplateManifest[]
+): TemplateRegistry {
+  const definitions: GraphTemplateDefinition<any, string>[] = [];
+  const diagnostics: import('./graphTypes.js').SynthesisDiagnostic[] = [];
+  for (const [index, manifest] of manifests.entries()) {
+    if (!checkContract(GraphTemplateManifestSchema, manifest)) {
+      diagnostics.push({
+        stage: 'template', code: 'InvalidTemplateManifest', severity: 'error',
+        message: 'Template manifest does not match the closed declarative manifest contract.',
+        path: `manifests[${index}]`, actual: manifest
+      });
+      continue;
+    }
+    try {
+      definitions.push(defineTemplate(manifest));
+    } catch (error) {
+      diagnostics.push({
+        stage: 'template', code: 'InvalidTemplateManifestSource', severity: 'error',
+        message: error instanceof Error ? error.message : String(error),
+        templateId: manifest.modelId, path: `manifests[${index}].source`
+      });
+    }
+  }
+  if (diagnostics.length > 0) throw new TemplateCatalogValidationError(diagnostics);
+  return createTemplateRegistry(definitions);
 }
 
 function snapshotFromState(state: CatalogState): TemplateRegistrySnapshot {
   const templates = new Map(state.templates);
   const summaries = cloneTemplateSummaries(state.summaries);
-  return Object.freeze({
+  const snapshot: TemplateRegistrySnapshot = {
     contractDigest: state.contractDigest,
+    manifestDigest: state.manifestDigest,
     get(templateId: string) {
       return templates.get(templateId);
     },
@@ -480,7 +567,9 @@ function snapshotFromState(state: CatalogState): TemplateRegistrySnapshot {
     summaries() {
       return cloneTemplateSummaries(summaries);
     }
-  });
+  };
+  brandTemplateCatalogView(snapshot);
+  return Object.freeze(snapshot);
 }
 
 export function createTemplateRegistry(): TemplateRegistry;
@@ -492,9 +581,13 @@ export function createTemplateRegistry(
 ): TemplateRegistry {
   let state = createCatalogState(initialTemplates);
 
-  return {
+  const registry: TemplateRegistry = {
     get contractDigest() {
       return state.contractDigest;
+    },
+
+    get manifestDigest() {
+      return state.manifestDigest;
     },
 
     register(template) {
@@ -544,4 +637,10 @@ export function createTemplateRegistry(
       return snapshotFromState(state);
     }
   };
+
+  // The facade remains mutable through its closure-backed methods, while
+  // freezing its properties prevents callers from replacing snapshot/list/get
+  // with executable structural impostors after authenticity has been checked.
+  brandTemplateCatalogView(registry);
+  return Object.freeze(registry);
 }

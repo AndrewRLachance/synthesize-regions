@@ -94,7 +94,7 @@ export const LodashMapTemplate = defineTemplate({
     iteratee: rawExpression('Single-line Lodash iteratee expression, such as `item => item.id` or `"id"`.')
   },
   output: out('expression', { type: { ts: 'unknown[]', schema: { type: 'array' } } }),
-  template: r => `_.map(${r('collection')}, ${r('iteratee')})`
+  source: `_.map(${"/** @TYPE expression id=collection **/undefined/** @END **/"}, ${"/** @TYPE expression id=iteratee **/undefined/** @END **/"})`
 })
 
 export const LodashFilterTemplate = defineTemplate({
@@ -106,7 +106,7 @@ export const LodashFilterTemplate = defineTemplate({
     predicate: rawExpression('Single-line Lodash predicate expression, such as `item => item.active`.')
   },
   output: out('expression', { type: { ts: 'unknown[]', schema: { type: 'array' } } }),
-  template: r => `_.filter(${r('collection')}, ${r('predicate')})`
+  source: `_.filter(${"/** @TYPE expression id=collection **/undefined/** @END **/"}, ${"/** @TYPE expression id=predicate **/undefined/** @END **/"})`
 })
 
 export const LodashOrderByTemplate = defineTemplate({
@@ -119,7 +119,7 @@ export const LodashOrderByTemplate = defineTemplate({
     orders: rawExpression('Lodash sort orders expression, usually an array like `["asc", "desc"]`.')
   },
   output: out('expression', { type: { ts: 'unknown[]', schema: { type: 'array' } } }),
-  template: r => `_.orderBy(${r('collection')}, ${r('iteratees')}, ${r('orders')})`
+  source: `_.orderBy(${"/** @TYPE expression id=collection **/undefined/** @END **/"}, ${"/** @TYPE expression id=iteratees **/undefined/** @END **/"}, ${"/** @TYPE expression id=orders **/undefined/** @END **/"})`
 })
 
 export const DateFnsParseIsoTemplate = defineTemplate({
@@ -130,7 +130,7 @@ export const DateFnsParseIsoTemplate = defineTemplate({
     value: expressionFragment('ISO date/time string expression.', stringType)
   },
   output: out('expression', { type: dateType }),
-  template: r => `parseISO(${r('value')})`
+  source: `parseISO(${"/** @TYPE expression id=value **/undefined/** @END **/"})`
 })
 
 export const DateFnsFormatTemplate = defineTemplate({
@@ -142,7 +142,7 @@ export const DateFnsFormatTemplate = defineTemplate({
     pattern: stringLiteral('date-fns format pattern, such as `yyyy-MM-dd`.')
   },
   output: out('expression', { type: stringType }),
-  template: r => `format(${r('date')}, ${r('pattern')})`
+  source: `format(${"/** @TYPE expression id=date **/undefined/** @END **/"}, ${"/** @TYPE string id=pattern **/\"\"/** @END **/"})`
 })
 
 export const DateFnsAddDaysTemplate = defineTemplate({
@@ -154,7 +154,7 @@ export const DateFnsAddDaysTemplate = defineTemplate({
     amount: numberLiteral('Number of days to add.')
   },
   output: out('expression', { type: dateType }),
-  template: r => `addDays(${r('date')}, ${r('amount')})`
+  source: `addDays(${"/** @TYPE expression id=date **/undefined/** @END **/"}, ${"/** @TYPE number id=amount **/0/** @END **/"})`
 })
 
 
@@ -167,7 +167,7 @@ export const ZodParseTemplate = defineTemplate({
     value: expressionFragment('Value to validate and parse.')
   },
   output: out('expression', { type: unknownType }),
-  template: r => `${r('schema')}.parse(${r('value')})`
+  source: `${"/** @TYPE expression id=schema **/undefined/** @END **/"}.parse(${"/** @TYPE expression id=value **/undefined/** @END **/"})`
 })
 
 export const ZodSafeParseTemplate = defineTemplate({
@@ -179,7 +179,7 @@ export const ZodSafeParseTemplate = defineTemplate({
     value: expressionFragment('Value to validate.')
   },
   output: out('expression', { type: zodSafeParseResultType }),
-  template: r => `${r('schema')}.safeParse(${r('value')})`
+  source: `${"/** @TYPE expression id=schema **/undefined/** @END **/"}.safeParse(${"/** @TYPE expression id=value **/undefined/** @END **/"})`
 })
 
 export const AxiosGetTemplate = defineTemplate({
@@ -191,7 +191,7 @@ export const AxiosGetTemplate = defineTemplate({
     config: rawExpression('Axios request config expression, such as `{ params: { id } }`.')
   },
   output: out('expression', { type: promiseUnknownType }),
-  template: r => `axios.get(${r('url')}, ${r('config')})`
+  source: `axios.get(${"/** @TYPE expression id=url **/undefined/** @END **/"}, ${"/** @TYPE expression id=config **/undefined/** @END **/"})`
 })
 
 export const AxiosPostTemplate = defineTemplate({
@@ -204,7 +204,7 @@ export const AxiosPostTemplate = defineTemplate({
     config: rawExpression('Axios request config expression, such as `{ headers: { ... } }`.')
   },
   output: out('expression', { type: promiseUnknownType }),
-  template: r => `axios.post(${r('url')}, ${r('data')}, ${r('config')})`
+  source: `axios.post(${"/** @TYPE expression id=url **/undefined/** @END **/"}, ${"/** @TYPE expression id=data **/undefined/** @END **/"}, ${"/** @TYPE expression id=config **/undefined/** @END **/"})`
 })
 
 export const popularLibraryGraphTemplateInputs = [

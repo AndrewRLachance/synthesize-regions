@@ -403,6 +403,7 @@ function cleanBlockComment(commentText: string): string {
 }
 
 function templateModeForOutputKind(kind: MarkerExpectedKind): TemplateMode {
+  if (kind === "sourceFile") return { kind: "file" };
   if (kind === "expressionSuffix") return { kind: "expressionSuffix" };
   if (kind === "statement") return { kind: "statementList" };
   if (kind === "objectProperty") return { kind: "objectPropertyList" };
@@ -440,6 +441,7 @@ const templateModeKinds = [
 ] as const satisfies readonly TemplateMode["kind"][];
 
 function isOutputKindValidInTemplateMode(kind: MarkerExpectedKind, mode: TemplateMode): boolean {
+  if (kind === "sourceFile") return mode.kind === "file";
   if (kind === "statement") return mode.kind === "statementList" || mode.kind === "file";
   return mode.kind === templateModeForOutputKind(kind).kind;
 }

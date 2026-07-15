@@ -71,10 +71,13 @@ function parseTypeContent(content: string, start: number, end: number): Omit<Mar
     if (!markerExpectedKinds.includes(rawKind as MarkerExpectedKind)) {
       throw new InvalidMarkerTypeError(`Unknown marker expected kind: ${rawKind}`, { id, start, end });
     }
-    if (rawKind === "expressionSuffix" && arity === "many") {
-      throw new InvalidMarkerArityError("expressionSuffix[] is not supported; compose multiple suffixes into one expressionSuffix replacement.", {
+    if ((rawKind === "expressionSuffix" || rawKind === "sourceFile") && arity === "many") {
+      const message = rawKind === "expressionSuffix"
+        ? "expressionSuffix[] is not supported; compose multiple suffixes into one expressionSuffix replacement."
+        : "sourceFile[] is not supported; provide one complete sourceFile replacement.";
+      throw new InvalidMarkerArityError(message, {
         id,
-        expectedKind: "expressionSuffix",
+        expectedKind: rawKind,
         arity,
         start,
         end

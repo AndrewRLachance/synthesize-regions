@@ -19,7 +19,15 @@ import type {
 	TypeDescriptor
 } from './graphTypes.js'
 
-const CATALOG_DIGEST_VERSION = 3
+const CATALOG_CONTRACT_DIGEST_VERSION = 4
+
+/** Version of one executable template-manifest digest. */
+export const TEMPLATE_MANIFEST_DIGEST_VERSION = 1 as const
+
+/** Version of the aggregate executable catalog-manifest digest. */
+export const TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION = 1 as const
+
+type TemplateManifestDigestInput = Pick<GraphTemplateDefinition<any, string, any>, 'source' | 'summary'>
 
 function sortedUnique(values: readonly string[] | undefined): string[] {
 	return [...new Set(values ?? [])].sort()
@@ -145,7 +153,7 @@ export function normalizeTemplateSummaries(
 export function templateSummaryContractDigest(summaries: readonly TemplateSummary[]): string {
 	const payload = canonicalizeJson([
 		'template-catalog-contract',
-		CATALOG_DIGEST_VERSION,
+		CATALOG_CONTRACT_DIGEST_VERSION,
 		{
 			regionSyntaxEngineVersion: REGION_SYNTAX_ENGINE_VERSION,
 			jsonSchemaDialect: JSON_SCHEMA_DIALECT_URI,
@@ -155,7 +163,38 @@ export function templateSummaryContractDigest(summaries: readonly TemplateSummar
 		},
 		normalizeTemplateSummaries(summaries)
 	])
-	return `c${CATALOG_DIGEST_VERSION}_${createHash('sha256').update(payload, 'utf8').digest('hex')}`
+	return `c${CATALOG_CONTRACT_DIGEST_VERSION}_${createHash('sha256').update(payload, 'utf8').digest('hex')}`
+}
+
+/** Compute the identity of one exact executable template manifest. */
+export function templateManifestDigest(template: TemplateManifestDigestInput): string {
+	if (typeof template.source !== 'string') throw new TypeError('Template manifest source must be a string.')
+	const normalizedSummary = normalizeTemplateSummaries([template.summary()])[0]
+	const normalizedSource = template.source.replace(/\r\n?/gu, '\n')
+	const payload = canonicalizeJson([
+		'template-manifest',
+		TEMPLATE_MANIFEST_DIGEST_VERSION,
+		{ regionSyntaxEngineVersion: REGION_SYNTAX_ENGINE_VERSION },
+		normalizedSummary,
+		normalizedSource
+	])
+	return `t${TEMPLATE_MANIFEST_DIGEST_VERSION}_${createHash('sha256').update(payload, 'utf8').digest('hex')}`
+}
+
+/** Compute an order-independent identity for all executable manifests in a catalog. */
+export function templateCatalogManifestDigest(
+	templates: readonly GraphTemplateDefinition<any, string, any>[]
+): string {
+	assertTemplateCatalogValid(templates)
+	const manifests = [...templates]
+		.sort((left, right) => left.modelId < right.modelId ? -1 : left.modelId > right.modelId ? 1 : 0)
+		.map(template => ({ modelId: template.modelId, manifestDigest: templateManifestDigest(template) }))
+	const payload = canonicalizeJson([
+		'template-catalog-manifest',
+		TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION,
+		manifests
+	])
+	return `m${TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION}_${createHash('sha256').update(payload, 'utf8').digest('hex')}`
 }
 
 /** Compute a stable planner-contract digest for a valid template catalog. */

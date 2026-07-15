@@ -165,7 +165,7 @@ export const InputExpressionTemplate = defineTemplate({
     schema: true,
     description: 'The root input value.'
   }),
-  template: () => 'input'
+  source: 'input'
 })
 
 export const IdentifierExpressionTemplate = defineTemplate({
@@ -176,7 +176,7 @@ export const IdentifierExpressionTemplate = defineTemplate({
     name: identifierLiteral('Identifier name to emit.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => r('name')
+  source: "/** @TYPE identifier id=name **/placeholder/** @END **/"
 })
 
 export const RawExpressionTemplate = defineTemplate({
@@ -187,7 +187,7 @@ export const RawExpressionTemplate = defineTemplate({
     code: expressionRaw('Raw expression code.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => r('code', 'undefined')
+  source: "/** @TYPE expression id=code **/undefined/** @END **/"
 })
 
 export const RawStatementTemplate = defineTemplate({
@@ -198,7 +198,7 @@ export const RawStatementTemplate = defineTemplate({
     code: statementRaw('Raw statement code.')
   },
   output: out('statement'),
-  template: r => r('code', 'throw new Error("unimplemented");')
+  source: "/** @TYPE statement id=code **/throw new Error(\"unimplemented\");/** @END **/"
 })
 
 // -----------------------------------------------------------------------------
@@ -213,7 +213,7 @@ export const AnyLiteralExpressionTemplate = defineTemplate({
     value: literalExpression('JSON-like literal value.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => r('value')
+  source: "/** @TYPE expression id=value **/undefined/** @END **/"
 })
 
 export const StringLiteralTemplate = defineTemplate({
@@ -224,7 +224,7 @@ export const StringLiteralTemplate = defineTemplate({
     value: stringLiteral('String value.')
   },
   output: out('expression', { type: stringType, schema: { type: 'string' } }),
-  template: r => r('value')
+  source: "/** @TYPE string id=value **/\"\"/** @END **/"
 })
 
 export const NumberLiteralTemplate = defineTemplate({
@@ -235,7 +235,7 @@ export const NumberLiteralTemplate = defineTemplate({
     value: numberLiteral('Number value.')
   },
   output: out('expression', { type: numberType, schema: { type: 'number' } }),
-  template: r => r('value')
+  source: "/** @TYPE number id=value **/0/** @END **/"
 })
 
 export const BooleanLiteralTemplate = defineTemplate({
@@ -246,7 +246,7 @@ export const BooleanLiteralTemplate = defineTemplate({
     value: booleanLiteral('Boolean value.')
   },
   output: out('expression', { type: booleanType, schema: { type: 'boolean' } }),
-  template: r => r('value')
+  source: "/** @TYPE boolean id=value **/false/** @END **/"
 })
 
 export const NullLiteralTemplate = defineTemplate({
@@ -257,7 +257,7 @@ export const NullLiteralTemplate = defineTemplate({
     value: literalPort({ regionKind: 'null', schema: { type: 'null' }, description: 'Must be null.' })
   },
   output: out('expression', { type: nullType, schema: { type: 'null' } }),
-  template: r => r('value')
+  source: "/** @TYPE null id=value **/null/** @END **/"
 })
 
 export const ArrayLiteralTemplate = defineTemplate({
@@ -268,7 +268,7 @@ export const ArrayLiteralTemplate = defineTemplate({
     value: literalPort({ regionKind: 'array', schema: { type: 'array' }, description: 'Array literal value.' })
   },
   output: out('expression', { type: unknownArrayType, schema: { type: 'array' } }),
-  template: r => r('value')
+  source: "/** @TYPE array id=value **/[]/** @END **/"
 })
 
 export const ObjectLiteralTemplate = defineTemplate({
@@ -279,7 +279,7 @@ export const ObjectLiteralTemplate = defineTemplate({
     value: literalPort({ regionKind: 'object', schema: { type: 'object' }, description: 'Object literal value.' })
   },
   output: out('expression', { type: recordType, schema: { type: 'object' } }),
-  template: r => r('value')
+  source: "/** @TYPE object id=value **/{}/** @END **/"
 })
 
 // -----------------------------------------------------------------------------
@@ -295,7 +295,7 @@ export const GetPropertyTemplate = defineTemplate({
     key: stringLiteral('Property key.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `${r('object')}[${r('key')}]`
+  source: `${"/** @TYPE expression id=object **/undefined/** @END **/"}[${"/** @TYPE string id=key **/\"\"/** @END **/"}]`
 })
 
 export const GetIdentifierPropertyTemplate = defineTemplate({
@@ -307,7 +307,7 @@ export const GetIdentifierPropertyTemplate = defineTemplate({
     key: identifierLiteral('Identifier-safe property key.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `${r('object')}.${r('key')}`
+  source: `${"/** @TYPE expression id=object **/undefined/** @END **/"}.${"/** @TYPE identifier id=key **/placeholder/** @END **/"}`
 })
 
 export const OptionalGetPropertyTemplate = defineTemplate({
@@ -319,7 +319,7 @@ export const OptionalGetPropertyTemplate = defineTemplate({
     key: stringLiteral('Property key.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `${r('object')}?.[${r('key')}]`
+  source: `${"/** @TYPE expression id=object **/undefined/** @END **/"}?.[${"/** @TYPE string id=key **/\"\"/** @END **/"}]`
 })
 
 export const OptionalGetIdentifierPropertyTemplate = defineTemplate({
@@ -331,7 +331,7 @@ export const OptionalGetIdentifierPropertyTemplate = defineTemplate({
     key: identifierLiteral('Identifier-safe property key.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `${r('object')}?.${r('key')}`
+  source: `${"/** @TYPE expression id=object **/undefined/** @END **/"}?.${"/** @TYPE identifier id=key **/placeholder/** @END **/"}`
 })
 
 export const GetElementTemplate = defineTemplate({
@@ -343,7 +343,7 @@ export const GetElementTemplate = defineTemplate({
     index: numberLiteral('Numeric index.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `${r('array')}[${r('index')}]`
+  source: `${"/** @TYPE expression id=array **/undefined/** @END **/"}[${"/** @TYPE number id=index **/0/** @END **/"}]`
 })
 
 export const OptionalGetElementTemplate = defineTemplate({
@@ -355,7 +355,7 @@ export const OptionalGetElementTemplate = defineTemplate({
     index: numberLiteral('Numeric index.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `${r('array')}?.[${r('index')}]`
+  source: `${"/** @TYPE expression id=array **/undefined/** @END **/"}?.[${"/** @TYPE number id=index **/0/** @END **/"}]`
 })
 
 export const ArrayLengthTemplate = defineTemplate({
@@ -366,7 +366,7 @@ export const ArrayLengthTemplate = defineTemplate({
     array: expressionFragment('Array-like expression.')
   },
   output: out('expression', { type: numberType, schema: { type: 'number' } }),
-  template: r => `${r('array')}.length`
+  source: `${"/** @TYPE expression id=array **/undefined/** @END **/"}.length`
 })
 
 // -----------------------------------------------------------------------------
@@ -382,7 +382,7 @@ export const StaticObjectPropertyTemplate = defineTemplate({
     value: expressionFragment('Property value expression.')
   },
   output: out('objectProperty'),
-  template: r => `${r('key')}: ${r('value')}`
+  source: `${"/** @TYPE string id=key **/\"\"/** @END **/"}: ${"/** @TYPE expression id=value **/undefined/** @END **/"}`
 })
 
 export const IdentifierObjectPropertyTemplate = defineTemplate({
@@ -394,7 +394,7 @@ export const IdentifierObjectPropertyTemplate = defineTemplate({
     value: expressionFragment('Property value expression.')
   },
   output: out('objectProperty'),
-  template: r => `${r('key')}: ${r('value')}`
+  source: `${"/** @TYPE identifier id=key **/placeholder/** @END **/"}: ${"/** @TYPE expression id=value **/undefined/** @END **/"}`
 })
 
 export const ObjectFromPropertyTemplate = defineTemplate({
@@ -405,7 +405,7 @@ export const ObjectFromPropertyTemplate = defineTemplate({
     property: objectPropertyFragment('Object property fragment.')
   },
   output: out('expression', { type: recordType, schema: { type: 'object' } }),
-  template: r => `({ ${r('property')} })`
+  source: `({ ${"/** @TYPE objectProperty id=property **/placeholder: undefined/** @END **/"} })`
 })
 
 export const ObjectFromTwoPropertiesTemplate = defineTemplate({
@@ -417,7 +417,7 @@ export const ObjectFromTwoPropertiesTemplate = defineTemplate({
     second: objectPropertyFragment('Second object property fragment.')
   },
   output: out('expression', { type: recordType, schema: { type: 'object' } }),
-  template: r => `({ ${r('first')}, ${r('second')} })`
+  source: `({ ${"/** @TYPE objectProperty id=first **/placeholder: undefined/** @END **/"}, ${"/** @TYPE objectProperty id=second **/placeholder: undefined/** @END **/"} })`
 })
 
 export const ObjectFromThreePropertiesTemplate = defineTemplate({
@@ -430,7 +430,7 @@ export const ObjectFromThreePropertiesTemplate = defineTemplate({
     third: objectPropertyFragment('Third object property fragment.')
   },
   output: out('expression', { type: recordType, schema: { type: 'object' } }),
-  template: r => `({ ${r('first')}, ${r('second')}, ${r('third')} })`
+  source: `({ ${"/** @TYPE objectProperty id=first **/placeholder: undefined/** @END **/"}, ${"/** @TYPE objectProperty id=second **/placeholder: undefined/** @END **/"}, ${"/** @TYPE objectProperty id=third **/placeholder: undefined/** @END **/"} })`
 })
 
 export const MergeObjectsTemplate = defineTemplate({
@@ -442,7 +442,7 @@ export const MergeObjectsTemplate = defineTemplate({
     right: expressionFragment('Right object expression.')
   },
   output: out('expression', { type: recordType, schema: { type: 'object' } }),
-  template: r => `({ ...${r('left')}, ...${r('right')} })`
+  source: `({ ...${"/** @TYPE expression id=left **/undefined/** @END **/"}, ...${"/** @TYPE expression id=right **/undefined/** @END **/"} })`
 })
 
 export const MergeObjectsWithPropertyTemplate = defineTemplate({
@@ -454,7 +454,7 @@ export const MergeObjectsWithPropertyTemplate = defineTemplate({
     property: objectPropertyFragment('Object property fragment to append.')
   },
   output: out('expression', { type: recordType, schema: { type: 'object' } }),
-  template: r => `({ ...${r('object')}, ${r('property')} })`
+  source: `({ ...${"/** @TYPE expression id=object **/undefined/** @END **/"}, ${"/** @TYPE objectProperty id=property **/placeholder: undefined/** @END **/"} })`
 })
 
 // -----------------------------------------------------------------------------
@@ -469,7 +469,7 @@ export const ArrayOfOneTemplate = defineTemplate({
     item: expressionFragment('Array element expression.')
   },
   output: out('expression', { type: unknownArrayType, schema: { type: 'array' } }),
-  template: r => `[${r('item')}]`
+  source: `[${"/** @TYPE expression id=item **/undefined/** @END **/"}]`
 })
 
 export const ArrayOfTwoTemplate = defineTemplate({
@@ -481,7 +481,7 @@ export const ArrayOfTwoTemplate = defineTemplate({
     second: expressionFragment('Second array element expression.')
   },
   output: out('expression', { type: unknownArrayType, schema: { type: 'array' } }),
-  template: r => `[${r('first')}, ${r('second')}]`
+  source: `[${"/** @TYPE expression id=first **/undefined/** @END **/"}, ${"/** @TYPE expression id=second **/undefined/** @END **/"}]`
 })
 
 export const ArrayMapRawTemplate = defineTemplate({
@@ -493,7 +493,7 @@ export const ArrayMapRawTemplate = defineTemplate({
     mapper: expressionRaw('Arrow/function expression, e.g. x => x.id.')
   },
   output: out('expression', { type: unknownArrayType, schema: { type: 'array' } }),
-  template: r => `${r('array')}.map(${r('mapper', 'x => x')})`
+  source: `${"/** @TYPE expression id=array **/undefined/** @END **/"}.map(${"/** @TYPE expression id=mapper **/x => x/** @END **/"})`
 })
 
 export const ArrayFilterRawTemplate = defineTemplate({
@@ -505,7 +505,7 @@ export const ArrayFilterRawTemplate = defineTemplate({
     predicate: expressionRaw('Predicate expression, e.g. x => x.active.')
   },
   output: out('expression', { type: unknownArrayType, schema: { type: 'array' } }),
-  template: r => `${r('array')}.filter(${r('predicate', 'x => Boolean(x)')})`
+  source: `${"/** @TYPE expression id=array **/undefined/** @END **/"}.filter(${"/** @TYPE expression id=predicate **/x => Boolean(x)/** @END **/"})`
 })
 
 export const ArrayFindRawTemplate = defineTemplate({
@@ -517,7 +517,7 @@ export const ArrayFindRawTemplate = defineTemplate({
     predicate: expressionRaw('Predicate expression, e.g. x => x.id === targetId.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `${r('array')}.find(${r('predicate', 'x => Boolean(x)')})`
+  source: `${"/** @TYPE expression id=array **/undefined/** @END **/"}.find(${"/** @TYPE expression id=predicate **/x => Boolean(x)/** @END **/"})`
 })
 
 export const ArraySomeRawTemplate = defineTemplate({
@@ -529,7 +529,7 @@ export const ArraySomeRawTemplate = defineTemplate({
     predicate: expressionRaw('Predicate expression, e.g. x => x.active.')
   },
   output: out('expression', { type: booleanType, schema: { type: 'boolean' } }),
-  template: r => `${r('array')}.some(${r('predicate', 'x => Boolean(x)')})`
+  source: `${"/** @TYPE expression id=array **/undefined/** @END **/"}.some(${"/** @TYPE expression id=predicate **/x => Boolean(x)/** @END **/"})`
 })
 
 export const ArrayEveryRawTemplate = defineTemplate({
@@ -541,7 +541,7 @@ export const ArrayEveryRawTemplate = defineTemplate({
     predicate: expressionRaw('Predicate expression, e.g. x => x.active.')
   },
   output: out('expression', { type: booleanType, schema: { type: 'boolean' } }),
-  template: r => `${r('array')}.every(${r('predicate', 'x => Boolean(x)')})`
+  source: `${"/** @TYPE expression id=array **/undefined/** @END **/"}.every(${"/** @TYPE expression id=predicate **/x => Boolean(x)/** @END **/"})`
 })
 
 export const ArrayReduceRawTemplate = defineTemplate({
@@ -554,7 +554,7 @@ export const ArrayReduceRawTemplate = defineTemplate({
     initialValue: expressionFragment('Initial accumulator value.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `${r('array')}.reduce(${r('reducer', '(acc, x) => acc')}, ${r('initialValue')})`
+  source: `${"/** @TYPE expression id=array **/undefined/** @END **/"}.reduce(${"/** @TYPE expression id=reducer **/(acc, x) => acc/** @END **/"}, ${"/** @TYPE expression id=initialValue **/undefined/** @END **/"})`
 })
 
 export const ArrayMapSuffixRawTemplate = defineTemplate({
@@ -565,7 +565,7 @@ export const ArrayMapSuffixRawTemplate = defineTemplate({
     mapper: expressionRaw('Arrow/function expression, e.g. x => x.id.')
   },
   output: out('expressionSuffix'),
-  template: r => `.map(${r('mapper', 'x => x')})`
+  source: `.map(${"/** @TYPE expression id=mapper **/x => x/** @END **/"})`
 })
 
 export const ArrayFilterSuffixRawTemplate = defineTemplate({
@@ -576,7 +576,7 @@ export const ArrayFilterSuffixRawTemplate = defineTemplate({
     predicate: expressionRaw('Predicate expression, e.g. x => x.active.')
   },
   output: out('expressionSuffix'),
-  template: r => `.filter(${r('predicate', 'x => Boolean(x)')})`
+  source: `.filter(${"/** @TYPE expression id=predicate **/x => Boolean(x)/** @END **/"})`
 })
 
 // -----------------------------------------------------------------------------
@@ -592,7 +592,7 @@ export const ApplyExpressionSuffixTemplate = defineTemplate({
     suffix: expressionSuffixFragment('Expression suffix to append.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `${r('source')}${r('suffix')}`
+  source: `${"/** @TYPE expression id=source **/undefined/** @END **/"}${"/** @TYPE expressionSuffix id=suffix **/.value/** @END **/"}`
 })
 
 export const CallFunction0Template = defineTemplate({
@@ -603,7 +603,7 @@ export const CallFunction0Template = defineTemplate({
     callee: expressionFragment('Function expression to call.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `${r('callee')}()`
+  source: `${"/** @TYPE expression id=callee **/undefined/** @END **/"}()`
 })
 
 export const CallFunction1Template = defineTemplate({
@@ -615,7 +615,7 @@ export const CallFunction1Template = defineTemplate({
     arg: expressionFragment('Argument expression.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `${r('callee')}(${r('arg')})`
+  source: `${"/** @TYPE expression id=callee **/undefined/** @END **/"}(${"/** @TYPE expression id=arg **/undefined/** @END **/"})`
 })
 
 export const CallFunction2Template = defineTemplate({
@@ -628,7 +628,7 @@ export const CallFunction2Template = defineTemplate({
     secondArg: expressionFragment('Second argument expression.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `${r('callee')}(${r('firstArg')}, ${r('secondArg')})`
+  source: `${"/** @TYPE expression id=callee **/undefined/** @END **/"}(${"/** @TYPE expression id=firstArg **/undefined/** @END **/"}, ${"/** @TYPE expression id=secondArg **/undefined/** @END **/"})`
 })
 
 export const MethodCall0Template = defineTemplate({
@@ -640,7 +640,7 @@ export const MethodCall0Template = defineTemplate({
     method: identifierLiteral('Identifier-safe method name.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `${r('object')}.${r('method')}()`
+  source: `${"/** @TYPE expression id=object **/undefined/** @END **/"}.${"/** @TYPE identifier id=method **/placeholder/** @END **/"}()`
 })
 
 export const MethodCall1Template = defineTemplate({
@@ -653,7 +653,7 @@ export const MethodCall1Template = defineTemplate({
     arg: expressionFragment('Argument expression.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `${r('object')}.${r('method')}(${r('arg')})`
+  source: `${"/** @TYPE expression id=object **/undefined/** @END **/"}.${"/** @TYPE identifier id=method **/placeholder/** @END **/"}(${"/** @TYPE expression id=arg **/undefined/** @END **/"})`
 })
 
 export const MethodCall2Template = defineTemplate({
@@ -667,7 +667,7 @@ export const MethodCall2Template = defineTemplate({
     secondArg: expressionFragment('Second argument expression.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `${r('object')}.${r('method')}(${r('firstArg')}, ${r('secondArg')})`
+  source: `${"/** @TYPE expression id=object **/undefined/** @END **/"}.${"/** @TYPE identifier id=method **/placeholder/** @END **/"}(${"/** @TYPE expression id=firstArg **/undefined/** @END **/"}, ${"/** @TYPE expression id=secondArg **/undefined/** @END **/"})`
 })
 
 // -----------------------------------------------------------------------------
@@ -684,7 +684,7 @@ export const ConditionalExpressionTemplate = defineTemplate({
     whenFalse: expressionFragment('Expression emitted when condition is falsy.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `(${r('condition')} ? ${r('whenTrue')} : ${r('whenFalse')})`
+  source: `(${"/** @TYPE expression id=condition **/undefined/** @END **/"} ? ${"/** @TYPE expression id=whenTrue **/undefined/** @END **/"} : ${"/** @TYPE expression id=whenFalse **/undefined/** @END **/"})`
 })
 
 export const NullishCoalesceTemplate = defineTemplate({
@@ -696,7 +696,7 @@ export const NullishCoalesceTemplate = defineTemplate({
     fallback: expressionFragment('Fallback expression.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `(${r('value')} ?? ${r('fallback')})`
+  source: `(${"/** @TYPE expression id=value **/undefined/** @END **/"} ?? ${"/** @TYPE expression id=fallback **/undefined/** @END **/"})`
 })
 
 export const LogicalAndTemplate = defineTemplate({
@@ -708,7 +708,7 @@ export const LogicalAndTemplate = defineTemplate({
     right: expressionFragment('Right operand.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `(${r('left')} && ${r('right')})`
+  source: `(${"/** @TYPE expression id=left **/undefined/** @END **/"} && ${"/** @TYPE expression id=right **/undefined/** @END **/"})`
 })
 
 export const LogicalOrTemplate = defineTemplate({
@@ -720,7 +720,7 @@ export const LogicalOrTemplate = defineTemplate({
     right: expressionFragment('Right operand.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `(${r('left')} || ${r('right')})`
+  source: `(${"/** @TYPE expression id=left **/undefined/** @END **/"} || ${"/** @TYPE expression id=right **/undefined/** @END **/"})`
 })
 
 export const NotTemplate = defineTemplate({
@@ -731,7 +731,7 @@ export const NotTemplate = defineTemplate({
     value: expressionFragment('Expression to negate.')
   },
   output: out('expression', { type: booleanType, schema: { type: 'boolean' } }),
-  template: r => `(!${r('value')})`
+  source: `(!${"/** @TYPE expression id=value **/undefined/** @END **/"})`
 })
 
 export const StrictEqualTemplate = defineTemplate({
@@ -743,7 +743,7 @@ export const StrictEqualTemplate = defineTemplate({
     right: expressionFragment('Right operand.')
   },
   output: out('expression', { type: booleanType, schema: { type: 'boolean' } }),
-  template: r => `(${r('left')} === ${r('right')})`
+  source: `(${"/** @TYPE expression id=left **/undefined/** @END **/"} === ${"/** @TYPE expression id=right **/undefined/** @END **/"})`
 })
 
 export const StrictNotEqualTemplate = defineTemplate({
@@ -755,7 +755,7 @@ export const StrictNotEqualTemplate = defineTemplate({
     right: expressionFragment('Right operand.')
   },
   output: out('expression', { type: booleanType, schema: { type: 'boolean' } }),
-  template: r => `(${r('left')} !== ${r('right')})`
+  source: `(${"/** @TYPE expression id=left **/undefined/** @END **/"} !== ${"/** @TYPE expression id=right **/undefined/** @END **/"})`
 })
 
 export const LessThanTemplate = defineTemplate({
@@ -767,7 +767,7 @@ export const LessThanTemplate = defineTemplate({
     right: expressionFragment('Right operand.')
   },
   output: out('expression', { type: booleanType, schema: { type: 'boolean' } }),
-  template: r => `(${r('left')} < ${r('right')})`
+  source: `(${"/** @TYPE expression id=left **/undefined/** @END **/"} < ${"/** @TYPE expression id=right **/undefined/** @END **/"})`
 })
 
 export const GreaterThanTemplate = defineTemplate({
@@ -779,7 +779,7 @@ export const GreaterThanTemplate = defineTemplate({
     right: expressionFragment('Right operand.')
   },
   output: out('expression', { type: booleanType, schema: { type: 'boolean' } }),
-  template: r => `(${r('left')} > ${r('right')})`
+  source: `(${"/** @TYPE expression id=left **/undefined/** @END **/"} > ${"/** @TYPE expression id=right **/undefined/** @END **/"})`
 })
 
 export const AddTemplate = defineTemplate({
@@ -791,7 +791,7 @@ export const AddTemplate = defineTemplate({
     right: expressionFragment('Right operand.')
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `(${r('left')} + ${r('right')})`
+  source: `(${"/** @TYPE expression id=left **/undefined/** @END **/"} + ${"/** @TYPE expression id=right **/undefined/** @END **/"})`
 })
 
 export const SubtractTemplate = defineTemplate({
@@ -803,7 +803,7 @@ export const SubtractTemplate = defineTemplate({
     right: expressionFragment('Right operand.')
   },
   output: out('expression', { type: numberType, schema: { type: 'number' } }),
-  template: r => `(${r('left')} - ${r('right')})`
+  source: `(${"/** @TYPE expression id=left **/undefined/** @END **/"} - ${"/** @TYPE expression id=right **/undefined/** @END **/"})`
 })
 
 export const MultiplyTemplate = defineTemplate({
@@ -815,7 +815,7 @@ export const MultiplyTemplate = defineTemplate({
     right: expressionFragment('Right operand.')
   },
   output: out('expression', { type: numberType, schema: { type: 'number' } }),
-  template: r => `(${r('left')} * ${r('right')})`
+  source: `(${"/** @TYPE expression id=left **/undefined/** @END **/"} * ${"/** @TYPE expression id=right **/undefined/** @END **/"})`
 })
 
 export const DivideTemplate = defineTemplate({
@@ -827,7 +827,7 @@ export const DivideTemplate = defineTemplate({
     right: expressionFragment('Right operand.')
   },
   output: out('expression', { type: numberType, schema: { type: 'number' } }),
-  template: r => `(${r('left')} / ${r('right')})`
+  source: `(${"/** @TYPE expression id=left **/undefined/** @END **/"} / ${"/** @TYPE expression id=right **/undefined/** @END **/"})`
 })
 
 // -----------------------------------------------------------------------------
@@ -842,7 +842,7 @@ export const BooleanCastTemplate = defineTemplate({
     value: expressionFragment('Expression to coerce.')
   },
   output: out('expression', { type: booleanType, schema: { type: 'boolean' } }),
-  template: r => `Boolean(${r('value')})`
+  source: `Boolean(${"/** @TYPE expression id=value **/undefined/** @END **/"})`
 })
 
 export const NumberCastTemplate = defineTemplate({
@@ -853,7 +853,7 @@ export const NumberCastTemplate = defineTemplate({
     value: expressionFragment('Expression to coerce.')
   },
   output: out('expression', { type: numberType, schema: { type: 'number' } }),
-  template: r => `Number(${r('value')})`
+  source: `Number(${"/** @TYPE expression id=value **/undefined/** @END **/"})`
 })
 
 export const StringCastTemplate = defineTemplate({
@@ -864,7 +864,7 @@ export const StringCastTemplate = defineTemplate({
     value: expressionFragment('Expression to coerce.')
   },
   output: out('expression', { type: stringType, schema: { type: 'string' } }),
-  template: r => `String(${r('value')})`
+  source: `String(${"/** @TYPE expression id=value **/undefined/** @END **/"})`
 })
 
 export const IsArrayTemplate = defineTemplate({
@@ -875,7 +875,7 @@ export const IsArrayTemplate = defineTemplate({
     value: expressionFragment('Expression to check.')
   },
   output: out('expression', { type: booleanType, schema: { type: 'boolean' } }),
-  template: r => `Array.isArray(${r('value')})`
+  source: `Array.isArray(${"/** @TYPE expression id=value **/undefined/** @END **/"})`
 })
 
 export const IsNullishTemplate = defineTemplate({
@@ -886,7 +886,7 @@ export const IsNullishTemplate = defineTemplate({
     value: expressionFragment('Expression to check.')
   },
   output: out('expression', { type: booleanType, schema: { type: 'boolean' } }),
-  template: r => `(${r('value')} == null)`
+  source: `(${"/** @TYPE expression id=value **/undefined/** @END **/"} == null)`
 })
 
 export const IsDefinedTemplate = defineTemplate({
@@ -897,7 +897,7 @@ export const IsDefinedTemplate = defineTemplate({
     value: expressionFragment('Expression to check.')
   },
   output: out('expression', { type: booleanType, schema: { type: 'boolean' } }),
-  template: r => `(${r('value')} != null)`
+  source: `(${"/** @TYPE expression id=value **/undefined/** @END **/"} != null)`
 })
 
 export const TypeofEqualsTemplate = defineTemplate({
@@ -913,7 +913,7 @@ export const TypeofEqualsTemplate = defineTemplate({
     })
   },
   output: out('expression', { type: booleanType, schema: { type: 'boolean' } }),
-  template: r => `(typeof ${r('value')} === ${r('typeName')})`
+  source: `(typeof ${"/** @TYPE expression id=value **/undefined/** @END **/"} === ${"/** @TYPE string id=typeName **/\"\"/** @END **/"})`
 })
 
 // -----------------------------------------------------------------------------
@@ -928,7 +928,7 @@ export const JsonParseTemplate = defineTemplate({
     value: expressionFragment('String expression to parse.', stringType)
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `JSON.parse(${r('value')})`
+  source: `JSON.parse(${"/** @TYPE expression id=value **/undefined/** @END **/"})`
 })
 
 export const JsonStringifyTemplate = defineTemplate({
@@ -939,7 +939,7 @@ export const JsonStringifyTemplate = defineTemplate({
     value: expressionFragment('Expression to stringify.')
   },
   output: out('expression', { type: stringType, schema: { type: 'string' } }),
-  template: r => `JSON.stringify(${r('value')})`
+  source: `JSON.stringify(${"/** @TYPE expression id=value **/undefined/** @END **/"})`
 })
 
 export const NewDateTemplate = defineTemplate({
@@ -950,7 +950,7 @@ export const NewDateTemplate = defineTemplate({
     value: expressionFragment('Date constructor input expression.')
   },
   output: out('expression', { type: { ts: 'Date' } }),
-  template: r => `new Date(${r('value')})`
+  source: `new Date(${"/** @TYPE expression id=value **/undefined/** @END **/"})`
 })
 
 export const DateToISOStringTemplate = defineTemplate({
@@ -961,7 +961,7 @@ export const DateToISOStringTemplate = defineTemplate({
     value: expressionFragment('Date expression.', { ts: 'Date' })
   },
   output: out('expression', { type: stringType, schema: { type: 'string' } }),
-  template: r => `${r('value')}.toISOString()`
+  source: `${"/** @TYPE expression id=value **/undefined/** @END **/"}.toISOString()`
 })
 
 export const MathRoundTemplate = defineTemplate({
@@ -972,7 +972,7 @@ export const MathRoundTemplate = defineTemplate({
     value: expressionFragment('Number expression.', numberType)
   },
   output: out('expression', { type: numberType, schema: { type: 'number' } }),
-  template: r => `Math.round(${r('value')})`
+  source: `Math.round(${"/** @TYPE expression id=value **/undefined/** @END **/"})`
 })
 
 export const StringTrimTemplate = defineTemplate({
@@ -983,7 +983,7 @@ export const StringTrimTemplate = defineTemplate({
     value: expressionFragment('String expression.', stringType)
   },
   output: out('expression', { type: stringType, schema: { type: 'string' } }),
-  template: r => `${r('value')}.trim()`
+  source: `${"/** @TYPE expression id=value **/undefined/** @END **/"}.trim()`
 })
 
 export const StringToLowerCaseTemplate = defineTemplate({
@@ -994,7 +994,7 @@ export const StringToLowerCaseTemplate = defineTemplate({
     value: expressionFragment('String expression.', stringType)
   },
   output: out('expression', { type: stringType, schema: { type: 'string' } }),
-  template: r => `${r('value')}.toLowerCase()`
+  source: `${"/** @TYPE expression id=value **/undefined/** @END **/"}.toLowerCase()`
 })
 
 export const StringSplitTemplate = defineTemplate({
@@ -1006,7 +1006,7 @@ export const StringSplitTemplate = defineTemplate({
     separator: stringLiteral('Separator string.')
   },
   output: out('expression', { type: { ts: 'string[]', schema: { type: 'array', items: { type: 'string' } } }, schema: { type: 'array', items: { type: 'string' } } }),
-  template: r => `${r('value')}.split(${r('separator')})`
+  source: `${"/** @TYPE expression id=value **/undefined/** @END **/"}.split(${"/** @TYPE string id=separator **/\"\"/** @END **/"})`
 })
 
 export const StringIncludesTemplate = defineTemplate({
@@ -1018,7 +1018,7 @@ export const StringIncludesTemplate = defineTemplate({
     search: stringLiteral('Search string.')
   },
   output: out('expression', { type: booleanType, schema: { type: 'boolean' } }),
-  template: r => `${r('value')}.includes(${r('search')})`
+  source: `${"/** @TYPE expression id=value **/undefined/** @END **/"}.includes(${"/** @TYPE string id=search **/\"\"/** @END **/"})`
 })
 
 // -----------------------------------------------------------------------------
@@ -1051,7 +1051,7 @@ export const LodashGetTemplate = defineTemplate({
     })
   },
   output: out('expression', { type: unknownType, schema: true }),
-  template: r => `_.get(${r('object')}, ${r('path')}, ${r('defaultValue', 'undefined')})`
+  source: `_.get(${"/** @TYPE expression id=object **/undefined/** @END **/"}, ${"/** @TYPE expression id=path **/undefined/** @END **/"}, ${"/** @TYPE expression id=defaultValue **/undefined/** @END **/"})`
 })
 
 export const LodashPickTemplate = defineTemplate({
@@ -1067,7 +1067,7 @@ export const LodashPickTemplate = defineTemplate({
     })
   },
   output: out('expression', { type: recordType, schema: { type: 'object' } }),
-  template: r => `_.pick(${r('object')}, ${r('keys')})`
+  source: `_.pick(${"/** @TYPE expression id=object **/undefined/** @END **/"}, ${"/** @TYPE array id=keys **/[]/** @END **/"})`
 })
 
 export const LodashOmitTemplate = defineTemplate({
@@ -1083,7 +1083,7 @@ export const LodashOmitTemplate = defineTemplate({
     })
   },
   output: out('expression', { type: recordType, schema: { type: 'object' } }),
-  template: r => `_.omit(${r('object')}, ${r('keys')})`
+  source: `_.omit(${"/** @TYPE expression id=object **/undefined/** @END **/"}, ${"/** @TYPE array id=keys **/[]/** @END **/"})`
 })
 
 export const LodashGroupByRawTemplate = defineTemplate({
@@ -1095,7 +1095,7 @@ export const LodashGroupByRawTemplate = defineTemplate({
     iteratee: expressionRaw('Lodash iteratee expression, e.g. x => x.category.')
   },
   output: out('expression', { type: { ts: 'Record<string, unknown[]>' }, schema: { type: 'object' } }),
-  template: r => `_.groupBy(${r('array')}, ${r('iteratee', 'x => x')})`
+  source: `_.groupBy(${"/** @TYPE expression id=array **/undefined/** @END **/"}, ${"/** @TYPE expression id=iteratee **/x => x/** @END **/"})`
 })
 
 export const LodashKeyByRawTemplate = defineTemplate({
@@ -1107,7 +1107,7 @@ export const LodashKeyByRawTemplate = defineTemplate({
     iteratee: expressionRaw('Lodash iteratee expression, e.g. x => x.id.')
   },
   output: out('expression', { type: recordType, schema: { type: 'object' } }),
-  template: r => `_.keyBy(${r('array')}, ${r('iteratee', 'x => x')})`
+  source: `_.keyBy(${"/** @TYPE expression id=array **/undefined/** @END **/"}, ${"/** @TYPE expression id=iteratee **/x => x/** @END **/"})`
 })
 
 export const LodashSortByRawTemplate = defineTemplate({
@@ -1119,7 +1119,7 @@ export const LodashSortByRawTemplate = defineTemplate({
     iteratee: expressionRaw('Lodash iteratee expression, e.g. x => x.name.')
   },
   output: out('expression', { type: unknownArrayType, schema: { type: 'array' } }),
-  template: r => `_.sortBy(${r('array')}, ${r('iteratee', 'x => x')})`
+  source: `_.sortBy(${"/** @TYPE expression id=array **/undefined/** @END **/"}, ${"/** @TYPE expression id=iteratee **/x => x/** @END **/"})`
 })
 
 export const LodashUniqByRawTemplate = defineTemplate({
@@ -1131,7 +1131,7 @@ export const LodashUniqByRawTemplate = defineTemplate({
     iteratee: expressionRaw('Lodash iteratee expression, e.g. x => x.id.')
   },
   output: out('expression', { type: unknownArrayType, schema: { type: 'array' } }),
-  template: r => `_.uniqBy(${r('array')}, ${r('iteratee', 'x => x')})`
+  source: `_.uniqBy(${"/** @TYPE expression id=array **/undefined/** @END **/"}, ${"/** @TYPE expression id=iteratee **/x => x/** @END **/"})`
 })
 
 // -----------------------------------------------------------------------------
@@ -1148,7 +1148,7 @@ export const PatternWithRawTemplate = defineTemplate({
     handler: expressionRaw('Handler expression, e.g. x => x.value.')
   },
   output: out('expressionSuffix'),
-  template: r => `.with(${r('pattern', '{}')}, ${r('handler', 'x => x')})`
+  source: `.with(${"/** @TYPE expression id=pattern **/{}/** @END **/"}, ${"/** @TYPE expression id=handler **/x => x/** @END **/"})`
 })
 
 export const PatternOtherwiseRawTemplate = defineTemplate({
@@ -1159,7 +1159,7 @@ export const PatternOtherwiseRawTemplate = defineTemplate({
     handler: expressionRaw('Fallback handler expression, e.g. () => null.')
   },
   output: out('expressionSuffix'),
-  template: r => `.otherwise(${r('handler', '() => undefined')})`
+  source: `.otherwise(${"/** @TYPE expression id=handler **/() => undefined/** @END **/"})`
 })
 
 export const PatternExhaustiveSuffixTemplate = defineTemplate({
@@ -1168,7 +1168,7 @@ export const PatternExhaustiveSuffixTemplate = defineTemplate({
   description: 'Produces a ts-pattern .exhaustive() expression suffix.',
   inputs: {},
   output: out('expressionSuffix'),
-  template: () => '.exhaustive()'
+  source: '.exhaustive()'
 })
 
 // -----------------------------------------------------------------------------
@@ -1183,7 +1183,7 @@ export const ReturnStatementTemplate = defineTemplate({
     value: expressionFragment('Expression to return.')
   },
   output: out('statement'),
-  template: r => `return ${r('value')};`
+  source: `return ${"/** @TYPE expression id=value **/undefined/** @END **/"};`
 })
 
 export const ConstDeclarationTemplate = defineTemplate({
@@ -1195,7 +1195,7 @@ export const ConstDeclarationTemplate = defineTemplate({
     value: expressionFragment('Initializer expression.')
   },
   output: out('statement'),
-  template: r => `const ${r('name')} = ${r('value')};`
+  source: `const ${"/** @TYPE identifier id=name **/placeholder/** @END **/"} = ${"/** @TYPE expression id=value **/undefined/** @END **/"};`
 })
 
 export const ExpressionStatementTemplate = defineTemplate({
@@ -1206,7 +1206,7 @@ export const ExpressionStatementTemplate = defineTemplate({
     value: expressionFragment('Expression to emit as a statement.')
   },
   output: out('statement'),
-  template: r => `${r('value')};`
+  source: `${"/** @TYPE expression id=value **/undefined/** @END **/"};`
 })
 
 export const StatementList2Template = defineTemplate({
@@ -1218,7 +1218,7 @@ export const StatementList2Template = defineTemplate({
     second: fragmentPort({ regionKind: 'statement', accepts: { outputKind: 'statement' }, description: 'Second statement.' })
   },
   output: out('statement'),
-  template: r => `${r('first')}\n${r('second')}`
+  source: `${"/** @TYPE statement id=first **/throw new Error(\"placeholder\");/** @END **/"}\n${"/** @TYPE statement id=second **/throw new Error(\"placeholder\");/** @END **/"}`
 })
 
 // -----------------------------------------------------------------------------

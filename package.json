@@ -11,7 +11,11 @@
       "import": "./dist/index.js"
     },
     "./schemas/replacement-map.schema.json": "./schemas/replacement-map.schema.json",
+    "./schemas/artifact-set-plan.schema.json": "./schemas/artifact-set-plan.schema.json",
+		"./schemas/artifact-set-compilation-result.schema.json": "./schemas/artifact-set-compilation-result.schema.json",
+		"./schemas/artifact-set-static-validation-result.schema.json": "./schemas/artifact-set-static-validation-result.schema.json",
     "./schemas/supported-json-schema.schema.json": "./schemas/supported-json-schema.schema.json",
+    "./schemas/template-manifest.schema.json": "./schemas/template-manifest.schema.json",
     "./schemas/synthesis-graph.schema.json": "./schemas/synthesis-graph.schema.json",
     "./schemas/template-summary.schema.json": "./schemas/template-summary.schema.json",
     "./schemas/graph-compilation-result.schema.json": "./schemas/graph-compilation-result.schema.json",
@@ -25,6 +29,7 @@
   "files": [
     "dist",
     "schemas",
+    "docs",
     "README.md",
     "GLOSSARY.md"
   ],

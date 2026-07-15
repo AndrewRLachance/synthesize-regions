@@ -5,6 +5,7 @@ import type { ValidateFunction } from 'ajv'
 import Ajv2020 from 'ajv/dist/2020.js'
 import { describe, expect, it } from 'vitest'
 import {
+	compileArtifactSet,
 	compileGraph,
 	createTemplateRegistry,
 	defineTemplate,
@@ -14,15 +15,20 @@ import {
 	literalPort,
 	rawCodePort,
 	REGION_KIND_VALUES,
+	templateRegistryToPartialSynthesisGraphJsonSchema,
 	templateRegistryToSynthesisGraphJsonSchema,
 	unionPort
 } from '../src/index.js'
-import type { SynthesisGraph } from '../src/index.js'
+import type { ArtifactSetPlan, GraphTemplateManifest, SynthesisGraph } from '../src/index.js'
 
 const currentDir = fileURLToPath(new URL('.', import.meta.url))
 const rootDir = join(currentDir, '..')
 const publishedSchemaPaths = [
+	'schemas/artifact-set-plan.schema.json',
+	'schemas/artifact-set-compilation-result.schema.json',
+	'schemas/artifact-set-static-validation-result.schema.json',
 	'schemas/supported-json-schema.schema.json',
+	'schemas/template-manifest.schema.json',
 	'schemas/synthesis-graph.schema.json',
 	'schemas/template-summary.schema.json',
 	'schemas/graph-compilation-result.schema.json',
@@ -130,7 +136,7 @@ const SummaryShowcase = defineTemplate({
 		schema: { type: 'number' },
 		description: 'A numeric expression.'
 	},
-	template: region => region('choice')
+	source: `[${"/** @TYPE expression id=literal **/undefined/** @END **/"}, ${"/** @TYPE expression id=fragment **/undefined/** @END **/"}, ${"/** @TYPE expression id=fragments **/undefined/** @END **/"}, ${"/** @TYPE expression id=raw **/undefined/** @END **/"}, ${"/** @TYPE expression id=choice **/undefined/** @END **/"}]`
 })
 
 const NumberExpression = defineTemplate({
@@ -146,7 +152,19 @@ const NumberExpression = defineTemplate({
 		type: { ts: 'number', schema: { type: 'number' } },
 		schema: { type: 'number' }
 	},
-	template: region => region('value')
+	source: "/** @TYPE number id=value **/0/** @END **/"
+})
+
+const NumberSourceFile = defineTemplate({
+	modelId: 'NumberSourceFile',
+	inputs: {
+		value: literalPort({
+			regionKind: 'number',
+			schema: { type: 'number' }
+		})
+	},
+	output: { kind: 'sourceFile' },
+	source: 'export const generatedNumber = /** @TYPE number id=value **/0/** @END **/;'
 })
 
 const RequiredExpression = defineTemplate({
@@ -159,15 +177,41 @@ const RequiredExpression = defineTemplate({
 		})
 	},
 	output: { kind: 'expression', type: { ts: 'number' } },
-	template: region => region('value')
+	source: "/** @TYPE expression id=value **/undefined/** @END **/"
 })
 
 const SemanticMismatch = defineTemplate({
 	modelId: 'SemanticMismatch',
 	inputs: {},
 	output: { kind: 'statement' },
-	template: () => 'const value: number = "wrong";'
+	source: 'const value: number = "wrong";'
 })
+
+const numberArtifactSetPlan: ArtifactSetPlan = {
+	artifacts: [{
+		id: 'number-file',
+		graph: {
+			nodes: [{
+				id: 'number',
+				templateId: 'NumberSourceFile',
+				inputs: { value: { kind: 'literal', value: 42 } }
+			}],
+			finalNodeId: 'number'
+		},
+		target: { kind: 'createFile', path: 'generated/number.ts' }
+	}]
+}
+
+const partialArtifactSetPlan: ArtifactSetPlan = {
+	artifacts: [{
+		id: 'partial-file',
+		graph: {
+			nodes: [{ id: 'partial', templateId: 'RequiredExpression', inputs: {} }],
+			finalNodeId: 'partial'
+		},
+		target: { kind: 'createFile', path: 'generated/partial.ts' }
+	}]
+}
 
 const graphFixture = {
 	nodes: [
@@ -269,7 +313,10 @@ describe('published graph JSON Schemas', () => {
 		const exportsMap = packageJson.exports as Record<string, unknown>
 
 		expect(exportsMap['./schemas/replacement-map.schema.json']).toBe('./schemas/replacement-map.schema.json')
+		expect(exportsMap['./schemas/artifact-set-plan.schema.json']).toBe('./schemas/artifact-set-plan.schema.json')
+		expect(exportsMap['./schemas/artifact-set-compilation-result.schema.json']).toBe('./schemas/artifact-set-compilation-result.schema.json')
 		expect(exportsMap['./schemas/supported-json-schema.schema.json']).toBe('./schemas/supported-json-schema.schema.json')
+		expect(exportsMap['./schemas/template-manifest.schema.json']).toBe('./schemas/template-manifest.schema.json')
 		expect(exportsMap['./schemas/synthesis-graph.schema.json']).toBe('./schemas/synthesis-graph.schema.json')
 		expect(exportsMap['./schemas/template-summary.schema.json']).toBe('./schemas/template-summary.schema.json')
 		expect(exportsMap['./schemas/graph-compilation-result.schema.json']).toBe('./schemas/graph-compilation-result.schema.json')
@@ -290,6 +337,106 @@ describe('published graph JSON Schemas', () => {
 		expectInvalid(validate, { $ref: 'https://example.com/remote.json' })
 		expectInvalid(validate, { type: 'string', minLenght: 1 })
 		expectInvalid(validate, { definitions: { item: { type: 'string' } } })
+	})
+
+	it('validates closed declarative template manifests', () => {
+		const { validate } = compilePublishedSchema('schemas/template-manifest.schema.json')
+		const manifest: GraphTemplateManifest = {
+			modelId: RequiredExpression.modelId,
+			inputs: RequiredExpression.inputs,
+			output: RequiredExpression.output,
+			source: RequiredExpression.source
+		}
+
+		expectValid(validate, manifest)
+		expectInvalid(validate, { ...manifest, source: 42 })
+		expectInvalid(validate, {
+			...manifest,
+			inputs: { value: { kind: 'rawCode', regionKind: 'not-a-region' } }
+		})
+		expectInvalid(validate, { ...manifest, invoke: 'not declarative data' })
+	})
+
+	it('validates artifact-set plans and rejects malformed targets and units', () => {
+		const { validate } = compilePublishedSchema('schemas/artifact-set-plan.schema.json')
+
+		expectValid(validate, numberArtifactSetPlan)
+		expectValid(validate, {
+			artifacts: [{
+				id: 'replacement',
+				graph: numberArtifactSetPlan.artifacts[0]!.graph,
+				target: {
+					kind: 'replaceRange', path: 'src/value.ts', start: 0, end: 1,
+					baseFileHash: 'f1_example', regionKind: 'expression'
+				}
+			}]
+		})
+		expectInvalid(validate, { artifacts: [] })
+		expectInvalid(validate, {
+			artifacts: [{
+				id: 'replacement',
+				graph: numberArtifactSetPlan.artifacts[0]!.graph,
+				target: {
+					kind: 'replaceRange', path: 'src/value.ts', start: -1, end: 1,
+					baseFileHash: 'f1_example', regionKind: 'expression'
+				}
+			}]
+		})
+		expectInvalid(validate, {
+			artifacts: [{ ...numberArtifactSetPlan.artifacts[0], unexpected: true }]
+		})
+	})
+
+	it('validates real complete, incomplete, and failed artifact-set compilations', () => {
+		const { validate } = compilePublishedSchema('schemas/artifact-set-compilation-result.schema.json')
+		const registry = createTemplateRegistry([NumberSourceFile, RequiredExpression])
+		const strictSuccess = compileArtifactSet(numberArtifactSetPlan, registry)
+		const partialSuccess = compileArtifactSet(partialArtifactSetPlan, registry, { mode: 'partial' })
+		const strictFailure = compileArtifactSet(partialArtifactSetPlan, registry)
+
+		expect(strictSuccess).toMatchObject({ ok: true, complete: true, mode: 'strict' })
+		expect(partialSuccess).toMatchObject({ ok: true, complete: false, mode: 'partial', changes: [] })
+		expect(strictFailure).toMatchObject({
+			ok: false, complete: false, mode: 'strict',
+			classification: 'artifactFillable', changes: []
+		})
+		for (const result of [strictSuccess, partialSuccess, strictFailure]) {
+			expectValid(validate, result)
+		}
+
+		if (strictSuccess.ok) {
+			const { changeSetHash: _changeSetHash, ...missingHash } = strictSuccess
+			expectInvalid(validate, missingHash)
+			expectInvalid(validate, { ...strictSuccess, unexpected: true })
+		}
+		if (partialSuccess.ok && !partialSuccess.complete) {
+			expectInvalid(validate, {
+				...partialSuccess,
+				changes: [{ kind: 'createFile', path: 'generated/partial.ts' }]
+			})
+		}
+	})
+
+	it('validates identity-bound static artifact-set results', () => {
+		const { validate } = compilePublishedSchema('schemas/artifact-set-static-validation-result.schema.json')
+		const registry = createTemplateRegistry([NumberSourceFile])
+		const compiled = compileArtifactSet(numberArtifactSetPlan, registry)
+		expect(compiled).toMatchObject({ ok: true, complete: true, validation: 'static' })
+		if (!compiled.ok) return
+		const result = {
+			ok: true as const,
+			validation: compiled.validation,
+			changes: compiled.changes,
+			changeSetHash: compiled.changeSetHash,
+			contractDigest: compiled.contractDigest,
+			manifestDigest: compiled.manifestDigest,
+			workspaceSnapshotHash: compiled.workspaceSnapshotHash,
+			staticPolicyVersion: compiled.staticPolicyVersion,
+			diagnostics: compiled.diagnostics
+		}
+		expectValid(validate, result)
+		expectInvalid(validate, { ...result, manifestDigest: 'm1_forged' })
+		expectInvalid(validate, { ...result, validation: 'syntax' })
 	})
 
 	it('validates every graph runner action and rejects malformed actions', () => {
@@ -779,6 +926,31 @@ describe('published graph JSON Schemas', () => {
 		expect(choice).toHaveProperty('anyOf')
 	})
 
+	it('derives catalog-aware partial schemas without weakening supplied inputs', () => {
+		const registry = createTemplateRegistry([RequiredExpression])
+		const partialSchema = templateRegistryToPartialSynthesisGraphJsonSchema(registry)
+		const strictSchema = templateRegistryToSynthesisGraphJsonSchema(registry)
+		const partialValidate = new Ajv2020({ allErrors: true, strict: true }).compile(partialSchema)
+		const strictValidate = new Ajv2020({ allErrors: true, strict: true }).compile(strictSchema)
+		const graph = (inputs: Record<string, unknown>) => ({
+			nodes: [{ id: 'required', templateId: 'RequiredExpression', inputs }],
+			finalNodeId: 'required'
+		})
+
+		// Partial authoring permits required ports to remain unresolved.
+		expectValid(partialValidate, graph({}))
+		expectInvalid(strictValidate, graph({}))
+
+		// Any supplied port is still checked against the catalog contract and policy.
+		expectValid(partialValidate, graph({ value: { kind: 'rawCode', code: '1 + 1' } }))
+		expectInvalid(partialValidate, graph({ value: { kind: 'literal', value: 2 } }))
+		expectInvalid(partialValidate, graph({
+			value: { kind: 'rawCode', code: '1' },
+			unknown: { kind: 'rawCode', code: '2' }
+		}))
+		expectInvalid(partialValidate, graph({ value: { kind: 'rawCode', code: '1\n+ 1' } }))
+	})
+
 	it('keeps authored local references inside deterministic planner-schema resources', () => {
 		const LocalReferenceLiteral = defineTemplate({
 			modelId: 'LocalReferenceLiteral',
@@ -811,7 +983,7 @@ describe('published graph JSON Schemas', () => {
 				})
 			},
 			output: { kind: 'expression' },
-			template: region => region('value')
+			source: '[/** @TYPE expression id=value **/undefined/** @END **/, /** @TYPE expression id=choice **/undefined/** @END **/]'
 		})
 		const registry = createTemplateRegistry([LocalReferenceLiteral])
 		const firstSchema = templateRegistryToSynthesisGraphJsonSchema(registry)

@@ -3,9 +3,13 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { TSchema } from '@sinclair/typebox'
 import {
+	ArtifactSetCompilationResultSchema,
+	ArtifactSetPlanSchema,
+	ArtifactSetStaticValidationResultSchema,
 	GraphCompilationResultSchema,
 	GraphRunnerActionSchema,
 	GraphRunnerStateSchema,
+	GraphTemplateManifestSchema,
 	SynthesisGraphSchema,
 	TemplateSummarySchema
 } from '../src/templates/graphContracts.js'
@@ -26,10 +30,34 @@ type JsonRecord = Record<string, unknown>
 
 const publishedSchemas: readonly PublishedSchema[] = [
 	{
+		fileName: 'artifact-set-plan.schema.json',
+		title: 'synthesize-regions ArtifactSetPlan',
+		description: 'Closed static synthesis plan containing independently compiled graphs and authorized create-file or replace-range targets.',
+		schema: ArtifactSetPlanSchema
+	},
+	{
+		fileName: 'artifact-set-compilation-result.schema.json',
+		title: 'synthesize-regions ArtifactSetCompilationResult',
+		description: 'Strict or partial multi-artifact compilation result, including hash-chained fills, assembled changes, static diagnostics, and a deterministic change-set identity.',
+		schema: ArtifactSetCompilationResultSchema
+	},
+	{
+		fileName: 'artifact-set-static-validation-result.schema.json',
+		title: 'synthesize-regions ArtifactSetStaticValidationResult',
+		description: 'Identity-bound result of mandatory syntax and TypeScript semantic validation over an assembled artifact set and immutable workspace snapshot.',
+		schema: ArtifactSetStaticValidationResultSchema
+	},
+	{
 		fileName: 'supported-json-schema.schema.json',
 		title: 'synthesize-regions SupportedJsonSchema',
 		description: 'Closed, local-reference-only Draft 2020-12 profile used by synthesize-regions value and compatibility contracts.',
 		schema: SupportedJsonSchemaSchema
+	},
+	{
+		fileName: 'template-manifest.schema.json',
+		title: 'synthesize-regions GraphTemplateManifest',
+		description: 'Closed declarative template manifest containing JSON-safe port contracts and marked TypeScript source. Marker correspondence and source syntax are enforced when the manifest is loaded.',
+		schema: GraphTemplateManifestSchema
 	},
 	{
 		fileName: 'synthesis-graph.schema.json',
