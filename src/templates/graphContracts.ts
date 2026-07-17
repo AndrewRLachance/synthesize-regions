@@ -11,9 +11,13 @@ import type {
 import type { GraphRunnerState } from './runner.js'
 import type {
 	ArtifactFillLedgerEntry,
+	ArtifactSetAssemblyResult,
 	ArtifactSetCompilationResult,
+	ArtifactSetGraphCompilationResult,
 	ArtifactSetPlan,
+	ArtifactSetSemanticValidationResult,
 	ArtifactSetStaticValidationResult,
+	ConstraintBoundStaticAcceptance,
 	ValidatedArtifactChangeSet
 } from './artifactSet.js'
 
@@ -314,13 +318,28 @@ const CompilationContractModule = Type.Module({
 			edits: Type.Array(Type.Ref('ArtifactSetTextEdit'))
 		}, { additionalProperties: false })
 	]),
+	ConstraintBoundStaticAcceptance: Type.Object({
+		schemaVersion: Type.Literal(1),
+		constraintEntryPath: Type.String({ minLength: 1 }),
+		constraintDigest: Type.String({ pattern: '^wc1_[a-f0-9]{64}$' }),
+		constraintSourceSnapshotHash: Type.String({ pattern: '^sha256:[a-f0-9]{64}$' }),
+		constraintEngineVersion: Type.Literal(3),
+		analysisSnapshotHash: Type.String({ pattern: '^sha256:[a-f0-9]{64}$' }),
+		phaseResultBlobHashes: Type.Object({
+			plan: Type.String({ pattern: '^sha256:[a-f0-9]{64}$' }),
+			artifact: Type.String({ pattern: '^sha256:[a-f0-9]{64}$' }),
+			assembled: Type.String({ pattern: '^sha256:[a-f0-9]{64}$' }),
+			semantic: Type.String({ pattern: '^sha256:[a-f0-9]{64}$' })
+		}, { additionalProperties: false })
+	}, { additionalProperties: false }),
 	ValidatedArtifactChangeSet: Type.Object({
 		validation: Type.Literal('static'),
 		changes: Type.Array(Type.Ref('ArtifactSetChange')), changeSetHash: Type.String(),
 		contractDigest: Type.String({ pattern: '^c4_[a-f0-9]{64}$' }),
 		manifestDigest: Type.String({ pattern: '^m1_[a-f0-9]{64}$' }),
 		workspaceSnapshotHash: Type.String({ pattern: '^ws1_[a-f0-9]{64}$' }),
-		staticPolicyVersion: Type.Integer({ minimum: 1 })
+		staticPolicyVersion: Type.Integer({ minimum: 1 }),
+		constraintAcceptance: Type.Optional(Type.Ref('ConstraintBoundStaticAcceptance'))
 	}, { additionalProperties: false }),
 	ArtifactSetStaticValidationResult: Type.Union([
 		Type.Object({
@@ -330,6 +349,7 @@ const CompilationContractModule = Type.Module({
 			manifestDigest: Type.String({ pattern: '^m1_[a-f0-9]{64}$' }),
 			workspaceSnapshotHash: Type.String({ pattern: '^ws1_[a-f0-9]{64}$' }),
 			staticPolicyVersion: Type.Integer({ minimum: 1 }),
+			constraintAcceptance: Type.Optional(Type.Ref('ConstraintBoundStaticAcceptance')),
 			diagnostics: Type.Array(Type.Ref('ArtifactSetDiagnostic'))
 		}, { additionalProperties: false }),
 		Type.Object({
@@ -474,6 +494,58 @@ const CompilationContractModule = Type.Module({
 		Type.Ref('ArtifactSetPartialIncompleteResult'), Type.Ref('ArtifactSetStrictFailureResult'),
 		Type.Ref('ArtifactSetPartialFailureResult')
 	]),
+	ArtifactSetGraphCompilationResult: Type.Union([
+		Type.Object({
+			kind: Type.Literal('artifactSetGraphCompilation'), mode: Type.Union([Type.Literal('strict'), Type.Literal('partial')]),
+			ok: Type.Literal(true), complete: Type.Literal(true), plan: Type.Ref('ArtifactSetPlan'),
+			units: Type.Array(Type.Ref('ArtifactSetUnitCompilation')), diagnostics: Type.Array(Type.Ref('ArtifactSetDiagnostic')),
+			contractDigest: Type.Optional(Type.String({ pattern: '^c4_[a-f0-9]{64}$' })),
+			manifestDigest: Type.Optional(Type.String({ pattern: '^m1_[a-f0-9]{64}$' })),
+			workspaceSnapshotHash: Type.Optional(Type.String({ pattern: '^ws1_[a-f0-9]{64}$' }))
+		}, { additionalProperties: false }),
+		Type.Object({
+			kind: Type.Literal('artifactSetGraphCompilation'), mode: Type.Literal('partial'),
+			ok: Type.Literal(true), complete: Type.Literal(false), plan: Type.Ref('ArtifactSetPlan'),
+			units: Type.Array(Type.Ref('ArtifactSetUnitCompilation')), diagnostics: Type.Array(Type.Ref('ArtifactSetDiagnostic')),
+			contractDigest: Type.Optional(Type.String({ pattern: '^c4_[a-f0-9]{64}$' })),
+			manifestDigest: Type.Optional(Type.String({ pattern: '^m1_[a-f0-9]{64}$' })),
+			workspaceSnapshotHash: Type.Optional(Type.String({ pattern: '^ws1_[a-f0-9]{64}$' }))
+		}, { additionalProperties: false }),
+		Type.Object({
+			kind: Type.Literal('artifactSetGraphCompilation'), mode: Type.Union([Type.Literal('strict'), Type.Literal('partial')]),
+			ok: Type.Literal(false), complete: Type.Literal(false), classification: Type.Ref('SynthesisFailureClassification'),
+			plan: Type.Ref('ArtifactSetPlan'), units: Type.Array(Type.Ref('ArtifactSetUnitCompilation')),
+			diagnostics: Type.Array(Type.Ref('ArtifactSetDiagnostic')),
+			contractDigest: Type.Optional(Type.String()), manifestDigest: Type.Optional(Type.String()),
+			workspaceSnapshotHash: Type.Optional(Type.String())
+		}, { additionalProperties: false })
+	]),
+	ArtifactSetAssemblyResult: Type.Union([
+		Type.Object({
+			ok: Type.Literal(true), validation: Type.Literal('syntax'), changes: Type.Array(Type.Ref('ArtifactSetChange')),
+			changeSetHash: Type.String(), contractDigest: Type.String({ pattern: '^c4_[a-f0-9]{64}$' }),
+			manifestDigest: Type.String({ pattern: '^m1_[a-f0-9]{64}$' }),
+			workspaceSnapshotHash: Type.String({ pattern: '^ws1_[a-f0-9]{64}$' }),
+			diagnostics: Type.Array(Type.Ref('ArtifactSetDiagnostic'))
+		}, { additionalProperties: false }),
+		Type.Object({
+			ok: Type.Literal(false), classification: Type.Union([Type.Literal('graphRepairable'), Type.Literal('terminalFailure')]),
+			changes: Type.Tuple([]), diagnostics: Type.Array(Type.Ref('ArtifactSetDiagnostic'))
+		}, { additionalProperties: false })
+	]),
+	ArtifactSetSemanticValidationResult: Type.Union([
+		Type.Object({
+			ok: Type.Literal(true), validation: Type.Literal('semantic'), changes: Type.Array(Type.Ref('ArtifactSetChange')),
+			contractDigest: Type.String({ pattern: '^c4_[a-f0-9]{64}$' }),
+			manifestDigest: Type.String({ pattern: '^m1_[a-f0-9]{64}$' }),
+			workspaceSnapshotHash: Type.String({ pattern: '^ws1_[a-f0-9]{64}$' }),
+			diagnostics: Type.Array(Type.Ref('ArtifactSetDiagnostic'))
+		}, { additionalProperties: false }),
+		Type.Object({
+			ok: Type.Literal(false), classification: Type.Ref('SynthesisFailureClassification'),
+			changes: Type.Tuple([]), diagnostics: Type.Array(Type.Ref('ArtifactSetDiagnostic'))
+		}, { additionalProperties: false })
+	]),
 	GraphPatchAction: Type.Union([
 		Type.Object({ kind: Type.Literal('addNode'), node: Type.Ref('SynthesisNode') }, { additionalProperties: false }),
 		Type.Object({ kind: Type.Literal('removeNode'), nodeId: Type.String() }, { additionalProperties: false }),
@@ -570,9 +642,13 @@ export const ArtifactFillLedgerEntrySchema = Type.Unsafe<ArtifactFillLedgerEntry
 export const ArtifactSetDiagnosticSchema = CompilationContractModule.Import('ArtifactSetDiagnostic')
 export const ArtifactSetTextEditSchema = CompilationContractModule.Import('ArtifactSetTextEdit')
 export const ArtifactSetChangeSchema = CompilationContractModule.Import('ArtifactSetChange')
+export const ConstraintBoundStaticAcceptanceSchema = Type.Unsafe<ConstraintBoundStaticAcceptance>(CompilationContractModule.Import('ConstraintBoundStaticAcceptance'))
 export const ValidatedArtifactChangeSetSchema = Type.Unsafe<ValidatedArtifactChangeSet>(CompilationContractModule.Import('ValidatedArtifactChangeSet'))
 export const ArtifactSetStaticValidationResultSchema = Type.Unsafe<ArtifactSetStaticValidationResult>(CompilationContractModule.Import('ArtifactSetStaticValidationResult'))
 export const ArtifactSetCompilationResultSchema = Type.Unsafe<ArtifactSetCompilationResult>(CompilationContractModule.Import('ArtifactSetCompilationResult'))
+export const ArtifactSetGraphCompilationResultSchema = Type.Unsafe<ArtifactSetGraphCompilationResult>(CompilationContractModule.Import('ArtifactSetGraphCompilationResult'))
+export const ArtifactSetAssemblyResultSchema = Type.Unsafe<ArtifactSetAssemblyResult>(CompilationContractModule.Import('ArtifactSetAssemblyResult'))
+export const ArtifactSetSemanticValidationResultSchema = Type.Unsafe<ArtifactSetSemanticValidationResult>(CompilationContractModule.Import('ArtifactSetSemanticValidationResult'))
 // Pin recursive protocol schemas to their public core types. Inferring Static
 // through SynthesisInput -> inline node -> SynthesisInput otherwise makes the
 // compiler truncate later union members after sufficiently deep expansion.
@@ -593,6 +669,9 @@ export type ContractGraphCompilationResult = Static<typeof GraphCompilationResul
 export type ContractArtifactSetPlan = Static<typeof ArtifactSetPlanSchema>
 export type ContractArtifactSetCompilationResult = Static<typeof ArtifactSetCompilationResultSchema>
 export type ContractArtifactSetStaticValidationResult = Static<typeof ArtifactSetStaticValidationResultSchema>
+export type ContractArtifactSetGraphCompilationResult = Static<typeof ArtifactSetGraphCompilationResultSchema>
+export type ContractArtifactSetAssemblyResult = Static<typeof ArtifactSetAssemblyResultSchema>
+export type ContractArtifactSetSemanticValidationResult = Static<typeof ArtifactSetSemanticValidationResultSchema>
 export type ContractSynthesisFailureClassification = Static<typeof SynthesisFailureClassificationSchema>
 export type ContractGraphPatchAction = Static<typeof GraphPatchActionSchema>
 export type ContractGraphRunnerAction = Static<typeof GraphRunnerActionSchema>

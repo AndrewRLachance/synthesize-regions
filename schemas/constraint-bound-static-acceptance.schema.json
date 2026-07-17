@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.synthesize-regions.dev/constraint-bound-static-acceptance.schema.json",
+  "title": "synthesize-regions ConstraintBoundStaticAcceptance",
+  "description": "Exact Workspace Constraint identity and four phase-result blob hashes required by constrained finalization.",
+  "$ref": "#/$defs/ConstraintBoundStaticAcceptance",
+  "$defs": {
+    "ConstraintBoundStaticAcceptance": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "schemaVersion",
+        "constraintEntryPath",
+        "constraintDigest",
+        "constraintSourceSnapshotHash",
+        "constraintEngineVersion",
+        "analysisSnapshotHash",
+        "phaseResultBlobHashes"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1,
+          "type": "number"
+        },
+        "constraintEntryPath": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "constraintDigest": {
+          "pattern": "^wc1_[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "constraintSourceSnapshotHash": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "constraintEngineVersion": {
+          "const": 3,
+          "type": "number"
+        },
+        "analysisSnapshotHash": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "phaseResultBlobHashes": {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "plan",
+            "artifact",
+            "assembled",
+            "semantic"
+          ],
+          "properties": {
+            "plan": {
+              "pattern": "^sha256:[a-f0-9]{64}$",
+              "type": "string"
+            },
+            "artifact": {
+              "pattern": "^sha256:[a-f0-9]{64}$",
+              "type": "string"
+            },
+            "assembled": {
+              "pattern": "^sha256:[a-f0-9]{64}$",
+              "type": "string"
+            },
+            "semantic": {
+              "pattern": "^sha256:[a-f0-9]{64}$",
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -22,6 +22,10 @@ The runtime never executes generated code, runs project commands, invokes
 linters, generates tests, installs dependencies, or loads caller-provided
 validators or template modules.
 
+The selected implementation stack, internal runtime module map, and exact
+public `synthesize-regions` surface consumed by this design are maintained in
+the [Synthesis Workflow Implementation Inventory](./synthesis-workflow-implementation-inventory.md).
+
 ## 2. Goals
 
 The runtime shall:
@@ -396,10 +400,10 @@ function compileArtifactSet(
 ): ArtifactSetCompilationResult;
 
 function validateArtifactSetStatic(
-	plan: ArtifactSetPlan,
-	catalog: TemplateCatalogView,
-	options: ArtifactSetCompileOptions
-): StaticArtifactSetResult;
+  plan: ArtifactSetPlan,
+  catalog: TemplateCatalogView,
+  options: ArtifactSetCompileOptions
+): ArtifactSetStaticValidationResult;
 ```
 
 `compileArtifactSet()` preserves artifact order, compiles each graph in strict or
@@ -425,6 +429,14 @@ the catalog contract digest, catalog manifest digest, workspace snapshot hash,
 and static-policy version. The hash binds these identities. The lower-level
 `assembleArtifactSetTargets()` result is discriminated by
 `validation: "syntax"` and is never approval-eligible.
+
+When a runtime workspace manifest contains non-UTF-8 files, the static options
+carry their sorted paths in `unavailableTextPaths`. The verified UTF-8
+`workspaceFiles` view and that list must be a disjoint, exhaustive partition of
+the manifest. Manifest byte lengths and SHA-256 identities are checked for
+every text entry; the captured tsconfig and all TypeScript/JavaScript analysis
+inputs must be present as text. Package-owned diagnostic classifications are
+closed and exported, and unknown codes fail terminally.
 
 Neither API modifies the workspace.
 
@@ -1202,7 +1214,10 @@ migration before replay continues.
 
 ## 18. Staging and Approval
 
-A `ValidatedArtifactChangeSet` contains:
+The library returns a `ValidatedArtifactChangeSet` and package-owned static
+hash covering the artifact-set acceptance identity, ordered changes, and exact
+result bytes. The runtime places that validated library result inside an
+approval envelope containing:
 
 - workspace snapshot and revision;
 - workflow ID, version, and digest;
@@ -1215,8 +1230,13 @@ A `ValidatedArtifactChangeSet` contains:
 - artifact and graph provenance;
 - static diagnostics and policy version.
 
-Its hash is computed from canonical JSON metadata, including workflow and
-optional constraint identity, plus exact file bytes.
+The staged hash used by approval is the runtime-owned approval-envelope hash.
+It is computed from canonical envelope metadata—including the library static
+hash, session revision, workflow identity, optional constraint identity,
+analysis identity, policies, and authorization context—plus the exact file
+bytes. The package-level static hash and runtime approval-envelope hash are
+different identities with different owners; approval never accepts the library
+hash by itself.
 
 Approval supplies:
 

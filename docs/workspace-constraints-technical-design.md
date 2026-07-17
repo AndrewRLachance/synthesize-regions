@@ -1,8 +1,8 @@
 # Technical Design: Workspace Constraints
 
-**Status:** Draft  
-**Version:** 0.1  
-**Primary language:** TypeScript  
+**Status:** Phase 3 implemented
+**Version:** 1.0
+**Primary language:** TypeScript
 **Integration:** `synthesize-regions` artifact-set APIs and agent runtime
 
 ## 1. Purpose
@@ -22,8 +22,10 @@ See the [authoring guide](./workspace-constraints-README.md) for language usage
 and the [product description](./workspace-constraints-product-description.md)
 for goals and boundaries.
 
-This is a design for future implementation. No parser, evaluator, schema, or
-runtime API described here exists yet.
+The v1 parser, normalized typed IR, source maps, evaluator contracts, four-phase
+evaluation API, and published JSON Schemas are implemented by the sibling
+`workspace-constraints` package. The runtime captures their exact source
+closure and normalized identities and binds every phase result into staging.
 
 ## 2. Goals
 

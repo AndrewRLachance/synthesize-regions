@@ -2,16 +2,27 @@ import { describe, expect, it } from 'vitest'
 
 import {
 	assembleArtifactSetTargets,
+	ArtifactSetAssemblyResultSchema,
+	ArtifactSetGraphCompilationResultSchema,
+	ArtifactSetSemanticValidationResultSchema,
+	ARTIFACT_SET_STATIC_POLICY_VERSION,
 	compileArtifactSet,
+	compileArtifactSetGraphs,
 	createArtifactSetArtifactHash,
+	createArtifactSetChangeSetHash,
 	createArtifactSetFileHash,
 	createArtifactSetGraphHash,
+	createArtifactSetWorkspaceSnapshotHash,
 	createTemplateRegistry,
 	defineTemplate,
 	fillTemplateArtifactWithCatalog,
+	finalizeArtifactSetStatic,
 	fragmentPort,
 	normalizeArtifactTargetPath,
 	rawCodePort,
+	checkContract,
+	validateArtifactSetSemantics,
+	validateArtifactSetStatic,
 	type ArtifactFillLedgerEntry,
 	type ArtifactSetPlan,
 	type SynthesisGraph
@@ -87,14 +98,18 @@ describe('artifact-set compilation', () => {
 				}
 			]
 		}
+		const workspaceFiles = { 'src/values.ts': sourceText, 'tsconfig.json': STATIC_TSCONFIG }
+		const workspaceSnapshotId = createArtifactSetWorkspaceSnapshotHash(
+			workspaceFiles, undefined, 'tsconfig.json'
+		)
 
 		const first = compileArtifactSet(plan, registry, {
-			workspaceFiles: { 'src/values.ts': sourceText, 'tsconfig.json': STATIC_TSCONFIG },
-			workspaceSnapshotId: 'workspace-test', tsConfigFilePath: 'tsconfig.json'
+			workspaceFiles,
+			workspaceSnapshotId, tsConfigFilePath: 'tsconfig.json'
 		})
 		const second = compileArtifactSet(plan, registry, {
 			workspaceFiles: { './src/values.ts': sourceText, './tsconfig.json': STATIC_TSCONFIG },
-			workspaceSnapshotId: 'workspace-test', tsConfigFilePath: 'tsconfig.json'
+			workspaceSnapshotId, tsConfigFilePath: 'tsconfig.json'
 		})
 		const missingProjectContext = compileArtifactSet(plan, registry, {
 			workspaceFiles: { 'src/values.ts': sourceText }
@@ -167,6 +182,7 @@ describe('artifact-set compilation', () => {
 			ok: false, classification: 'terminalFailure',
 			diagnostics: [expect.objectContaining({ code: 'ArtifactBaseFileHashMismatch' })]
 		})
+		expect(checkContract(ArtifactSetAssemblyResultSchema, stale)).toBe(true)
 
 		const wrongKind = assembleArtifactSetTargets([{
 			id: 'value', artifact,
@@ -177,8 +193,10 @@ describe('artifact-set compilation', () => {
 		}], registry, { workspaceFiles: { 'src/value.ts': sourceText } })
 		expect(wrongKind).toMatchObject({
 			ok: false,
+			classification: 'graphRepairable',
 			diagnostics: [expect.objectContaining({ code: 'ArtifactTargetKindMismatch' })]
 		})
+		expect(checkContract(ArtifactSetAssemblyResultSchema, wrongKind)).toBe(true)
 
 		const overlap = assembleArtifactSetTargets([
 			{
@@ -302,5 +320,174 @@ describe('artifact-set compilation', () => {
 				})
 			])
 		})
+	})
+
+	it('exposes schema-valid graph, assembly, semantic, and constraint-bound final boundaries', () => {
+		const registry = rawRegistry()
+		const plan: ArtifactSetPlan = {
+			artifacts: [{
+				id: 'generated',
+				graph: rawGraph('ArtifactSetExternalSourceFile'),
+				target: { kind: 'createFile', path: 'src/generated.ts' }
+			}]
+		}
+		const graph = compileArtifactSetGraphs(plan, registry)
+		expect(graph).toMatchObject({ ok: true, complete: true, kind: 'artifactSetGraphCompilation' })
+		expect(checkContract(ArtifactSetGraphCompilationResultSchema, graph)).toBe(true)
+		if (!graph.ok || !graph.complete) return
+		const assembled = assembleArtifactSetTargets(graph.units.map(unit => ({
+			id: unit.artifactId,
+			target: unit.target,
+			artifact: unit.artifact as Extract<typeof unit.artifact, { complete: true }>,
+			artifactHash: unit.artifactHash
+		})), registry)
+		expect(assembled.ok).toBe(true)
+		expect(checkContract(ArtifactSetAssemblyResultSchema, assembled)).toBe(true)
+		const semantic = validateArtifactSetSemantics(plan, registry)
+		expect(semantic.ok).toBe(true)
+		expect(checkContract(ArtifactSetSemanticValidationResultSchema, semantic)).toBe(true)
+
+		const hash = `sha256:${'a'.repeat(64)}`
+		const acceptance = {
+			schemaVersion: 1 as const,
+			constraintEntryPath: '.constraints/main.wsc',
+			constraintDigest: `wc1_${'b'.repeat(64)}`,
+			constraintSourceSnapshotHash: hash,
+			constraintEngineVersion: 3,
+			analysisSnapshotHash: hash,
+			phaseResultBlobHashes: { plan: hash, artifact: hash, assembled: hash, semantic: hash }
+		}
+		const finalized = finalizeArtifactSetStatic(plan, registry, {}, acceptance)
+		expect(finalized).toMatchObject({ ok: true, constraintAcceptance: acceptance })
+		const forged = finalizeArtifactSetStatic(plan, registry, {}, {
+			...acceptance,
+			phaseResultBlobHashes: { ...acceptance.phaseResultBlobHashes, semantic: 'forged' }
+		})
+		expect(forged).toMatchObject({
+			ok: false,
+			classification: 'terminalFailure',
+			diagnostics: [expect.objectContaining({ code: 'InvalidConstraintBoundStaticAcceptance' })]
+		})
+	})
+
+	it('keeps strict compatibility facades exactly equal to phase-granular composition on success and failure', () => {
+		const registry = rawRegistry()
+		const valid: ArtifactSetPlan = {
+			artifacts: [{
+				id: 'generated',
+				graph: rawGraph('ArtifactSetExternalSourceFile'),
+				target: { kind: 'createFile', path: 'src/generated.ts' }
+			}]
+		}
+		const invalid: ArtifactSetPlan = {
+			artifacts: [{
+				id: 'missing-template',
+				graph: { nodes: [{ id: 'root', templateId: 'NotInCatalog', inputs: {} }], finalNodeId: 'root' },
+				target: { kind: 'createFile', path: 'src/missing.ts' }
+			}]
+		}
+		for (const plan of [valid, invalid]) {
+			const graph = compileArtifactSetGraphs(plan, registry, { mode: 'strict' })
+			const facade = compileArtifactSet(plan, registry)
+			if (!graph.ok) {
+				expect(facade).toEqual({
+					kind: 'artifactSetCompilation', mode: 'strict', ok: false, complete: false,
+					plan: graph.plan, units: graph.units, changes: [], diagnostics: graph.diagnostics,
+					classification: graph.classification,
+					...(graph.contractDigest === undefined ? {} : { contractDigest: graph.contractDigest }),
+					...(graph.manifestDigest === undefined ? {} : { manifestDigest: graph.manifestDigest }),
+					...(graph.workspaceSnapshotHash === undefined ? {} : { workspaceSnapshotHash: graph.workspaceSnapshotHash })
+				})
+				expect(validateArtifactSetStatic(plan, registry)).toEqual({
+					ok: false, classification: graph.classification, changes: [], diagnostics: graph.diagnostics
+				})
+				continue
+			}
+			const assembly = assembleArtifactSetTargets(graph.units.map(unit => ({
+				id: unit.artifactId, target: unit.target,
+				artifact: unit.artifact as Extract<typeof unit.artifact, { complete: true }>,
+				...(unit.artifactHash === undefined ? {} : { artifactHash: unit.artifactHash })
+			})), registry)
+			expect(assembly.ok).toBe(true)
+			if (!assembly.ok) continue
+			const semantic = validateArtifactSetSemantics(plan, registry)
+			expect(semantic.ok).toBe(true)
+			if (!semantic.ok) continue
+			const identity = {
+				contractDigest: semantic.contractDigest,
+				manifestDigest: semantic.manifestDigest,
+				workspaceSnapshotHash: semantic.workspaceSnapshotHash,
+				staticPolicyVersion: ARTIFACT_SET_STATIC_POLICY_VERSION
+			}
+			expect(facade).toEqual({
+				kind: 'artifactSetCompilation', mode: 'strict', ok: true, complete: true,
+				plan: graph.plan, units: graph.units, diagnostics: [...graph.diagnostics, ...semantic.diagnostics],
+				validation: 'static', changes: semantic.changes,
+				changeSetHash: createArtifactSetChangeSetHash(semantic.changes, identity),
+				...identity
+			})
+			expect(validateArtifactSetStatic(plan, registry)).toEqual({
+				ok: true, validation: 'static', changes: semantic.changes,
+				changeSetHash: createArtifactSetChangeSetHash(semantic.changes, identity),
+				...identity,
+				diagnostics: semantic.diagnostics
+			})
+		}
+	})
+
+	it('keeps static-facade failures equal to compilation, assembly, and semantic phase failures', () => {
+		const baseRegistry = rawRegistry()
+		const compilationFailure: ArtifactSetPlan = {
+			artifacts: [{
+				id: 'unknown-template',
+				graph: { nodes: [{ id: 'root', templateId: 'NotInCatalog', inputs: {} }], finalNodeId: 'root' },
+				target: { kind: 'createFile', path: 'src/unknown.ts' }
+			}]
+		}
+		const assemblyFailure: ArtifactSetPlan = {
+			artifacts: [{
+				id: 'wrong-kind',
+				graph: rawGraph('ArtifactSetExpression', '1'),
+				target: { kind: 'createFile', path: 'src/wrong-kind.ts' }
+			}]
+		}
+		for (const plan of [compilationFailure, assemblyFailure]) {
+			const phase = validateArtifactSetSemantics(plan, baseRegistry)
+			expect(phase.ok).toBe(false)
+			expect(checkContract(ArtifactSetSemanticValidationResultSchema, phase)).toBe(true)
+			expect(validateArtifactSetStatic(plan, baseRegistry)).toEqual(phase)
+		}
+
+		const declareShared = defineTemplate({
+			modelId: 'ParityDeclareShared', inputs: {}, output: { kind: 'sourceFile' },
+			source: 'const parityShared: string = "value";'
+		})
+		const consumeShared = defineTemplate({
+			modelId: 'ParityConsumeShared', inputs: {}, output: { kind: 'sourceFile' },
+			source: 'const parityCopy: number = parityShared;'
+		})
+		const semanticRegistry = createTemplateRegistry([declareShared, consumeShared])
+		const semanticFailure: ArtifactSetPlan = {
+			artifacts: [
+				{
+					id: 'declare', graph: rawGraph('ParityDeclareShared'),
+					target: { kind: 'createFile', path: 'src/parity-a.ts' }
+				},
+				{
+					id: 'consume', graph: rawGraph('ParityConsumeShared'),
+					target: { kind: 'createFile', path: 'src/parity-b.ts' }
+				}
+			]
+		}
+		const semanticPhase = validateArtifactSetSemantics(semanticFailure, semanticRegistry)
+		expect(semanticPhase).toMatchObject({
+			ok: false,
+			classification: 'graphRepairable',
+			diagnostics: expect.arrayContaining([
+				expect.objectContaining({ code: 'ArtifactSetTypeScriptSemanticError' })
+			])
+		})
+		expect(checkContract(ArtifactSetSemanticValidationResultSchema, semanticPhase)).toBe(true)
+		expect(validateArtifactSetStatic(semanticFailure, semanticRegistry)).toEqual(semanticPhase)
 	})
 })

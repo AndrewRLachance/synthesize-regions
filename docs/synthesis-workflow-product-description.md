@@ -23,6 +23,10 @@ decide whether their work is acceptable. They propose artifact plans, synthesis
 graphs, graph patches, and narrowly scoped template inputs. Deterministic
 infrastructure validates those proposals and controls every state transition.
 
+The concrete dependency choices, internal module boundaries, and exact
+`synthesize-regions` integration allowlist are recorded in the
+[Synthesis Workflow Implementation Inventory](./synthesis-workflow-implementation-inventory.md).
+
 ## Product Goal
 
 The product provides a controlled alternative to unrestricted source-generating

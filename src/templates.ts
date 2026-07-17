@@ -22,3 +22,5 @@ export * from "./templates/graphContracts.js";
 export * from "./templates/artifactIntegrity.js";
 export * from "./templates/runner.js";
 export * from "./templates/artifactSet.js";
+export * from "./templates/sourceSpans.js";
+export * from "./templates/catalogCapture.js";

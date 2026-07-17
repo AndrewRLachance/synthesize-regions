@@ -23,7 +23,7 @@ import type {
 	TemplateArtifactInputMap,
 	TemplateCatalogView
 } from './graphTypes.js'
-import { REGION_KIND_VALUES } from './graphTypes.js'
+import { classifySynthesisDiagnosticCode, REGION_KIND_VALUES } from './graphTypes.js'
 import { captureTemplateCatalogView } from './catalogCapture.js'
 import { deepestGeneratedSourceSpan } from './sourceSpans.js'
 
@@ -81,12 +81,35 @@ export interface ArtifactSetCompileOptions extends GraphCompileOptions {
 	mode?: 'strict' | 'partial'
 	/** Captured workspace files keyed by workspace-relative path. */
 	workspaceFiles?: Readonly<Record<string, string>>
+	/**
+	 * Canonical manifest paths whose captured bytes are not UTF-8 text.
+	 *
+	 * When a manifest is supplied this list and `workspaceFiles` form an exact,
+	 * disjoint partition of every manifest file.
+	 */
+	unavailableTextPaths?: readonly string[]
 	/** Filesystem root used only as TypeScript source-file identity. */
 	workspaceRoot?: string
 	/** Identity of the immutable workspace snapshot supplied by the caller. */
 	workspaceSnapshotId?: string
+	/** Canonical runtime capture manifest used to verify the full snapshot identity. */
+	workspaceManifest?: ArtifactSetWorkspaceManifest
 	/** Ordered, hash-chained fills to replay after partial graph compilation. */
 	fillLedger?: readonly ArtifactFillLedgerEntry[]
+}
+
+/** Canonical immutable workspace manifest accepted at static phase boundaries. */
+export interface ArtifactSetWorkspaceManifest {
+	schemaVersion: 1
+	revision: string
+	tsConfigFilePath: string
+	files: readonly {
+		path: string
+		byteLength: number
+		contentHash: string
+		blobHash: string
+	}[]
+	symlinks: readonly { path: string; target: string }[]
 }
 
 /** Artifact-set diagnostic with optional attribution to one authored unit. */
@@ -131,6 +154,23 @@ export interface ArtifactSetAcceptanceIdentity {
 	manifestDigest: string
 	workspaceSnapshotHash: string
 	staticPolicyVersion: number
+	constraintAcceptance?: ConstraintBoundStaticAcceptance
+}
+
+/** Exact successful Workspace Constraint evidence accepted by final static validation. */
+export interface ConstraintBoundStaticAcceptance {
+	schemaVersion: 1
+	constraintEntryPath: string
+	constraintDigest: string
+	constraintSourceSnapshotHash: string
+	constraintEngineVersion: 3
+	analysisSnapshotHash: string
+	phaseResultBlobHashes: {
+		plan: string
+		artifact: string
+		assembled: string
+		semantic: string
+	}
 }
 
 /** A complete, statically accepted set of in-memory workspace changes. */
@@ -142,6 +182,7 @@ export interface ValidatedArtifactChangeSet {
 	manifestDigest: string
 	workspaceSnapshotHash: string
 	staticPolicyVersion: number
+	constraintAcceptance?: ConstraintBoundStaticAcceptance
 }
 
 /** Compilation and optional fill result for one artifact-set unit. */
@@ -207,6 +248,22 @@ export type ArtifactSetCompilationResult =
 	| ArtifactSetStrictCompilationResult
 	| ArtifactSetPartialCompilationResult
 
+interface ArtifactSetGraphCompilationResultBase {
+	kind: 'artifactSetGraphCompilation'
+	mode: 'strict' | 'partial'
+	plan: ArtifactSetPlan
+	units: ArtifactSetUnitCompilation[]
+	diagnostics: ArtifactSetDiagnostic[]
+	contractDigest?: string
+	manifestDigest?: string
+	workspaceSnapshotHash?: string
+}
+
+export type ArtifactSetGraphCompilationResult =
+	| (ArtifactSetGraphCompilationResultBase & { ok: true; complete: true })
+	| (ArtifactSetGraphCompilationResultBase & { ok: true; complete: false; mode: 'partial' })
+	| (ArtifactSetGraphCompilationResultBase & { ok: false; complete: false; classification: SynthesisFailureClassification })
+
 /** Complete artifact input accepted by the pure target assembler. */
 export interface ArtifactSetAssemblyUnit {
 	id: string
@@ -218,9 +275,12 @@ export interface ArtifactSetAssemblyUnit {
 /** Caller-owned workspace state used by the pure target assembler. */
 export interface ArtifactSetAssemblyOptions {
 	workspaceFiles?: Readonly<Record<string, string>>
+	/** Manifest files intentionally excluded from the UTF-8 text view. */
+	unavailableTextPaths?: readonly string[]
 	workspaceRoot?: string
 	/** Required for project-backed acceptance; omitted only for standalone new files. */
 	workspaceSnapshotId?: string
+	workspaceManifest?: ArtifactSetWorkspaceManifest
 	tsConfigFilePath?: string
 	/** Fixed raw/generated-source security policy used by static acceptance. */
 	securityPolicy?: NonNullable<GraphCompileOptions['securityPolicy']>
@@ -246,6 +306,23 @@ export type ArtifactSetAssemblyResult =
 
 export type ArtifactSetStaticValidationResult =
 	| ({ ok: true; diagnostics: ArtifactSetDiagnostic[] } & ValidatedArtifactChangeSet)
+	| {
+			ok: false
+			classification: SynthesisFailureClassification
+			changes: []
+			diagnostics: ArtifactSetDiagnostic[]
+	  }
+
+export type ArtifactSetSemanticValidationResult =
+	| {
+			ok: true
+			validation: 'semantic'
+			changes: ArtifactSetChange[]
+			contractDigest: string
+			manifestDigest: string
+			workspaceSnapshotHash: string
+			diagnostics: ArtifactSetDiagnostic[]
+	  }
 	| {
 			ok: false
 			classification: SynthesisFailureClassification
@@ -348,13 +425,23 @@ export function createArtifactSetChangeSetHash(
 export function createArtifactSetWorkspaceSnapshotHash(
 	workspaceFiles: Readonly<Record<string, string>>,
 	workspaceSnapshotId?: string,
-	tsConfigFilePath?: string
+	tsConfigFilePath?: string,
+	workspaceManifest?: ArtifactSetWorkspaceManifest,
+	unavailableTextPaths?: readonly string[]
 ): string {
 	const workspace = normalizeWorkspaceFiles(workspaceFiles)
 	if (hasErrors(workspace.diagnostics)) {
 		throw new TypeError(workspace.diagnostics.map(diagnostic => diagnostic.message).join('\n'))
 	}
-	return workspaceSnapshotHash(workspace.files, workspaceSnapshotId, tsConfigFilePath)
+	const manifestDiagnostics = workspaceManifestDiagnostics(
+		workspace.files, workspaceManifest, tsConfigFilePath, unavailableTextPaths
+	)
+	if (hasErrors(manifestDiagnostics)) throw new TypeError(manifestDiagnostics.map(diagnostic => diagnostic.message).join('\n'))
+	const actual = workspaceSnapshotHash(workspace.files, undefined, tsConfigFilePath, workspaceManifest)
+	if (workspaceSnapshotId !== undefined && workspaceSnapshotId !== actual) {
+		throw new TypeError(`Expected workspace snapshot ${workspaceSnapshotId}, captured ${actual}.`)
+	}
+	return actual
 }
 
 /**
@@ -381,10 +468,17 @@ export function assembleArtifactSetTargets(
 	const capturedWorkspaceHash = workspaceSnapshotHash(
 		workspace.files,
 		options.workspaceSnapshotId,
-		options.tsConfigFilePath
+		options.tsConfigFilePath,
+		options.workspaceManifest
 	)
+	diagnostics.push(...workspaceIdentityDiagnostics(capturedWorkspaceHash, options.workspaceSnapshotId))
+	diagnostics.push(...workspaceManifestDiagnostics(
+		workspace.files, options.workspaceManifest, options.tsConfigFilePath,
+		options.unavailableTextPaths
+	))
 	const prepared: PreparedAssemblyUnit[] = []
 	const seenIds = new Set<string>()
+	let hasArtifactIntegrityFailure = false
 
 	for (const [authoredIndex, unit] of units.entries()) {
 		if (typeof unit.id !== 'string' || unit.id.length === 0) {
@@ -409,7 +503,10 @@ export function assembleArtifactSetTargets(
 			artifactId: unit.id
 		}))
 		diagnostics.push(...integrityDiagnostics)
-		if (integrityDiagnostics.some(diagnostic => diagnostic.severity === 'error')) continue
+		if (integrityDiagnostics.some(diagnostic => diagnostic.severity === 'error')) {
+			hasArtifactIntegrityFailure = true
+			continue
+		}
 		const target = normalizeArtifactTargetValue(
 			unit.target,
 			unit.id,
@@ -435,7 +532,13 @@ export function assembleArtifactSetTargets(
 	}
 
 	if (hasErrors(diagnostics)) {
-		return { ok: false, classification: assemblyFailureClassification(diagnostics), changes: [], diagnostics }
+		return {
+			ok: false,
+			classification: hasArtifactIntegrityFailure
+				? 'terminalFailure'
+				: assemblyFailureClassification(diagnostics),
+			changes: [], diagnostics
+		}
 	}
 
 	const grouped = new Map<string, PreparedAssemblyUnit[]>()
@@ -697,6 +800,126 @@ function validateArtifactAssemblyStatic(
 	}
 }
 
+/** Compile authoritative graphs and replay fills without assembling targets or running project semantics. */
+export function compileArtifactSetGraphs(
+	plan: ArtifactSetPlan,
+	catalog: TemplateCatalogView | readonly GraphTemplateDefinition<any, string, any>[],
+	options?: Omit<ArtifactSetCompileOptions, 'mode'> & { mode?: 'strict' }
+): ArtifactSetGraphCompilationResult
+export function compileArtifactSetGraphs(
+	plan: ArtifactSetPlan,
+	catalog: TemplateCatalogView | readonly GraphTemplateDefinition<any, string, any>[],
+	options: Omit<ArtifactSetCompileOptions, 'mode'> & { mode: 'partial' }
+): ArtifactSetGraphCompilationResult
+export function compileArtifactSetGraphs(
+	plan: ArtifactSetPlan,
+	catalog: TemplateCatalogView | readonly GraphTemplateDefinition<any, string, any>[],
+	options: ArtifactSetCompileOptions = {}
+): ArtifactSetGraphCompilationResult {
+	const mode = options.mode ?? 'strict'
+	const diagnostics: ArtifactSetDiagnostic[] = []
+	const units: ArtifactSetUnitCompilation[] = []
+	let catalogView: TemplateCatalogView
+	try {
+		catalogView = captureCatalog(catalog)
+	} catch (error) {
+		return failedGraphCompilation(mode, plan, units, catalogErrorDiagnostics(error), 'templatePolicyFailure')
+	}
+	const workspace = normalizeWorkspaceFiles(options.workspaceFiles ?? {})
+	diagnostics.push(...workspace.diagnostics)
+	const compilationIdentity = {
+		contractDigest: catalogView.contractDigest,
+		manifestDigest: catalogView.manifestDigest,
+		workspaceSnapshotHash: workspaceSnapshotHash(workspace.files, options.workspaceSnapshotId, options.tsConfigFilePath, options.workspaceManifest)
+	}
+	diagnostics.push(...workspaceIdentityDiagnostics(compilationIdentity.workspaceSnapshotHash, options.workspaceSnapshotId))
+	diagnostics.push(...workspaceManifestDiagnostics(
+		workspace.files, options.workspaceManifest, options.tsConfigFilePath,
+		options.unavailableTextPaths
+	))
+	if (hasErrors(diagnostics)) return failedGraphCompilation(mode, plan, units, diagnostics, 'terminalFailure', compilationIdentity)
+	const normalizedPlan = normalizeArtifactSetPlan(plan, diagnostics)
+	if (!normalizedPlan || hasErrors(diagnostics)) return failedGraphCompilation(mode, plan, units, diagnostics, 'graphRepairable', compilationIdentity)
+
+	const ledgerByArtifact = new Map<string, ArtifactFillLedgerEntry[]>()
+	for (const entry of options.fillLedger ?? []) {
+		const entries = ledgerByArtifact.get(entry.artifactId)
+		if (entries) entries.push(entry)
+		else ledgerByArtifact.set(entry.artifactId, [entry])
+	}
+	const knownArtifactIds = new Set(normalizedPlan.artifacts.map(unit => unit.id))
+	for (const artifactId of ledgerByArtifact.keys()) {
+		if (!knownArtifactIds.has(artifactId)) diagnostics.push(setDiagnostic(
+			'ArtifactLedgerUnknownArtifact', `Fill ledger targets unknown artifact ${artifactId}.`,
+			{ artifactId, path: 'fillLedger' }
+		))
+	}
+	if (hasErrors(diagnostics)) return failedGraphCompilation(mode, normalizedPlan, units, diagnostics, 'terminalFailure', compilationIdentity)
+
+	const graphOptions = graphCompileOptions(options)
+	const classifications: SynthesisFailureClassification[] = []
+	for (const unit of normalizedPlan.artifacts) {
+		const graphHash = createArtifactSetGraphHash(unit.graph)
+		const compilation = compileGraph(unit.graph, catalogView, {
+			...graphOptions,
+			mode: 'partial',
+			checkSemanticDiagnostics: false,
+			compilationScope: artifactCompilationScope(options.compilationScope, unit.id)
+		})
+		const unitDiagnostics: ArtifactSetDiagnostic[] = compilation.diagnostics.map(diagnostic => ({ ...diagnostic, artifactId: unit.id }))
+		const unitResult: ArtifactSetUnitCompilation = {
+			artifactId: unit.id, graphHash, target: unit.target, compilation,
+			appliedFills: [], diagnostics: unitDiagnostics
+		}
+		units.push(unitResult)
+		diagnostics.push(...unitDiagnostics)
+		if (!compilation.ok) { classifications.push(compilation.classification); continue }
+
+		let artifact: TemplateArtifact = compilation.finalArtifact
+		let artifactHash = createArtifactSetArtifactHash(artifact)
+		for (const entry of ledgerByArtifact.get(unit.id) ?? []) {
+			if (entry.graphHash !== graphHash || entry.baseArtifactHash !== artifactHash) {
+				const code = entry.graphHash !== graphHash ? 'ArtifactLedgerGraphHashMismatch' : 'ArtifactLedgerBaseHashMismatch'
+				const expected = entry.graphHash !== graphHash ? graphHash : artifactHash
+				const actual = entry.graphHash !== graphHash ? entry.graphHash : entry.baseArtifactHash
+				const diagnostic = setDiagnostic(code, `Fill ledger identity does not match artifact ${unit.id}.`, { artifactId: unit.id, expected, actual })
+				unitDiagnostics.push(diagnostic); diagnostics.push(diagnostic); classifications.push('terminalFailure'); break
+			}
+			const fillResult = fillTemplateArtifactWithCatalog(artifact, entry.inputs, catalogView, {
+				...graphOptions, checkSemanticDiagnostics: false, trustedBaseArtifact: true
+			})
+			if (!fillResult.ok) {
+				const fillDiagnostics = fillResult.diagnostics.map(diagnostic => ({ ...diagnostic, artifactId: unit.id }))
+				unitDiagnostics.push(...fillDiagnostics); diagnostics.push(...fillDiagnostics); classifications.push(fillResult.classification); break
+			}
+			const resultingHash = createArtifactSetArtifactHash(fillResult.artifact)
+			if (entry.resultingArtifactHash !== resultingHash) {
+				const diagnostic = setDiagnostic('ArtifactLedgerResultHashMismatch', `Fill ledger result hash does not match artifact ${unit.id}.`, { artifactId: unit.id, expected: resultingHash, actual: entry.resultingArtifactHash })
+				unitDiagnostics.push(diagnostic); diagnostics.push(diagnostic); classifications.push('terminalFailure'); break
+			}
+			artifact = fillResult.artifact; artifactHash = resultingHash; unitResult.appliedFills.push(entry)
+		}
+		unitResult.artifact = artifact
+		unitResult.artifactHash = artifactHash
+	}
+	if (classifications.length > 0 || hasErrors(diagnostics)) return failedGraphCompilation(mode, normalizedPlan, units, diagnostics, combineClassifications(classifications), compilationIdentity)
+	const incomplete = units.filter(unit => unit.artifact?.complete !== true)
+	if (incomplete.length > 0) {
+		if (mode === 'partial') return { kind: 'artifactSetGraphCompilation', mode, ok: true, complete: false, plan: normalizedPlan, units, diagnostics, ...compilationIdentity }
+		for (const unit of incomplete) diagnostics.push(setDiagnostic('UnresolvedArtifactSetInputs', `Artifact ${unit.artifactId} still has unresolved template inputs.`, { stage: 'input', artifactId: unit.artifactId }))
+		return failedGraphCompilation(mode, normalizedPlan, units, diagnostics, 'artifactFillable', compilationIdentity)
+	}
+	return { kind: 'artifactSetGraphCompilation', mode, ok: true, complete: true, plan: normalizedPlan, units, diagnostics, ...compilationIdentity }
+}
+
+function failedGraphCompilation(
+	mode: 'strict' | 'partial', plan: ArtifactSetPlan, units: ArtifactSetUnitCompilation[],
+	diagnostics: ArtifactSetDiagnostic[], classification: SynthesisFailureClassification,
+	identity?: Pick<ArtifactSetAcceptanceIdentity, 'contractDigest' | 'manifestDigest' | 'workspaceSnapshotHash'>
+): ArtifactSetGraphCompilationResult {
+	return { kind: 'artifactSetGraphCompilation', mode, ok: false, complete: false, plan, units, diagnostics, classification, ...(identity ?? {}) }
+}
+
 /** Strictly compile every graph and return one validated, in-memory change set. */
 export function compileArtifactSet(
 	plan: ArtifactSetPlan,
@@ -717,214 +940,51 @@ export function compileArtifactSet(
 	options: ArtifactSetCompileOptions = {}
 ): ArtifactSetCompilationResult {
 	const mode = options.mode ?? 'strict'
-	const diagnostics: ArtifactSetDiagnostic[] = []
-	const units: ArtifactSetUnitCompilation[] = []
-	let catalogView: TemplateCatalogView
-	try {
-		catalogView = captureCatalog(catalog)
-	} catch (error) {
-		const catalogDiagnostics = catalogErrorDiagnostics(error)
-		return failedCompilation(mode, plan, units, catalogDiagnostics, 'templatePolicyFailure')
+	const graphResult = mode === 'partial'
+		? compileArtifactSetGraphs(plan, catalog, { ...options, mode: 'partial' })
+		: compileArtifactSetGraphs(plan, catalog, { ...options, mode: 'strict' })
+	const identity = {
+		...(graphResult.contractDigest === undefined ? {} : { contractDigest: graphResult.contractDigest }),
+		...(graphResult.manifestDigest === undefined ? {} : { manifestDigest: graphResult.manifestDigest }),
+		...(graphResult.workspaceSnapshotHash === undefined ? {} : { workspaceSnapshotHash: graphResult.workspaceSnapshotHash })
 	}
-	const workspace = normalizeWorkspaceFiles(options.workspaceFiles ?? {})
-	diagnostics.push(...workspace.diagnostics)
-	const compilationIdentity = {
-		contractDigest: catalogView.contractDigest,
-		manifestDigest: catalogView.manifestDigest,
-		workspaceSnapshotHash: workspaceSnapshotHash(
-			workspace.files,
-			options.workspaceSnapshotId,
-			options.tsConfigFilePath
-		)
+	if (!graphResult.ok) return {
+		kind: 'artifactSetCompilation', mode, ok: false, complete: false,
+		plan: graphResult.plan, units: graphResult.units, changes: [],
+		diagnostics: graphResult.diagnostics, classification: graphResult.classification,
+		...identity
+	} as ArtifactSetCompilationResult
+	if (!graphResult.complete) return {
+		kind: 'artifactSetCompilation', mode: 'partial', ok: true, complete: false,
+		plan: graphResult.plan, units: graphResult.units, changes: [],
+		diagnostics: graphResult.diagnostics, ...identity
 	}
-	if (hasErrors(diagnostics)) {
-		return failedCompilation(mode, plan, units, diagnostics, 'terminalFailure', compilationIdentity)
-	}
-	const normalizedPlan = normalizeArtifactSetPlan(plan, diagnostics)
-	if (!normalizedPlan || hasErrors(diagnostics)) {
-		return failedCompilation(mode, plan, units, diagnostics, 'graphRepairable', compilationIdentity)
-	}
-
-	const ledgerByArtifact = new Map<string, ArtifactFillLedgerEntry[]>()
-	for (const entry of options.fillLedger ?? []) {
-		const entries = ledgerByArtifact.get(entry.artifactId)
-		if (entries) entries.push(entry)
-		else ledgerByArtifact.set(entry.artifactId, [entry])
-	}
-	const knownArtifactIds = new Set(normalizedPlan.artifacts.map(unit => unit.id))
-	for (const artifactId of ledgerByArtifact.keys()) {
-		if (!knownArtifactIds.has(artifactId)) {
-			diagnostics.push(setDiagnostic(
-				'ArtifactLedgerUnknownArtifact',
-				`Fill ledger targets unknown artifact ${artifactId}.`,
-				{ artifactId, path: 'fillLedger' }
-			))
-		}
-	}
-	if (hasErrors(diagnostics)) {
-		return failedCompilation(mode, normalizedPlan, units, diagnostics, 'terminalFailure', compilationIdentity)
-	}
-
-	const graphOptions = graphCompileOptions(options)
-	const classifications: SynthesisFailureClassification[] = []
-	for (const unit of normalizedPlan.artifacts) {
-		const graphHash = createArtifactSetGraphHash(unit.graph)
-		const compilation = compileGraph(unit.graph, catalogView, {
-			...graphOptions,
-			mode: 'partial',
-			checkSemanticDiagnostics: false,
-			compilationScope: artifactCompilationScope(options.compilationScope, unit.id)
-		})
-		const unitDiagnostics: ArtifactSetDiagnostic[] = compilation.diagnostics.map(diagnostic => ({
-			...diagnostic,
-			artifactId: unit.id
-		}))
-		const unitResult: ArtifactSetUnitCompilation = {
-			artifactId: unit.id,
-			graphHash,
-			target: unit.target,
-			compilation,
-			appliedFills: [],
-			diagnostics: unitDiagnostics
-		}
-		units.push(unitResult)
-		diagnostics.push(...unitDiagnostics)
-
-		if (!compilation.ok) {
-			classifications.push(compilation.classification)
-			continue
-		}
-
-		let artifact: TemplateArtifact = compilation.finalArtifact
-		let artifactHash = createArtifactSetArtifactHash(artifact)
-		for (const entry of ledgerByArtifact.get(unit.id) ?? []) {
-			if (entry.graphHash !== graphHash) {
-				const diagnostic = setDiagnostic(
-					'ArtifactLedgerGraphHashMismatch',
-					`Fill ledger graph hash does not match artifact ${unit.id}.`,
-					{ artifactId: unit.id, expected: graphHash, actual: entry.graphHash }
-				)
-				unitDiagnostics.push(diagnostic)
-				diagnostics.push(diagnostic)
-				classifications.push('terminalFailure')
-				break
-			}
-			if (entry.baseArtifactHash !== artifactHash) {
-				const diagnostic = setDiagnostic(
-					'ArtifactLedgerBaseHashMismatch',
-					`Fill ledger base hash does not match artifact ${unit.id}.`,
-					{ artifactId: unit.id, expected: artifactHash, actual: entry.baseArtifactHash }
-				)
-				unitDiagnostics.push(diagnostic)
-				diagnostics.push(diagnostic)
-				classifications.push('terminalFailure')
-				break
-			}
-
-			const fillResult = fillTemplateArtifactWithCatalog(artifact, entry.inputs, catalogView, {
-				...graphOptions,
-				checkSemanticDiagnostics: false,
-				trustedBaseArtifact: true
-			})
-			if (!fillResult.ok) {
-				const fillDiagnostics = fillResult.diagnostics.map(diagnostic => ({
-					...diagnostic, artifactId: unit.id
-				}))
-				unitDiagnostics.push(...fillDiagnostics)
-				diagnostics.push(...fillDiagnostics)
-				classifications.push(fillResult.classification)
-				break
-			}
-			const resultingHash = createArtifactSetArtifactHash(fillResult.artifact)
-			if (entry.resultingArtifactHash !== resultingHash) {
-				const diagnostic = setDiagnostic(
-					'ArtifactLedgerResultHashMismatch',
-					`Fill ledger result hash does not match artifact ${unit.id}.`,
-					{ artifactId: unit.id, expected: resultingHash, actual: entry.resultingArtifactHash }
-				)
-				unitDiagnostics.push(diagnostic)
-				diagnostics.push(diagnostic)
-				classifications.push('terminalFailure')
-				break
-			}
-			artifact = fillResult.artifact
-			artifactHash = resultingHash
-			unitResult.appliedFills.push(entry)
-		}
-
-		unitResult.artifact = artifact
-		unitResult.artifactHash = artifactHash
-	}
-
-	if (classifications.length > 0 || hasErrors(diagnostics)) {
-		return failedCompilation(
-			mode,
-			normalizedPlan,
-			units,
-			diagnostics,
-			combineClassifications(classifications),
-			compilationIdentity
-		)
-	}
-
-	const incomplete = units.filter(unit => unit.artifact?.complete !== true)
-	if (incomplete.length > 0) {
-		if (mode === 'partial') {
-			return {
-				kind: 'artifactSetCompilation', mode, ok: true, complete: false,
-				plan: normalizedPlan, units, changes: [], diagnostics,
-				...compilationIdentity
-			}
-		}
-		const unresolvedDiagnostics = incomplete.map(unit => setDiagnostic(
-			'UnresolvedArtifactSetInputs',
-			`Artifact ${unit.artifactId} still has unresolved template inputs.`,
-			{
-				stage: 'input', artifactId: unit.artifactId,
-				actual: unit.artifact?.complete === false
-					? unit.artifact.unresolvedInputs.map(input => input.id)
-					: undefined
-			}
-		))
-		diagnostics.push(...unresolvedDiagnostics)
-		return failedCompilation(mode, normalizedPlan, units, diagnostics, 'artifactFillable', compilationIdentity)
-	}
-
-	const assembly = validateArtifactAssemblyStatic(
-		units.map(unit => ({
+	const staticResult = validateArtifactAssemblyStatic(
+		graphResult.units.map(unit => ({
 			id: unit.artifactId,
 			target: unit.target,
 			artifact: unit.artifact as CompleteTemplateArtifact,
 			...(unit.artifactHash === undefined ? {} : { artifactHash: unit.artifactHash })
 		})),
-		catalogView,
-		{
-			...(options.workspaceFiles === undefined ? {} : { workspaceFiles: options.workspaceFiles }),
-			...(options.workspaceRoot === undefined ? {} : { workspaceRoot: options.workspaceRoot }),
-			...(options.workspaceSnapshotId === undefined ? {} : { workspaceSnapshotId: options.workspaceSnapshotId }),
-			...(options.tsConfigFilePath === undefined ? {} : { tsConfigFilePath: options.tsConfigFilePath }),
-			...(options.securityPolicy === undefined ? {} : { securityPolicy: options.securityPolicy })
-		}
+		catalog,
+		options
 	)
-	diagnostics.push(...assembly.diagnostics)
-	if (!assembly.ok) {
-		return failedCompilation(
-			mode, normalizedPlan, units, diagnostics, assembly.classification, compilationIdentity
-		)
-	}
-
+	const diagnostics = [...graphResult.diagnostics, ...staticResult.diagnostics]
+	if (!staticResult.ok) return {
+		kind: 'artifactSetCompilation', mode, ok: false, complete: false,
+		plan: graphResult.plan, units: graphResult.units, changes: [], diagnostics,
+		classification: staticResult.classification, ...identity
+	} as ArtifactSetCompilationResult
 	return {
 		kind: 'artifactSetCompilation', mode, ok: true, complete: true,
-		plan: normalizedPlan, units,
-		validation: 'static',
-		changes: assembly.changes,
-		changeSetHash: assembly.changeSetHash,
-		contractDigest: assembly.contractDigest,
-		manifestDigest: assembly.manifestDigest,
-		workspaceSnapshotHash: assembly.workspaceSnapshotHash,
-		staticPolicyVersion: assembly.staticPolicyVersion,
-		diagnostics
-	} as ArtifactSetCompleteCompilationResult & { mode: typeof mode }
+		plan: graphResult.plan, units: graphResult.units, diagnostics,
+		validation: 'static', changes: staticResult.changes,
+		changeSetHash: staticResult.changeSetHash,
+		contractDigest: staticResult.contractDigest,
+		manifestDigest: staticResult.manifestDigest,
+		workspaceSnapshotHash: staticResult.workspaceSnapshotHash,
+		staticPolicyVersion: staticResult.staticPolicyVersion
+	} as ArtifactSetCompilationResult
 }
 
 /**
@@ -932,11 +992,14 @@ export function compileArtifactSet(
  * pipeline. Unlike the lower-level assembler, this entry point does not accept
  * caller-constructed artifacts detached from their graphs and fill ledger.
  */
-export function validateArtifactSetStatic(
+export function finalizeArtifactSetStatic(
 	plan: ArtifactSetPlan,
 	catalog: TemplateCatalogView | readonly GraphTemplateDefinition<any, string, any>[],
-	options: Omit<ArtifactSetCompileOptions, 'mode'> = {}
+	options: Omit<ArtifactSetCompileOptions, 'mode'> = {},
+	constraintAcceptance?: ConstraintBoundStaticAcceptance
 ): ArtifactSetStaticValidationResult {
+	const acceptanceDiagnostics = validateConstraintAcceptance(constraintAcceptance)
+	if (acceptanceDiagnostics.length > 0) return { ok: false, classification: 'terminalFailure', changes: [], diagnostics: acceptanceDiagnostics }
 	const result = compileArtifactSet(plan, catalog, { ...options, mode: 'strict' })
 	if (!result.ok) {
 		return {
@@ -950,13 +1013,78 @@ export function validateArtifactSetStatic(
 		ok: true,
 		validation: result.validation,
 		changes: result.changes,
-		changeSetHash: result.changeSetHash,
+		changeSetHash: createArtifactSetChangeSetHash(result.changes, {
+			contractDigest: result.contractDigest,
+			manifestDigest: result.manifestDigest,
+			workspaceSnapshotHash: result.workspaceSnapshotHash,
+			staticPolicyVersion: result.staticPolicyVersion,
+			...(constraintAcceptance === undefined ? {} : { constraintAcceptance })
+		}),
 		contractDigest: result.contractDigest,
 		manifestDigest: result.manifestDigest,
 		workspaceSnapshotHash: result.workspaceSnapshotHash,
 		staticPolicyVersion: result.staticPolicyVersion,
+		...(constraintAcceptance === undefined ? {} : { constraintAcceptance }),
 		diagnostics: result.diagnostics
 	}
+}
+
+/** Backward-compatible unconstrained final static facade. */
+export function validateArtifactSetStatic(
+	plan: ArtifactSetPlan,
+	catalog: TemplateCatalogView | readonly GraphTemplateDefinition<any, string, any>[],
+	options: Omit<ArtifactSetCompileOptions, 'mode'> = {}
+): ArtifactSetStaticValidationResult {
+	return finalizeArtifactSetStatic(plan, catalog, options)
+}
+
+/** Recompute authoritative graphs, assemble targets, and compare baseline/candidate TypeScript programs. */
+export function validateArtifactSetSemantics(
+	plan: ArtifactSetPlan,
+	catalog: TemplateCatalogView | readonly GraphTemplateDefinition<any, string, any>[],
+	options: Omit<ArtifactSetCompileOptions, 'mode'> = {}
+): ArtifactSetSemanticValidationResult {
+	const graphResult = compileArtifactSetGraphs(plan, catalog, { ...options, mode: 'strict' })
+	if (!graphResult.ok) return { ok: false, classification: graphResult.classification, changes: [], diagnostics: graphResult.diagnostics }
+	const workspace = normalizeWorkspaceFiles(options.workspaceFiles ?? {})
+	const contextDiagnostics = staticAcceptanceContextDiagnostics(
+		graphResult.units.map(unit => ({ id: unit.artifactId, target: unit.target, artifact: unit.artifact as CompleteTemplateArtifact, ...(unit.artifactHash === undefined ? {} : { artifactHash: unit.artifactHash }) })),
+		workspace.files,
+		options
+	)
+	if (hasErrors([...workspace.diagnostics, ...contextDiagnostics])) return { ok: false, classification: 'terminalFailure', changes: [], diagnostics: [...workspace.diagnostics, ...contextDiagnostics] }
+	const assembled = assembleArtifactSetTargets(
+		graphResult.units.map(unit => ({ id: unit.artifactId, target: unit.target, artifact: unit.artifact as CompleteTemplateArtifact, ...(unit.artifactHash === undefined ? {} : { artifactHash: unit.artifactHash }) })),
+		catalog,
+		options
+	)
+	if (!assembled.ok) return assembled
+	const prepared = graphResult.units.map((unit, authoredIndex) => ({
+		id: unit.artifactId, target: unit.target, artifact: unit.artifact as CompleteTemplateArtifact,
+		artifactHash: unit.artifactHash ?? createArtifactSetArtifactHash(unit.artifact as CompleteTemplateArtifact), authoredIndex
+	}))
+	const semanticDiagnostics = validateAssembledSources(assembled.changes, workspace.files, options, prepared, true)
+	const diagnostics = [...assembled.diagnostics, ...semanticDiagnostics]
+	if (hasErrors(semanticDiagnostics)) return { ok: false, classification: 'graphRepairable', changes: [], diagnostics }
+	return {
+		ok: true, validation: 'semantic', changes: assembled.changes,
+		contractDigest: assembled.contractDigest, manifestDigest: assembled.manifestDigest,
+		workspaceSnapshotHash: assembled.workspaceSnapshotHash, diagnostics
+	}
+}
+
+function validateConstraintAcceptance(value: ConstraintBoundStaticAcceptance | undefined): ArtifactSetDiagnostic[] {
+	if (value === undefined) return []
+	const blobHash = /^sha256:[a-f0-9]{64}$/u
+	const valid = value.schemaVersion === 1
+		&& typeof value.constraintEntryPath === 'string' && value.constraintEntryPath.length > 0
+		&& /^wc1_[a-f0-9]{64}$/u.test(value.constraintDigest)
+		&& blobHash.test(value.constraintSourceSnapshotHash)
+		&& value.constraintEngineVersion === 3
+		&& blobHash.test(value.analysisSnapshotHash)
+		&& Object.values(value.phaseResultBlobHashes).length === 4
+		&& Object.values(value.phaseResultBlobHashes).every(hash => blobHash.test(hash))
+	return valid ? [] : [setDiagnostic('InvalidConstraintBoundStaticAcceptance', 'Constraint-bound finalization requires four valid identity-bound phase result hashes.', { stage: 'policy', actual: value })]
 }
 
 function normalizeArtifactSetPlan(
@@ -1101,18 +1229,187 @@ function normalizeWorkspaceFiles(files: Readonly<Record<string, string>>): Norma
 
 function workspaceSnapshotHash(
 	files: ReadonlyMap<string, string>,
-	workspaceSnapshotId: string | undefined,
-	tsConfigFilePath: string | undefined
+	_workspaceSnapshotId: string | undefined,
+	tsConfigFilePath: string | undefined,
+	workspaceManifest?: ArtifactSetWorkspaceManifest
 ): string {
+	if (workspaceManifest !== undefined) {
+		return versionedHash('ws', ['runtime-workspace-manifest', ARTIFACT_SET_IDENTITY_VERSION, workspaceManifest])
+	}
 	return versionedHash('ws', [
 		'artifact-set-workspace-snapshot',
 		ARTIFACT_SET_IDENTITY_VERSION,
-		workspaceSnapshotId ?? null,
 		tsConfigFilePath ?? null,
 		[...files.entries()]
-			.sort(([left], [right]) => left.localeCompare(right))
+			.sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
 			.map(([path, sourceText]) => [path, createArtifactSetFileHash(sourceText)])
 	])
+}
+
+function workspaceIdentityDiagnostics(actual: string, expected: string | undefined): ArtifactSetDiagnostic[] {
+	return expected === undefined || expected === actual ? [] : [setDiagnostic(
+		'WorkspaceSnapshotHashMismatch',
+		'Caller-provided workspace snapshot identity does not match the normalized immutable files.',
+		{ stage: 'policy', expected, actual }
+	)]
+}
+
+function workspaceManifestDiagnostics(
+	files: ReadonlyMap<string, string>,
+	manifest: ArtifactSetWorkspaceManifest | undefined,
+	tsConfigFilePath: string | undefined,
+	unavailableTextPaths: readonly string[] | undefined
+): ArtifactSetDiagnostic[] {
+	const diagnostics: ArtifactSetDiagnostic[] = []
+	if (manifest === undefined) {
+		if ((unavailableTextPaths?.length ?? 0) > 0) {
+			diagnostics.push(setDiagnostic(
+				'UnavailableTextPathsRequireWorkspaceManifest',
+				'Unavailable text paths are meaningful only when bound to an immutable workspace manifest.',
+				{ stage: 'policy', path: 'unavailableTextPaths', actual: unavailableTextPaths }
+			))
+		}
+		return diagnostics
+	}
+	if (manifest.schemaVersion !== 1 || typeof manifest.revision !== 'string' || manifest.revision.length === 0) {
+		diagnostics.push(setDiagnostic('InvalidWorkspaceManifest', 'Workspace manifest has an unsupported schema version or empty revision.', { stage: 'policy' }))
+		return diagnostics
+	}
+	if (tsConfigFilePath !== undefined && manifest.tsConfigFilePath !== tsConfigFilePath) {
+		diagnostics.push(setDiagnostic('WorkspaceManifestTypeScriptConfigurationMismatch', 'Workspace manifest tsconfig does not match the configured project.', { stage: 'policy', expected: tsConfigFilePath, actual: manifest.tsConfigFilePath }))
+	}
+	const compare = (left: string, right: string) => left < right ? -1 : left > right ? 1 : 0
+	const filePaths = manifest.files.map(file => file.path)
+	const symlinkPaths = manifest.symlinks.map(link => link.path)
+	const unavailable = unavailableTextPaths ?? []
+	if (new Set(filePaths).size !== filePaths.length || filePaths.some((path, index) => index > 0 && compare(filePaths[index - 1]!, path) >= 0)) {
+		diagnostics.push(setDiagnostic('InvalidWorkspaceManifestOrder', 'Workspace manifest files must be unique and ordered by canonical path.', { stage: 'policy' }))
+	}
+	if (new Set(symlinkPaths).size !== symlinkPaths.length || symlinkPaths.some((path, index) => index > 0 && compare(symlinkPaths[index - 1]!, path) >= 0)) {
+		diagnostics.push(setDiagnostic('InvalidWorkspaceManifestOrder', 'Workspace manifest symlinks must be unique and ordered by canonical path.', { stage: 'policy' }))
+	}
+	try {
+		if (normalizeArtifactTargetPath(manifest.tsConfigFilePath) !== manifest.tsConfigFilePath) {
+			throw new TypeError('Path is not canonical.')
+		}
+	} catch (error) {
+		diagnostics.push(setDiagnostic('InvalidWorkspaceManifestPath', errorMessage(error), {
+			stage: 'policy', path: 'tsConfigFilePath', actual: manifest.tsConfigFilePath
+		}))
+	}
+	if (!filePaths.includes(manifest.tsConfigFilePath)) {
+		diagnostics.push(setDiagnostic(
+			'InvalidWorkspaceManifest',
+			'The workspace manifest tsconfig path must identify a captured regular file.',
+			{ stage: 'policy', path: manifest.tsConfigFilePath }
+		))
+	}
+	for (const link of manifest.symlinks) {
+		try {
+			if (normalizeArtifactTargetPath(link.path) !== link.path) throw new TypeError('Path is not canonical.')
+		} catch (error) {
+			diagnostics.push(setDiagnostic('InvalidWorkspaceManifestPath', errorMessage(error), {
+				stage: 'policy', path: link.path, actual: link.path
+			}))
+		}
+		if (typeof link.target !== 'string') {
+			diagnostics.push(setDiagnostic('InvalidWorkspaceManifest', 'Workspace symlink targets must be strings.', {
+				stage: 'policy', path: link.path, actual: link.target
+			}))
+		}
+		if (filePaths.includes(link.path)) {
+			diagnostics.push(setDiagnostic('InvalidWorkspaceManifest', 'A workspace path cannot be both a regular file and symlink.', {
+				stage: 'policy', path: link.path
+			}))
+		}
+	}
+	if (
+		new Set(unavailable).size !== unavailable.length ||
+		unavailable.some((path, index) => index > 0 && compare(unavailable[index - 1]!, path) >= 0)
+	) {
+		diagnostics.push(setDiagnostic(
+			'InvalidUnavailableTextPathOrder',
+			'Unavailable text paths must be unique and ordered by canonical path.',
+			{ stage: 'policy', path: 'unavailableTextPaths', actual: unavailable }
+		))
+	}
+	const manifestPathSet = new Set(filePaths)
+	const unavailableSet = new Set<string>()
+	for (const unavailablePath of unavailable) {
+		try {
+			if (normalizeArtifactTargetPath(unavailablePath) !== unavailablePath) throw new TypeError('Path is not canonical.')
+		} catch (error) {
+			diagnostics.push(setDiagnostic('InvalidUnavailableTextPath', errorMessage(error), {
+				stage: 'policy', path: unavailablePath, actual: unavailablePath
+			}))
+			continue
+		}
+		unavailableSet.add(unavailablePath)
+		if (!manifestPathSet.has(unavailablePath)) {
+			diagnostics.push(setDiagnostic(
+				'UnavailableTextPathMissingFromManifest',
+				`Unavailable text path ${unavailablePath} is absent from the immutable manifest.`,
+				{ stage: 'policy', path: unavailablePath }
+			))
+		}
+		if (files.has(unavailablePath)) {
+			diagnostics.push(setDiagnostic(
+				'WorkspaceTextPartitionOverlap',
+				`Workspace file ${unavailablePath} cannot be both text and unavailable text.`,
+				{ stage: 'policy', path: unavailablePath }
+			))
+		}
+		if (isTypeScriptOrJavaScriptPath(unavailablePath) || unavailablePath === manifest.tsConfigFilePath) {
+			diagnostics.push(setDiagnostic(
+				'WorkspaceAnalysisFileUnavailable',
+				`TypeScript analysis input ${unavailablePath} must be available as exact UTF-8 text.`,
+				{ stage: 'policy', path: unavailablePath }
+			))
+		}
+	}
+	for (const entry of manifest.files) {
+		try {
+			if (normalizeArtifactTargetPath(entry.path) !== entry.path) throw new TypeError('Path is not canonical.')
+		} catch (error) {
+			diagnostics.push(setDiagnostic('InvalidWorkspaceManifestPath', errorMessage(error), { stage: 'policy', path: entry.path }))
+			continue
+		}
+		if (!Number.isSafeInteger(entry.byteLength) || entry.byteLength < 0 || entry.contentHash !== entry.blobHash || !/^sha256:[a-f0-9]{64}$/u.test(entry.contentHash)) {
+			diagnostics.push(setDiagnostic('InvalidWorkspaceManifestFileIdentity', `Workspace manifest file identity is malformed for ${entry.path}.`, { stage: 'policy', path: entry.path }))
+			continue
+		}
+		const sourceText = files.get(entry.path)
+		if (sourceText === undefined) {
+			if (!unavailableSet.has(entry.path)) {
+				diagnostics.push(setDiagnostic(
+					'WorkspaceManifestFileUnrepresented',
+					`Workspace manifest file ${entry.path} is in neither the text nor unavailable-text partition.`,
+					{ stage: 'policy', path: entry.path }
+				))
+				if (isTypeScriptOrJavaScriptPath(entry.path) || entry.path === manifest.tsConfigFilePath) {
+					diagnostics.push(setDiagnostic(
+						'WorkspaceAnalysisFileUnavailable',
+						`TypeScript analysis input ${entry.path} must be available as exact UTF-8 text.`,
+						{ stage: 'policy', path: entry.path }
+					))
+				}
+			}
+			continue
+		}
+		const bytes = Buffer.from(sourceText, 'utf8')
+		const contentHash = `sha256:${createHash('sha256').update(bytes).digest('hex')}`
+		if (entry.byteLength !== bytes.byteLength || entry.contentHash !== contentHash) {
+			diagnostics.push(setDiagnostic('WorkspaceManifestFileIdentityMismatch', `Workspace text does not match captured bytes for ${entry.path}.`, { stage: 'policy', path: entry.path, expected: { byteLength: entry.byteLength, contentHash: entry.contentHash }, actual: { byteLength: bytes.byteLength, contentHash } }))
+		}
+	}
+	for (const path of files.keys()) {
+		if (!filePaths.includes(path)) diagnostics.push(setDiagnostic('WorkspaceFileMissingFromManifest', `Workspace text file ${path} is absent from the immutable manifest.`, { stage: 'policy', path }))
+	}
+	return diagnostics
+}
+
+function isTypeScriptOrJavaScriptPath(path: string): boolean {
+	return /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs)$/u.test(path)
 }
 
 function staticAcceptanceContextDiagnostics(
@@ -1133,6 +1430,14 @@ function staticAcceptanceContextDiagnostics(
 			{ path: 'workspaceSnapshotId', expected: 'non-empty string', actual: options.workspaceSnapshotId }
 		))
 	}
+	diagnostics.push(...workspaceIdentityDiagnostics(
+		workspaceSnapshotHash(workspaceFiles, undefined, options.tsConfigFilePath, options.workspaceManifest),
+		options.workspaceSnapshotId
+	))
+	diagnostics.push(...workspaceManifestDiagnostics(
+		workspaceFiles, options.workspaceManifest, options.tsConfigFilePath,
+		options.unavailableTextPaths
+	))
 	if (typeof options.tsConfigFilePath !== 'string' || options.tsConfigFilePath.length === 0) {
 		diagnostics.push(setDiagnostic(
 			'MissingTypeScriptProjectConfiguration',
@@ -1165,8 +1470,10 @@ function graphCompileOptions(options: ArtifactSetCompileOptions): GraphCompileOp
 	const {
 		mode: _mode,
 		workspaceFiles: _workspaceFiles,
+		unavailableTextPaths: _unavailableTextPaths,
 		workspaceRoot: _workspaceRoot,
 		workspaceSnapshotId: _workspaceSnapshotId,
+		workspaceManifest: _workspaceManifest,
 		fillLedger: _fillLedger,
 		semanticContext: _semanticContext,
 		filePath: _filePath,
@@ -1201,21 +1508,6 @@ function artifactCompilationScope(baseScope: string | undefined, artifactId: str
 		baseScope ?? null,
 		artifactId
 	])
-}
-
-function failedCompilation(
-	mode: 'strict' | 'partial',
-	plan: ArtifactSetPlan,
-	units: ArtifactSetUnitCompilation[],
-	diagnostics: ArtifactSetDiagnostic[],
-	classification: SynthesisFailureClassification,
-	identity?: Pick<ArtifactSetAcceptanceIdentity, 'contractDigest' | 'manifestDigest' | 'workspaceSnapshotHash'>
-): ArtifactSetFailedCompilationResult & { mode: typeof mode } {
-	return {
-		kind: 'artifactSetCompilation', mode, ok: false, complete: false,
-		classification, plan, units, changes: [], diagnostics,
-		...(identity ?? {})
-	}
 }
 
 function combineClassifications(
@@ -1550,16 +1842,10 @@ function hasErrors(diagnostics: readonly ArtifactSetDiagnostic[]): boolean {
 function assemblyFailureClassification(
 	diagnostics: readonly ArtifactSetDiagnostic[]
 ): 'graphRepairable' | 'terminalFailure' {
-	const terminalCodes = new Set([
-		'ArtifactAssemblyHashMismatch', 'ArtifactBaseFileHashMismatch',
-		'ArtifactInputIdCollision', 'CompleteArtifactContainsMarkers',
-		'InvalidGeneratedSourceMap', 'MalformedArtifactMarkers',
-		'MalformedTemplateArtifact', 'MissingTemplateManifestIdentity',
-		'PartialArtifactHasNoUnresolvedInputs'
-	])
-	return diagnostics.some(diagnostic => terminalCodes.has(diagnostic.code))
-		? 'terminalFailure'
-		: 'graphRepairable'
+	return diagnostics.every(diagnostic => {
+		const classification = classifySynthesisDiagnosticCode(diagnostic.code)
+		return classification === 'graphRepairable' || classification === 'artifactFillable'
+	}) ? 'graphRepairable' : 'terminalFailure'
 }
 
 function versionedHash(prefix: string, value: unknown): string {

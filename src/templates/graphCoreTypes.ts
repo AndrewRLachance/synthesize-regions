@@ -97,13 +97,17 @@ export const BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES = [
 	'InvalidCollectionMinimum',
 	'InvalidGraphRunnerAction',
 	'InvalidGeneratedSourceMap',
+	'InvalidActualSchema',
+	'InvalidExpectedSchema',
 	'InvalidArtifactGraph',
 	'InvalidArtifactId',
 	'InvalidArtifactSetPlan',
 	'InvalidArtifactTarget',
 	'InvalidArtifactTargetPath',
 	'InvalidArtifactTargetRange',
+	'InvalidConstraintBoundStaticAcceptance',
 	'InvalidJsonSchema',
+	'InvalidJsonValue',
 	'InvalidLiteralInput',
 	'InvalidRawCodeMaxLength',
 	'InvalidRawCodePattern',
@@ -125,11 +129,14 @@ export const BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES = [
 	'ArtifactCatalogRequired',
 	'TemplateManifestDigestMismatch',
 	'MixedUnionRegionKinds',
+	'JsonSchemaMismatch',
+	'JsonSchemaValueMismatch',
 	'PartialArtifactHasNoUnresolvedInputs',
 	'OverlappingArtifactTargets',
 	'RawCodeRejected',
 	'SchemaCompatibilityIndeterminate',
 	'TypeScriptSemanticError',
+	'TypeScriptTypeMismatch',
 	'UnknownArtifactFillKey',
 	'UnknownArtifactMarker',
 	'UnknownFinalNode',
@@ -144,10 +151,28 @@ export const BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES = [
 	'EmptyArtifactSetPlan',
 	'InvalidWorkspaceFilePath',
 	'InvalidWorkspaceFileSource',
+	'InvalidWorkspaceManifest',
+	'InvalidWorkspaceManifestFileIdentity',
+	'InvalidWorkspaceManifestOrder',
+	'InvalidWorkspaceManifestPath',
+	'InvalidUnavailableTextPath',
+	'InvalidUnavailableTextPathOrder',
+	'UnavailableTextPathMissingFromManifest',
+	'UnavailableTextPathsRequireWorkspaceManifest',
+	'WorkspaceAnalysisFileUnavailable',
+	'WorkspaceFileMissingFromManifest',
+	'WorkspaceManifestFileIdentityMismatch',
+	'WorkspaceManifestFileUnrepresented',
+	'WorkspaceManifestTypeScriptConfigurationMismatch',
+	'WorkspaceSnapshotHashMismatch',
+	'WorkspaceTextPartitionOverlap',
 	'UnresolvedLocalSchemaReference',
+	'UnresolvedJsonSchemaReference',
 	'UnresolvedTemplateInputs',
 	'UnresolvedTypeScriptType',
 	'UnsupportedSchemaKeyword',
+	'UnsupportedJsonSchemaKeyword',
+	'UnsupportedJsonSchemaReference',
 	'ForbiddenAnyType'
 ] as const
 
@@ -163,6 +188,102 @@ export const SYNTHESIS_FAILURE_CLASSIFICATION_VALUES = [
 ] as const
 
 export type SynthesisFailureClassification = typeof SYNTHESIS_FAILURE_CLASSIFICATION_VALUES[number]
+
+/**
+ * Candidate-authored diagnostics that have an explicit non-terminal repair
+ * channel. Every code omitted from these lists is classified terminally.
+ */
+const GRAPH_REPAIRABLE_DIAGNOSTIC_CODES = new Set<BuiltInSynthesisDiagnosticCode>([
+	'AmbiguousArtifactInputAlias',
+	'ArtifactCreateFileExists',
+	'ArtifactSetTypeScriptSemanticError',
+	'ArtifactSetTypeScriptSyntaxError',
+	'ArtifactTargetKindMismatch',
+	'ArtifactTargetPathCollision',
+	'CycleDetected',
+	'DuplicateArtifactId',
+	'DuplicateNodeId',
+	'EmptyArtifactSetPlan',
+	'FinalGoalKindMismatch',
+	'FinalGoalSchemaMismatch',
+	'FinalGoalTypeMismatch',
+	'GeneratedTypeScriptInvalid',
+	'GraphPatchInputNotFound',
+	'GraphPatchTargetAmbiguous',
+	'GraphPatchTargetNotFound',
+	'IncompatibleCollectionSize',
+	'IncompatibleFragmentKind',
+	'IncompatibleFragmentSource',
+	'IncompatibleFragmentType',
+	'IncompatibleInputKind',
+	'IncompatibleSourceOutputKind',
+	'IncompatibleSourceSchema',
+	'IncompatibleSourceType',
+	'InvalidArtifactGraph',
+	'InvalidArtifactId',
+	'InvalidArtifactSetPlan',
+	'InvalidArtifactTarget',
+	'InvalidArtifactTargetPath',
+	'InvalidArtifactTargetRange',
+	'InvalidGraphRunnerAction',
+	'InvalidLiteralInput',
+	'InvalidRunnerTransition',
+	'InvalidSemanticTarget',
+	'JsonSchemaMismatch',
+	'MissingArtifactBaseFile',
+	'OverlappingArtifactTargets',
+	'RawCodeRejected',
+	'TypeScriptSemanticError',
+	'TypeScriptTypeMismatch',
+	'UnknownFinalNode',
+	'UnknownInput',
+	'UnknownReference',
+	'UnknownTemplate'
+])
+
+/** Package diagnostics that authorize a bounded unresolved-input fill. */
+const ARTIFACT_FILLABLE_DIAGNOSTIC_CODES = new Set<BuiltInSynthesisDiagnosticCode>([
+	'ConflictingArtifactFillKeys',
+	'MissingRequiredInput',
+	'UnknownArtifactFillKey',
+	'UnresolvedArtifactSetInputs',
+	'UnresolvedTemplateInputs'
+])
+
+/** Package diagnostics that indicate a deployment-owned template-policy defect. */
+const TEMPLATE_POLICY_DIAGNOSTIC_CODE_VALUES = new Set<BuiltInSynthesisDiagnosticCode>([
+	'CatalogContractNotSerializable',
+	'InvalidTemplateManifest',
+	'InvalidTemplateManifestSource',
+	'UntrustedTemplateCatalogView',
+	'UntrustedTemplateDefinition'
+])
+
+/**
+ * Closed classification for every package-owned diagnostic code.
+ *
+ * The construction intentionally defaults to `terminalFailure`; adding a new
+ * diagnostic therefore cannot accidentally grant model repair authority.
+ */
+export const SYNTHESIS_DIAGNOSTIC_CLASSIFICATION_CATALOG = Object.freeze(
+	Object.fromEntries(BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES.map(code => [
+		code,
+		ARTIFACT_FILLABLE_DIAGNOSTIC_CODES.has(code)
+			? 'artifactFillable'
+			: GRAPH_REPAIRABLE_DIAGNOSTIC_CODES.has(code)
+				? 'graphRepairable'
+				: TEMPLATE_POLICY_DIAGNOSTIC_CODE_VALUES.has(code)
+					? 'templatePolicyFailure'
+					: 'terminalFailure'
+	]))
+) as Readonly<Record<BuiltInSynthesisDiagnosticCode, SynthesisFailureClassification>>
+
+/** Return the package classification for a diagnostic, failing closed on unknown codes. */
+export function classifySynthesisDiagnosticCode(code: string): SynthesisFailureClassification {
+	return Object.prototype.hasOwnProperty.call(SYNTHESIS_DIAGNOSTIC_CLASSIFICATION_CATALOG, code)
+		? SYNTHESIS_DIAGNOSTIC_CLASSIFICATION_CATALOG[code as BuiltInSynthesisDiagnosticCode]
+		: 'terminalFailure'
+}
 
 /** Graph patch actions accepted by the runner repair protocol. */
 export const GRAPH_PATCH_ACTION_KIND_VALUES = [

@@ -13,8 +13,9 @@ product boundary and the
 [technical design](./workspace-constraints-technical-design.md) for the
 normalized representation, evaluator, identity, and runtime protocol.
 
-> **Design status:** This document specifies a proposed v1 language. The parser,
-> evaluator, schemas, and runtime APIs are not implemented yet.
+> **Implementation status:** The v1 parser, normalized typed IR, evaluator,
+> schemas, and Phase 3 runtime integration are implemented. The language remains
+> data-only and generated/repository code is never imported or executed.
 
 ## Mental model
 

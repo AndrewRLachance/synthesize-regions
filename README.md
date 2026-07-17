@@ -28,6 +28,28 @@ project:
   semantic validation, provenance, and reproducibility.
 - [Project Glossary](./GLOSSARY.md) defines terminology shared by both layers.
 
+## Phase-Granular Static Pipeline
+
+Artifact-set static validation is available as composable, schema-backed
+boundaries:
+
+- `compileArtifactSetGraphs()` compiles graph/fill results without assembly.
+- `assembleArtifactSetTargets()` performs deterministic syntax-only assembly.
+- `validateArtifactSetSemantics()` compares baseline and candidate TypeScript
+  programs.
+- `finalizeArtifactSetStatic()` authoritatively revalidates and produces the
+  only approval-eligible `validation: "static"` result.
+
+`compileArtifactSet()` and `validateArtifactSetStatic()` remain compatibility
+facades. Constrained finalization requires `ConstraintBoundStaticAcceptance`
+with the exact constraint identity and all four non-gating phase-result blob
+hashes. Workspace snapshot identities can be verified against a full immutable
+workspace manifest instead of trusting a caller-supplied identifier. When a
+manifest contains binary or otherwise non-UTF-8 files, pass their sorted,
+unique paths as `unavailableTextPaths`; that list and `workspaceFiles` must be
+an exact disjoint partition of the manifest. The captured tsconfig and every
+TypeScript/JavaScript analysis input must remain in the verified text view.
+
 ## Install
 
 ```bash
@@ -703,6 +725,9 @@ a correction. Invalid actions after a terminal state remain terminal.
 `BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES` and
 `BuiltInSynthesisDiagnosticCode` enumerate package-provided codes, while
 `SynthesisDiagnostic.code` remains open for producer-defined diagnostics.
+`SYNTHESIS_DIAGNOSTIC_CLASSIFICATION_CATALOG` and
+`classifySynthesisDiagnosticCode()` expose the package-owned routing contract;
+unknown codes fail closed as `terminalFailure`.
 
 Graph compilation can opt into project-aware TypeScript semantic validation of
 the complete final artifact:

@@ -12,9 +12,13 @@ describe('published schema generation', () => {
 		const serializedSchemas = serializePublishedSchemas()
 
 		expect(Object.keys(documents).sort()).toEqual([
+			'schemas/artifact-set-assembly-result.schema.json',
 			'schemas/artifact-set-compilation-result.schema.json',
+			'schemas/artifact-set-graph-compilation-result.schema.json',
 			'schemas/artifact-set-plan.schema.json',
+			'schemas/artifact-set-semantic-validation-result.schema.json',
 			'schemas/artifact-set-static-validation-result.schema.json',
+			'schemas/constraint-bound-static-acceptance.schema.json',
 			'schemas/graph-compilation-result.schema.json',
 			'schemas/graph-runner-action.schema.json',
 			'schemas/graph-runner-state.schema.json',

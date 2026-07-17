@@ -346,21 +346,33 @@ import {
 	REGION_KIND_VALUES,
 	REGION_SYNTAX_ENGINE_VERSION,
 	GeneratedSourceMapSchema,
+	SYNTHESIS_DIAGNOSTIC_CLASSIFICATION_CATALOG,
 	ArtifactSetCompilationResultSchema,
+	ArtifactSetGraphCompilationResultSchema,
+	ArtifactSetAssemblyResultSchema,
+	ArtifactSetSemanticValidationResultSchema,
 	ArtifactSetPlanSchema,
 	ArtifactSetStaticValidationResultSchema,
+	ConstraintBoundStaticAcceptanceSchema,
 	GraphTemplateManifestSchema,
+	assembleArtifactSetTargets,
+	captureTemplateCatalogView,
 	checkContract,
+	classifySynthesisDiagnosticCode,
 	compileArtifactSet,
+	compileArtifactSetGraphs,
 	compareJsonSchemas,
 	compareTypeDescriptors,
 	compareTypeScriptTypes,
 	createTemplateRegistryFromManifests,
+	deepestGeneratedSourceSpan,
 	discoverSourceTemplates,
+	finalizeArtifactSetStatic,
 	generateSourceTemplateWithReplacements,
 	templateRegistryToPartialSynthesisGraphJsonSchema,
 	templateRegistryToSynthesisGraphJsonSchema,
 	validateArtifactSetStatic,
+	validateArtifactSetSemantics,
 	validateJsonValueAgainstSchema,
 	validateSupportedJsonSchema,
 	validateTypeScriptType,
@@ -372,8 +384,12 @@ import {
 	type JsonValue,
 	type ReplacementType,
 	type ArtifactSetCompilationResult,
+	type ArtifactSetGraphCompilationResult,
+	type ArtifactSetAssemblyResult,
+	type ArtifactSetSemanticValidationResult,
 	type ArtifactSetPlan,
 	type ArtifactSetStaticValidationResult,
+	type ConstraintBoundStaticAcceptance,
 	type GraphCompilationResult,
 	type GraphTemplateManifest,
 	type GraphRunnerAction,
@@ -396,7 +412,11 @@ const supportedSchema: SupportedJsonSchema = ${JSON.stringify(fixtureForSchema('
 const templateManifest: GraphTemplateManifest = ${JSON.stringify(fixtureForSchema('./schemas/template-manifest.schema.json'), null, 2)}
 const artifactSetPlan: ArtifactSetPlan = ${JSON.stringify(fixtureForSchema('./schemas/artifact-set-plan.schema.json'), null, 2)}
 const artifactSetResult: ArtifactSetCompilationResult = ${JSON.stringify(fixtureForSchema('./schemas/artifact-set-compilation-result.schema.json'), null, 2)}
+const artifactSetGraphResult: ArtifactSetGraphCompilationResult = ${JSON.stringify(fixtureForSchema('./schemas/artifact-set-graph-compilation-result.schema.json'), null, 2)}
+const artifactSetAssemblyResult: ArtifactSetAssemblyResult = ${JSON.stringify(fixtureForSchema('./schemas/artifact-set-assembly-result.schema.json'), null, 2)}
+const artifactSetSemanticResult: ArtifactSetSemanticValidationResult = ${JSON.stringify(fixtureForSchema('./schemas/artifact-set-semantic-validation-result.schema.json'), null, 2)}
 const artifactSetStaticResult: ArtifactSetStaticValidationResult = ${JSON.stringify(fixtureForSchema('./schemas/artifact-set-static-validation-result.schema.json'), null, 2)}
+const constraintAcceptance: ConstraintBoundStaticAcceptance = ${JSON.stringify(fixtureForSchema('./schemas/constraint-bound-static-acceptance.schema.json'), null, 2)}
 const jsonValue: JsonValue = { values: [1, 'two', null] }
 const descriptorComparison: TypeDescriptorComparisonResult = compareTypeDescriptors(
 	{ ts: 'string', schema: { type: 'string' } },
@@ -420,6 +440,8 @@ const typeReplacement: ReplacementType = { kind: 'type', code: 'string | null' }
 const sourceSpanKinds: readonly ['node', 'input'] = GENERATED_SOURCE_SPAN_KIND_VALUES
 const sourceMapMatchesContract: boolean = checkContract(GeneratedSourceMapSchema, generatedSourceMap)
 const sourceMapGuarded: boolean = isGeneratedSourceMap(generatedSourceMap)
+const deepestSpan: GeneratedSourceSpan | undefined = deepestGeneratedSourceSpan(generatedSourceMap, 1)
+const unknownDiagnosticIsTerminal: boolean = classifySynthesisDiagnosticCode('package-smoke-unknown') === 'terminalFailure'
 const boundedSource = '/** @TEMPLATE id=Value output=expression **/\\n/** @TYPE number id=value **/ 0 /** @END **/\\n/** @END_TEMPLATE **/'
 const discoveredTemplate: DiscoveredSourceTemplate = discoverSourceTemplates(boundedSource)[0]!
 const generatedTemplateCode: string = generateSourceTemplateWithReplacements(
@@ -474,6 +496,9 @@ void typeReplacement
 void sourceSpanKinds
 void sourceMapMatchesContract
 void sourceMapGuarded
+void deepestSpan
+void unknownDiagnosticIsTerminal
+void SYNTHESIS_DIAGNOSTIC_CLASSIFICATION_CATALOG
 void discoveredTemplate
 void generatedTemplateCode
 void catalogPartialSchema
@@ -490,6 +515,9 @@ void validateJsonValueAgainstSchema
 void validateSupportedJsonSchema
 void validateTypeScriptType
 void validateArtifactSetStatic
+void assembleArtifactSetTargets
+void captureTemplateCatalogView
+void finalizeArtifactSetStatic
 void [${schemaFixtures.map((_, index) => `schema${index}`).join(', ')}]
 `, 'utf8')
 
@@ -545,8 +573,30 @@ function fixtureForSchema(subpath: string): unknown {
 		case 'artifact-set-plan.schema.json':
 			return artifactSetPlanFixture()
 
-	case 'artifact-set-compilation-result.schema.json':
+		case 'artifact-set-compilation-result.schema.json':
 			return artifactSetCompilationResultFixture()
+
+		case 'artifact-set-graph-compilation-result.schema.json':
+			return {
+				kind: 'artifactSetGraphCompilation', mode: 'strict', ok: false, complete: false,
+				classification: 'terminalFailure', plan: artifactSetPlanFixture(), units: [], diagnostics: []
+			}
+
+		case 'artifact-set-assembly-result.schema.json':
+			return { ok: false, classification: 'terminalFailure', changes: [], diagnostics: [] }
+
+		case 'artifact-set-semantic-validation-result.schema.json':
+			return { ok: false, classification: 'terminalFailure', changes: [], diagnostics: [] }
+
+		case 'constraint-bound-static-acceptance.schema.json': {
+			const hash = `sha256:${'a'.repeat(64)}`
+			return {
+				schemaVersion: 1, constraintEntryPath: '.constraints/main.wsc',
+				constraintDigest: `wc1_${'b'.repeat(64)}`, constraintSourceSnapshotHash: hash,
+				constraintEngineVersion: 3, analysisSnapshotHash: hash,
+				phaseResultBlobHashes: { plan: hash, artifact: hash, assembled: hash, semantic: hash }
+			}
+		}
 
 		case 'artifact-set-static-validation-result.schema.json':
 			return artifactSetStaticValidationResultFixture()

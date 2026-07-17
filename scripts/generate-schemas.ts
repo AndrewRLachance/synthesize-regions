@@ -3,9 +3,13 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { TSchema } from '@sinclair/typebox'
 import {
+	ArtifactSetAssemblyResultSchema,
 	ArtifactSetCompilationResultSchema,
+	ArtifactSetGraphCompilationResultSchema,
 	ArtifactSetPlanSchema,
+	ArtifactSetSemanticValidationResultSchema,
 	ArtifactSetStaticValidationResultSchema,
+	ConstraintBoundStaticAcceptanceSchema,
 	GraphCompilationResultSchema,
 	GraphRunnerActionSchema,
 	GraphRunnerStateSchema,
@@ -40,6 +44,30 @@ const publishedSchemas: readonly PublishedSchema[] = [
 		title: 'synthesize-regions ArtifactSetCompilationResult',
 		description: 'Strict or partial multi-artifact compilation result, including hash-chained fills, assembled changes, static diagnostics, and a deterministic change-set identity.',
 		schema: ArtifactSetCompilationResultSchema
+	},
+	{
+		fileName: 'artifact-set-graph-compilation-result.schema.json',
+		title: 'synthesize-regions ArtifactSetGraphCompilationResult',
+		description: 'Graph compilation and hash-chained fill replay result without target assembly.',
+		schema: ArtifactSetGraphCompilationResultSchema
+	},
+	{
+		fileName: 'artifact-set-assembly-result.schema.json',
+		title: 'synthesize-regions ArtifactSetAssemblyResult',
+		description: 'Syntax-validated immutable target assembly result without project-wide semantic acceptance.',
+		schema: ArtifactSetAssemblyResultSchema
+	},
+	{
+		fileName: 'artifact-set-semantic-validation-result.schema.json',
+		title: 'synthesize-regions ArtifactSetSemanticValidationResult',
+		description: 'Baseline/candidate TypeScript semantic comparison result over an assembled artifact set.',
+		schema: ArtifactSetSemanticValidationResultSchema
+	},
+	{
+		fileName: 'constraint-bound-static-acceptance.schema.json',
+		title: 'synthesize-regions ConstraintBoundStaticAcceptance',
+		description: 'Exact Workspace Constraint identity and four phase-result blob hashes required by constrained finalization.',
+		schema: ConstraintBoundStaticAcceptanceSchema
 	},
 	{
 		fileName: 'artifact-set-static-validation-result.schema.json',
