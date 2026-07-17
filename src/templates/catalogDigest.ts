@@ -19,13 +19,13 @@ import type {
 	TypeDescriptor
 } from './graphTypes.js'
 
-const CATALOG_CONTRACT_DIGEST_VERSION = 4
+const CATALOG_CONTRACT_DIGEST_VERSION = 5
 
 /** Version of one executable template-manifest digest. */
-export const TEMPLATE_MANIFEST_DIGEST_VERSION = 1 as const
+export const TEMPLATE_MANIFEST_DIGEST_VERSION = 2 as const
 
 /** Version of the aggregate executable catalog-manifest digest. */
-export const TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION = 1 as const
+export const TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION = 2 as const
 
 type TemplateManifestDigestInput = Pick<GraphTemplateDefinition<any, string, any>, 'source' | 'summary'>
 
@@ -133,6 +133,17 @@ export function normalizeTemplateSummaries(
 			modelId: summary.modelId,
 			...(summary.version === undefined ? {} : { version: summary.version }),
 			...(summary.description === undefined ? {} : { description: summary.description }),
+			...(summary.typeParameters === undefined ? {} : {
+				typeParameters: Object.fromEntries(
+					Object.keys(summary.typeParameters).sort().map(name => {
+						const parameter = summary.typeParameters![name]!
+						return [name, {
+							...(parameter.description === undefined ? {} : { description: parameter.description }),
+							...(parameter.constraint === undefined ? {} : { constraint: normalizeTypeDescriptor(parameter.constraint) })
+						}]
+					})
+				)
+			}),
 			inputs: Object.fromEntries(
 				Object.keys(summary.inputs).sort().map(inputName => [
 					inputName,

@@ -620,6 +620,14 @@
         "templateId": {
           "type": "string"
         },
+        "typeArguments": {
+          "type": "object",
+          "patternProperties": {
+            "^(.*)$": {
+              "$ref": "#/$defs/GraphTypeDescriptor"
+            }
+          }
+        },
         "inputs": {
           "type": "object",
           "patternProperties": {
@@ -1268,6 +1276,14 @@
               "patternProperties": {
                 "^(.*)$": {}
               }
+            },
+            "typeArguments": {
+              "type": "object",
+              "patternProperties": {
+                "^(.*)$": {
+                  "$ref": "#/$defs/CompilationTypeDescriptor"
+                }
+              }
             }
           }
         },
@@ -1347,6 +1363,14 @@
               "type": "object",
               "patternProperties": {
                 "^(.*)$": {}
+              }
+            },
+            "typeArguments": {
+              "type": "object",
+              "patternProperties": {
+                "^(.*)$": {
+                  "$ref": "#/$defs/CompilationTypeDescriptor"
+                }
               }
             }
           }
@@ -1569,6 +1593,52 @@
               "type": "string"
             },
             "inputName": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "nodeId",
+            "parameterName",
+            "typeArgument"
+          ],
+          "properties": {
+            "kind": {
+              "const": "setTypeArgument",
+              "type": "string"
+            },
+            "nodeId": {
+              "type": "string"
+            },
+            "parameterName": {
+              "type": "string"
+            },
+            "typeArgument": {
+              "$ref": "#/$defs/CompilationTypeDescriptor"
+            }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "type": "object",
+          "required": [
+            "kind",
+            "nodeId",
+            "parameterName"
+          ],
+          "properties": {
+            "kind": {
+              "const": "removeTypeArgument",
+              "type": "string"
+            },
+            "nodeId": {
+              "type": "string"
+            },
+            "parameterName": {
               "type": "string"
             }
           }

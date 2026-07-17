@@ -9,10 +9,13 @@ selects and composes those templates, see [Synthesis Graphs](./SYNTHESIS_GRAPHS.
 
 ## Mental model
 
-A graph template behaves like a typed operator:
+A graph template behaves like a typed operator. A generic template is the same
+operator with explicitly bound type parameters:
 
 ```txt
 input ports -> marked TypeScript source -> one output fragment
+
+generic template: inputs<T, U> -> marked source -> output<U>
 ```
 
 The `source` manifest contains ordinary TypeScript plus one marked region for
@@ -62,6 +65,81 @@ always reflected by the executable manifest identities described below.
 
 Descriptions are planner-facing. Good descriptions state what code is emitted
 and any assumptions about the insertion site.
+
+### Generic type parameters
+
+Use `typeParameters` when input and output contracts must share a type. A
+parameter has an optional description and an optional concrete constraint:
+
+```ts
+const ArrayMap = defineTemplate({
+  modelId: "ArrayMap",
+  version: "1.0.0",
+  typeParameters: {
+    T: {
+      description: "Input element type.",
+      constraint: { ts: "unknown" }
+    },
+    U: {
+      description: "Mapped element type.",
+      constraint: { ts: "unknown" }
+    }
+  },
+  inputs: {
+    array: fragmentPort({
+      regionKind: "expression",
+      accepts: {
+        outputKind: "expression",
+        type: { ts: "readonly {{T}}[]", schema: { type: "array" } }
+      }
+    }),
+    callback: fragmentPort({
+      regionKind: "expression",
+      accepts: {
+        outputKind: "expression",
+        type: {
+          ts: "(value: {{T}}, index: number, array: readonly {{T}}[]) => {{U}}"
+        }
+      }
+    })
+  },
+  output: {
+    kind: "expression",
+    type: { ts: "{{U}}[]", schema: { type: "array" } }
+  },
+  source: `(
+    /** @TYPE expression id=array **/[]/** @END **/
+  ).map(
+    /** @TYPE expression id=callback **/undefined/** @END **/
+  )`
+});
+```
+
+`{{T}}` placeholders are legal only in template-owned `TypeDescriptor.ts`
+strings. They do not interpolate marked source and they do not alter JSON
+Schema. Keep schemas fixed and conservative, such as `{ type: "array" }` or
+`true`.
+
+Every graph node using a generic template must provide exactly one concrete
+`TypeDescriptor` for every declared parameter. There is no inference and there
+are no defaults. Before fragment compatibility is checked, the compiler
+substitutes the arguments into every input and output TypeScript descriptor.
+This makes relationships such as `readonly User[]`, `(User) => View`, and
+`View[]` one enforceable contract rather than three unrelated claims.
+
+Declarations and bindings are rejected when:
+
+- a parameter name is not an identifier;
+- a declared parameter is unused;
+- a descriptor references an undeclared parameter;
+- a constraint contains a placeholder instead of a concrete type;
+- a node omits an argument or supplies an extra argument;
+- an argument is malformed, contains `any`, or does not satisfy its constraint;
+- substitution leaves an unresolved or invalid TypeScript type.
+
+Use self-contained structural TypeScript expressions for concrete arguments.
+Project-local names that cannot be resolved in the isolated type-contract
+context are not valid generic bindings.
 
 ### Input ports
 
@@ -334,22 +412,23 @@ selectable graph operations.
 `defineTemplateCatalog()` and `createTemplateRegistry()` validate the whole
 template vocabulary before graph compilation. Validation covers duplicate IDs,
 ports, union regions, collection bounds, raw policies, source allowlists,
-schemas, and TypeScript descriptors.
+schemas, TypeScript descriptors, generic declarations, and placeholder use.
 
 `registry.summaries()` is the implementation-free view intended for planners.
-It contains model IDs, descriptions, defaulted port contracts, and outputs.
-Catalogs expose two identities:
+It contains model IDs, descriptions, generic parameter declarations, defaulted
+port contracts, and outputs. Catalogs expose two identities:
 
-- `contractDigest` (`c4_…`) identifies the normalized planner vocabulary and
+- `contractDigest` (`c5_…`) identifies the normalized planner vocabulary and
   excludes marked source;
-- `manifestDigest` (`m1_…`) identifies the exact executable catalog;
-- each definition has a `manifestDigest` (`t1_…`) recorded on artifacts as
+- `manifestDigest` (`m2_…`) identifies the exact executable catalog;
+- each definition has a `manifestDigest` (`t2_…`) recorded on artifacts as
   `source.templateManifestDigest`.
 
 Compilers and runners capture both identities with an immutable snapshot.
 Supply `expectedCatalogDigest` and `expectedCatalogManifestDigest` when
 resuming work planned and compiled against an earlier snapshot. Source-only
-changes keep `c4_` stable but change `t1_` and `m1_`.
+changes keep `c5_` stable but change `t2_` and `m2_`. Type-parameter
+declarations are part of both planner-facing and executable identities.
 
 ## Serializable manifests and JSON catalogs
 
@@ -392,6 +471,10 @@ an API boundary before calling the TypeScript API.
 - Use fragment source allowlists when only a small set of producers is valid.
 - Prefer literal and fragment ports to raw code.
 - Advertise only types and schemas the generated implementation truly satisfies.
+- Introduce a type parameter only for a real relationship between contracts;
+  every declared parameter must be used.
+- Keep generic JSON Schemas fixed and truthful; only `TypeDescriptor.ts` supports
+  `{{Parameter}}` substitution.
 - Version implementation-only behavioral changes.
 - Keep `modelId` stable; use `description` for human-facing wording changes.
 - Test templates both alone and in representative graphs.

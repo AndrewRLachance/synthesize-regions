@@ -6,6 +6,7 @@
   },
   "include": [
     "src/**/*.ts",
+    "samples/samplesBasePatterns.ts",
     "test/define-template.typecheck.ts"
   ],
   "exclude": [

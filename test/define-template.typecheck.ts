@@ -1966,3 +1966,87 @@ const inferredSourceFileGoalWithMetadata = {
 } as const;
 // @ts-expect-error the known sourceFile final output also rejects value-level goal schemas.
 sourceFileCompiler.defineGraph(inferredSourceFileGoalWithMetadata);
+
+const GenericIdentity = defineTemplate({
+  modelId: "GenericIdentity",
+  typeParameters: {
+    T: { constraint: { ts: "string" } }
+  },
+  inputs: {
+    value: fragmentPort({
+      regionKind: "expression",
+      accepts: { outputKind: "expression", type: { ts: "{{T}}" } }
+    })
+  },
+  output: { kind: "expression", type: { ts: "{{T}}" } },
+  source: "/** @TYPE expression id=value **/undefined/** @END **/"
+});
+const GenericStringProducer = defineTemplate({
+  modelId: "GenericStringProducer",
+  inputs: {},
+  output: { kind: "expression", type: { ts: "string" } },
+  source: '"value"'
+});
+const genericCompiler = buildGraphCompiler([GenericIdentity, GenericStringProducer] as const);
+genericCompiler.defineGraph({
+  nodes: [
+    { id: "value", templateId: "GenericStringProducer", inputs: {} },
+    {
+      id: "identity",
+      templateId: "GenericIdentity",
+      typeArguments: { T: { ts: "string" } },
+      inputs: { value: { $ref: "value" } }
+    }
+  ],
+  finalNodeId: "identity"
+});
+const genericMissingTypeArgument = {
+  nodes: [
+    { id: "value", templateId: "GenericStringProducer", inputs: {} },
+    { id: "identity", templateId: "GenericIdentity", inputs: { value: { $ref: "value" } } }
+  ],
+  finalNodeId: "identity"
+} as const;
+// @ts-expect-error generic nodes require every declared type argument.
+genericCompiler.defineGraph(genericMissingTypeArgument);
+const genericExtraTypeArgument = {
+  nodes: [
+    { id: "value", templateId: "GenericStringProducer", inputs: {} },
+    {
+      id: "identity",
+      templateId: "GenericIdentity",
+      typeArguments: { T: { ts: "string" }, Extra: { ts: "number" } },
+      inputs: { value: { $ref: "value" } }
+    }
+  ],
+  finalNodeId: "identity"
+} as const;
+// @ts-expect-error generic nodes reject undeclared type-argument keys.
+genericCompiler.defineGraph(genericExtraTypeArgument);
+const genericIncompatibleTypeArgument = {
+  nodes: [
+    { id: "value", templateId: "GenericStringProducer", inputs: {} },
+    {
+      id: "identity",
+      templateId: "GenericIdentity",
+      typeArguments: { T: { ts: "number" } },
+      inputs: { value: { $ref: "value" } }
+    }
+  ],
+  finalNodeId: "identity"
+} as const;
+// @ts-expect-error explicit type arguments must satisfy their declared constraints.
+genericCompiler.defineGraph(genericIncompatibleTypeArgument);
+const nongenericTypeArgument = {
+  nodes: [
+    {
+      id: "value",
+      templateId: "GenericStringProducer",
+      typeArguments: { T: { ts: "string" } },
+      inputs: {}
+    }
+  ],
+  finalNodeId: "value"
+} as const;
+// @ts-expect-error non-generic nodes reject type arguments.
+genericCompiler.defineGraph(nongenericTypeArgument);

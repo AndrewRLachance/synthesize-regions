@@ -279,6 +279,32 @@ export function applyGraphPatch(graph: SynthesisGraph, action: GraphPatchAction)
 				return { ...node, inputs }
 			}))
 		}
+		case 'setTypeArgument': {
+			const target = targetOccurrence(graph, action.nodeId)
+			if (isDiagnostic(target)) return failed(graph, [target])
+			return succeeded(updateTargetNode(graph, target.node, node => ({
+				...node,
+				typeArguments: { ...node.typeArguments, [action.parameterName]: action.typeArgument }
+			})))
+		}
+		case 'removeTypeArgument': {
+			const target = targetOccurrence(graph, action.nodeId)
+			if (isDiagnostic(target)) return failed(graph, [target])
+			if (!Object.hasOwn(target.node.typeArguments ?? {}, action.parameterName)) {
+				return failed(graph, [diagnostic(
+					'GraphPatchTypeArgumentNotFound',
+					`Type argument ${action.parameterName} does not exist on graph node ${action.nodeId}.`,
+					{ nodeId: action.nodeId, path: 'action.parameterName', actual: action.parameterName }
+				)])
+			}
+			return succeeded(updateTargetNode(graph, target.node, node => {
+				const typeArguments = { ...node.typeArguments }
+				delete typeArguments[action.parameterName]
+				if (Object.keys(typeArguments).length > 0) return { ...node, typeArguments }
+				const { typeArguments: _typeArguments, ...withoutTypeArguments } = node
+				return withoutTypeArguments
+			}))
+		}
 		case 'setFinalNode': {
 			const target = targetOccurrence(graph, action.nodeId)
 			return isDiagnostic(target) ? failed(graph, [target]) : succeeded({ ...graph, finalNodeId: action.nodeId })

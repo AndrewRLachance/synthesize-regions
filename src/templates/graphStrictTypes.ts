@@ -11,6 +11,7 @@ import type {
   RegionKind,
   SynthesisGraph,
   SynthesisGoal,
+	TypeDescriptor,
   TypedSyntaxRegionKind,
   UnionInputPort
 } from "./graphCoreTypes.js";
@@ -1732,6 +1733,49 @@ type StrictSynthesisInputMap<
         : never
       : never;
 
+type TemplateTypeParameterMap<TTemplate> =
+  TTemplate extends GraphTemplateDefinition<any, any, any, infer P> ? P : undefined;
+
+type PrimitiveTypeArgumentName = "string" | "number" | "boolean" | "bigint" | "symbol" | "null" | "undefined";
+
+type TypeArgumentConstraintIsIncompatible<C extends TypeDescriptor, A extends TypeDescriptor> =
+  C extends { readonly ts: infer Expected extends string }
+    ? A extends { readonly ts: infer Actual extends string }
+      ? Expected extends PrimitiveTypeArgumentName
+        ? Actual extends PrimitiveTypeArgumentName
+          ? IsExactly<Expected, Actual> extends true ? false : true
+          : StaticTypeDescriptorCompatibility<C, A, undefined> extends "incompatible" ? true : false
+        : StaticTypeDescriptorCompatibility<C, A, undefined> extends "incompatible" ? true : false
+      : StaticTypeDescriptorCompatibility<C, A, undefined> extends "incompatible" ? true : false
+    : StaticTypeDescriptorCompatibility<C, A, undefined> extends "incompatible" ? true : false;
+
+type IncompatibleTypeArgumentKeys<
+  P extends Record<string, unknown>,
+  A extends Readonly<Record<string, TypeDescriptor>>
+> = {
+  [K in keyof P]: K extends keyof A
+    ? P[K] extends { readonly constraint: infer C extends TypeDescriptor }
+      ? TypeArgumentConstraintIsIncompatible<C, A[K]> extends true ? K : never
+      : never
+    : K
+}[keyof P];
+
+type StrictNodeTypeArguments<TTemplate, TNode extends AuthoredGraphNode> =
+	[TTemplate] extends [never] ? unknown :
+  TemplateTypeParameterMap<TTemplate> extends infer P
+    ? [P] extends [Record<string, unknown>]
+      ? TNode extends { readonly typeArguments: infer A extends Readonly<Record<string, TypeDescriptor>> }
+        ? Exclude<keyof P, keyof A> extends never
+          ? Exclude<keyof A, keyof P> extends never
+            ? IncompatibleTypeArgumentKeys<P, A> extends never
+              ? { readonly typeArguments: A }
+              : never
+            : never
+          : never
+        : never
+      : TNode extends { readonly typeArguments: unknown } ? never : unknown
+    : never;
+
 /** Exact checked graph node shape for one authored node. */
 type StrictSynthesisNode<
   TTemplateIndex,
@@ -1742,6 +1786,7 @@ type StrictSynthesisNode<
   TInputs extends Record<string, InputPort> = TemplateInputMap<TTemplate>
 > =
   TNode &
+	StrictNodeTypeArguments<TTemplate, TNode> &
   {
     readonly id: TNode["id"];
     readonly templateId: TemplateModelId<TTemplateIndex>;
@@ -1758,6 +1803,7 @@ type StrictSynthesisNode<
   NoExtraProperties<{
     readonly id: string;
     readonly templateId: string;
+	readonly typeArguments?: Readonly<Record<string, TypeDescriptor>>;
     readonly inputs: Record<string, unknown>;
       }, TNode>;
 

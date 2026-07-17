@@ -620,6 +620,14 @@
         "templateId": {
           "type": "string"
         },
+        "typeArguments": {
+          "type": "object",
+          "patternProperties": {
+            "^(.*)$": {
+              "$ref": "#/$defs/GraphTypeDescriptor"
+            }
+          }
+        },
         "inputs": {
           "type": "object",
           "patternProperties": {
@@ -1658,6 +1666,14 @@
               "patternProperties": {
                 "^(.*)$": {}
               }
+            },
+            "typeArguments": {
+              "type": "object",
+              "patternProperties": {
+                "^(.*)$": {
+                  "$ref": "#/$defs/CompilationTypeDescriptor"
+                }
+              }
             }
           }
         },
@@ -1737,6 +1753,14 @@
               "type": "object",
               "patternProperties": {
                 "^(.*)$": {}
+              }
+            },
+            "typeArguments": {
+              "type": "object",
+              "patternProperties": {
+                "^(.*)$": {
+                  "$ref": "#/$defs/CompilationTypeDescriptor"
+                }
               }
             }
           }
@@ -2079,11 +2103,11 @@
           "type": "string"
         },
         "contractDigest": {
-          "pattern": "^c4_[a-f0-9]{64}$",
+          "pattern": "^c5_[a-f0-9]{64}$",
           "type": "string"
         },
         "manifestDigest": {
-          "pattern": "^m1_[a-f0-9]{64}$",
+          "pattern": "^m2_[a-f0-9]{64}$",
           "type": "string"
         },
         "workspaceSnapshotHash": {
@@ -2161,11 +2185,11 @@
           "type": "string"
         },
         "contractDigest": {
-          "pattern": "^c4_[a-f0-9]{64}$",
+          "pattern": "^c5_[a-f0-9]{64}$",
           "type": "string"
         },
         "manifestDigest": {
-          "pattern": "^m1_[a-f0-9]{64}$",
+          "pattern": "^m2_[a-f0-9]{64}$",
           "type": "string"
         },
         "workspaceSnapshotHash": {
@@ -2232,11 +2256,11 @@
           "maxItems": 0
         },
         "contractDigest": {
-          "pattern": "^c4_[a-f0-9]{64}$",
+          "pattern": "^c5_[a-f0-9]{64}$",
           "type": "string"
         },
         "manifestDigest": {
-          "pattern": "^m1_[a-f0-9]{64}$",
+          "pattern": "^m2_[a-f0-9]{64}$",
           "type": "string"
         },
         "workspaceSnapshotHash": {

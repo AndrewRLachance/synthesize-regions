@@ -393,6 +393,15 @@ function artifactMetadataDiagnostics(value: unknown): SynthesisDiagnostic[] {
 		const path = rawType?.schema === undefined && rawSchema !== undefined ? 'schema' : 'type'
 		diagnostics.push(...output.issues.map(issue => metadataDiagnostic(value, issue, path)))
 	}
+	if (isRecord(value.provenance) && isRecord(value.provenance.typeArguments)) {
+		for (const [name, typeArgument] of Object.entries(value.provenance.typeArguments)) {
+			diagnostics.push(...descriptorDiagnostics(
+				value,
+				typeArgument,
+				`provenance.typeArguments.${name}`
+			))
+		}
+	}
 
 	if (Array.isArray(value.unresolvedInputs)) {
 		for (const [index, unresolved] of value.unresolvedInputs.entries()) {

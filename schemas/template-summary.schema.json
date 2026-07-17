@@ -456,6 +456,18 @@
         }
       }
     },
+    "SummaryTemplateTypeParameterDefinition": {
+      "additionalProperties": false,
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "constraint": {
+          "$ref": "#/$defs/SummaryTypeDescriptor"
+        }
+      }
+    },
     "SummaryRawCodePolicy": {
       "additionalProperties": false,
       "type": "object",
@@ -716,6 +728,14 @@
         },
         "description": {
           "type": "string"
+        },
+        "typeParameters": {
+          "type": "object",
+          "patternProperties": {
+            "^(.*)$": {
+              "$ref": "#/$defs/SummaryTemplateTypeParameterDefinition"
+            }
+          }
         },
         "inputs": {
           "type": "object",

@@ -965,6 +965,14 @@
               "patternProperties": {
                 "^(.*)$": {}
               }
+            },
+            "typeArguments": {
+              "type": "object",
+              "patternProperties": {
+                "^(.*)$": {
+                  "$ref": "#/$defs/CompilationTypeDescriptor"
+                }
+              }
             }
           }
         },
@@ -1044,6 +1052,14 @@
               "type": "object",
               "patternProperties": {
                 "^(.*)$": {}
+              }
+            },
+            "typeArguments": {
+              "type": "object",
+              "patternProperties": {
+                "^(.*)$": {
+                  "$ref": "#/$defs/CompilationTypeDescriptor"
+                }
               }
             }
           }

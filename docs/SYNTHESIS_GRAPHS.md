@@ -34,6 +34,7 @@ interface SynthesisGraph {
 interface SynthesisNode {
   id: string;
   templateId: string;
+  typeArguments?: Record<string, TypeDescriptor>;
   inputs: Record<string, SynthesisInput>;
 }
 ```
@@ -76,6 +77,35 @@ The graph describes selection and composition, not execution order. Compilation
 follows references recursively and memoizes produced artifacts. Authored node
 order is primarily serialization order; fragment-collection item order is
 semantically significant and is always preserved.
+
+If the selected template declares `typeParameters`, the node must bind all of
+them explicitly with `typeArguments`:
+
+```ts
+{
+  id: "views",
+  templateId: "ArrayMap",
+  typeArguments: {
+    T: { ts: "{ id: string; name: string }" },
+    U: { ts: "{ label: string }" }
+  },
+  inputs: {
+    array: { $ref: "users" },
+    callback: { $ref: "toView" }
+  }
+}
+```
+
+Bindings use concrete, self-contained `TypeDescriptor` values. Generic
+arguments are neither inferred nor defaulted: a generic node must provide
+exactly the declared parameter names, while a nongeneric node must not provide
+any. The compiler instantiates the selected template's input and output
+TypeScript descriptors before checking fragment compatibility. JSON Schema
+contracts remain the fixed schemas declared by the template.
+
+Binding failures use type-stage diagnostics such as `MissingTypeArgument`,
+`UnknownTypeArgument`, and `IncompatibleTypeArgument`. Invalid descriptors keep
+the normal descriptor diagnostics, including `ForbiddenAnyType`.
 
 ## Input forms
 
@@ -161,7 +191,9 @@ catalog snapshot
       |
 normalize inline nodes and shorthand refs
       |
-validate graph structure and references
+validate graph structure, references, and explicit type arguments
+      |
+instantiate generic input and output contracts
       |
 resolve and validate node inputs recursively
       |
@@ -214,6 +246,11 @@ The generated partial code remains syntactically valid because unresolved
 markers retain the template's placeholder body. Semantic TypeScript validation
 is deferred until the final artifact is complete.
 
+Partial mode does not relax generic binding. Missing, extra, malformed, or
+constraint-incompatible type arguments are graph errors. When a normal input is
+omitted, its unresolved port contains the already-instantiated concrete
+contract so a later fill must satisfy the same binding.
+
 ## Graph repair versus artifact filling
 
 These are deliberately separate repair channels.
@@ -224,6 +261,7 @@ Use graph repair when the plan is structurally incomplete or incompatible:
 
 - a referenced node does not exist;
 - a template ID or input name is unknown;
+- a generic argument is missing, extra, malformed, or constraint-incompatible;
 - a supplied input uses the wrong shape;
 - a producer is incompatible with a fragment port;
 - the graph has duplicate IDs or a cycle;
@@ -231,6 +269,27 @@ Use graph repair when the plan is structurally incomplete or incompatible:
 
 Graph repair changes the authored plan with `GraphPatchAction` or
 `replaceGraph`.
+
+Type bindings can be repaired without replacing the node:
+
+```ts
+applyGraphPatch(graph, {
+  kind: "setTypeArgument",
+  nodeId: "views",
+  parameterName: "U",
+  typeArgument: { ts: "{ label: string }" }
+});
+
+applyGraphPatch(graph, {
+  kind: "removeTypeArgument",
+  nodeId: "views",
+  parameterName: "U"
+});
+```
+
+Patch application is immutable and transactional. Removing a required binding
+is useful while incrementally editing a graph, but that graph remains
+repairable until a valid argument is restored.
 
 ### Artifact filling
 
@@ -256,7 +315,7 @@ Persist or transfer the catalog snapshot identity alongside the artifact, then
 resume with `fillTemplateArtifactWithCatalog()` or
 `finalizeTemplateArtifactWithCatalog()`. These APIs compare provenance and
 unresolved ports with the selected catalog template and recursively validate
-and security-screen supplied child artifacts. The `t1_` prefix and digest shape
+and security-screen supplied child artifacts. The `t2_` prefix and digest shape
 alone are not an identity check.
 
 The shorter `fillTemplateArtifact()` and `finalizeTemplateArtifact()` helpers
@@ -291,7 +350,8 @@ const result = compiler(checked);
 
 For finite literal catalogs and node tuples, TypeScript checks known template
 IDs, exact supplied input names, required inputs, input shapes, references,
-recursively inline producers, collection items, duplicate IDs, and finite
+recursively inline producers, collection items, duplicate IDs, exact generic
+argument names, statically provable primitive constraints, and finite
 kind/schema compatibility.
 
 Use `compiler.definePartialGraph()` for intentionally incomplete plans. It
@@ -302,7 +362,8 @@ authority.
 
 For schema-constrained model output, generate the schema from the same captured
 catalog. The partial form permits omitted required inputs and dangling string
-IDs while still narrowing template IDs and supplied input shapes:
+IDs while still narrowing template IDs, exact generic argument maps, and
+supplied input shapes:
 
 ```ts
 const snapshot = registry.snapshot();
@@ -352,7 +413,8 @@ while (state.kind !== "complete" && state.kind !== "failed") {
 
 A practical LLM loop is:
 
-1. Present template summaries and the captured `c4_` contract digest.
+1. Present template summaries, including type parameters, and the captured
+   `c5_` contract digest.
 2. Ask for an initial partial graph or one graph patch action.
 3. Validate the action against the published runner-action schema.
 4. Advance the runner.
@@ -423,7 +485,8 @@ filters pre-existing diagnostics, and never writes the target file.
 Artifacts retain:
 
 - the producing template ID and version;
-- the producing template's `t1_` manifest digest;
+- the producing template's `t2_` manifest digest;
+- the concrete generic type arguments used to instantiate the fragment;
 - graph node and input provenance;
 - literal input summaries where applicable;
 - a JSON-safe generated source map;
@@ -437,15 +500,19 @@ contributed the invalid source rather than blaming only the final node.
 
 Compilers and runners capture an immutable catalog snapshot with two identities:
 
-- `contractDigest` (`c4_…`) hashes planner-facing summaries and compatibility
-  engine versions, but not marked source;
-- `manifestDigest` (`m1_…`) hashes the catalog's exact executable manifests,
-  including each template's `t1_…` content digest.
+- `contractDigest` (`c5_…`) hashes planner-facing summaries, generic parameter
+  declarations, and compatibility-engine versions, but not marked source;
+- `manifestDigest` (`m2_…`) hashes the catalog's exact executable manifests,
+  including each template's `t2_…` content digest.
 
 Pass both `expectedCatalogDigest` and `expectedCatalogManifestDigest` when
 resuming a persisted session. Either mismatch is terminal. The first prevents
 planning against a different vocabulary; the second prevents source-only
 implementation changes from silently changing generated code.
+
+Legacy artifacts remain structurally readable, but an older manifest identity
+cannot finalize against a nonmatching current catalog. Structural readability
+is not an identity migration or compatibility guarantee.
 
 ## Whole files and artifact sets
 
@@ -500,8 +567,9 @@ change-set identity. None of these APIs modifies workspace files.
 
 ## Serialization and schemas
 
-Graphs, actions, runner states, artifacts, diagnostics, and template summaries
-are JSON-safe. Published schemas support schema-constrained model output:
+Graphs, explicit type arguments, actions, runner states, artifacts, diagnostics,
+and template summaries are JSON-safe. Published schemas support
+schema-constrained model output:
 
 - `schemas/template-manifest.schema.json`
 - `schemas/synthesis-graph.schema.json`
@@ -513,15 +581,17 @@ are JSON-safe. Published schemas support schema-constrained model output:
 - `schemas/artifact-set-compilation-result.schema.json`
 - `schemas/artifact-set-static-validation-result.schema.json`
 
-These schemas validate generic wire structure. The registry-generated strict
+These schemas validate the general wire structure. The registry-generated strict
 and partial graph schemas add catalog-specific template and supplied-input
 constraints; reference topology and semantic compatibility remain compiler
 responsibilities.
 
 ## Design guidance
 
-- Plan against immutable summaries and a captured `c4_` digest; execute against
+- Plan against immutable summaries and a captured `c5_` digest; execute against
   both captured catalog identities.
+- Bind every generic parameter explicitly and persist those bindings with the
+  graph; do not treat artifact metadata as type inference.
 - Prefer small templates with explicit ports over large raw-code escape hatches.
 - Use `definePartialGraph()` for incremental authoring, not as a way to bypass
   runtime validation.

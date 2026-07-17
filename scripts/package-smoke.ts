@@ -269,7 +269,7 @@ const artifactSetPlanFixture = fixtures.find(fixture => fixture.specifier.endsWi
 assert.equal(packageModule.checkContract(packageModule.GraphTemplateManifestSchema, manifestFixture), true)
 assert.equal(packageModule.checkContract(packageModule.ArtifactSetPlanSchema, artifactSetPlanFixture), true)
 const manifestRegistry = packageModule.createTemplateRegistryFromManifests([manifestFixture])
-assert.match(manifestRegistry.manifestDigest, /^m1_[a-f0-9]{64}$/u)
+assert.match(manifestRegistry.manifestDigest, /^m2_[a-f0-9]{64}$/u)
 const catalogPartialSchema = packageModule.templateRegistryToPartialSynthesisGraphJsonSchema(manifestRegistry)
 const catalogStrictSchema = packageModule.templateRegistryToSynthesisGraphJsonSchema(manifestRegistry)
 const omittedRequiredInputGraph = {
@@ -465,8 +465,8 @@ const validatedChangeSet: ValidatedArtifactChangeSet = artifactSetResult.ok && a
 	}
 	: {
 		validation: 'static', changes: [], changeSetHash: 'cs1_unavailable',
-		contractDigest: 'c4_${'0'.repeat(64)}',
-		manifestDigest: 'm1_${'0'.repeat(64)}',
+		contractDigest: 'c5_${'0'.repeat(64)}',
+		manifestDigest: 'm2_${'0'.repeat(64)}',
 		workspaceSnapshotHash: 'ws1_${'0'.repeat(64)}',
 		staticPolicyVersion: 1
 	}
@@ -783,8 +783,8 @@ function artifactSetCompilationResultFixture(): unknown {
 		ok: true,
 		complete: true,
 		validation: 'static',
-		contractDigest: `c4_${'1'.repeat(64)}`,
-		manifestDigest: `m1_${'2'.repeat(64)}`,
+		contractDigest: `c5_${'1'.repeat(64)}`,
+		manifestDigest: `m2_${'2'.repeat(64)}`,
 		workspaceSnapshotHash: `ws1_${'3'.repeat(64)}`,
 		staticPolicyVersion: 1,
 		plan,

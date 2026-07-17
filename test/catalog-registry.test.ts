@@ -370,8 +370,8 @@ describe('template catalog digests', () => {
 
 		expect(templateCatalogDigest([...canonical].reverse())).toBe(templateCatalogDigest(reordered))
 		expect(createTemplateRegistry(canonical).contractDigest).toBe(templateCatalogDigest(canonical))
-		expect(templateCatalogDigest(canonical)).toMatch(/^c4_[a-f0-9]{64}$/u)
-		expect(templateCatalogManifestDigest(canonical)).toMatch(/^m1_[a-f0-9]{64}$/u)
+		expect(templateCatalogDigest(canonical)).toMatch(/^c5_[a-f0-9]{64}$/u)
+		expect(templateCatalogManifestDigest(canonical)).toMatch(/^m2_[a-f0-9]{64}$/u)
 		expect(templateCatalogManifestDigest(canonical)).not.toBe(templateCatalogManifestDigest(reordered))
 	})
 

@@ -64,6 +64,7 @@ import { TemplateCatalogValidationError } from './catalogValidation.js'
 import { createTemplateRegistry } from './registry.js'
 import { brandGraphCompiler } from './compilerTrust.js'
 import { defaultFragmentCollectionSeparator, templateModeForRegionKind } from './rendering.js'
+import { instantiateTemplateContracts, type GenericTypeIssue } from './genericTypes.js'
 import { sourcePrologueEnd, validateVirtualSemanticTarget } from './semanticTarget.js'
 import {
 	applySourceMappedTextEdits,
@@ -119,6 +120,19 @@ function metadataDiagnostic(
 		...(issue.compilerCategory === undefined ? {} : { compilerCategory: issue.compilerCategory }),
 		...(issue.line === undefined ? {} : { line: issue.line }),
 		...(issue.column === undefined ? {} : { column: issue.column })
+	})
+}
+
+function genericTypeDiagnostic(issue: GenericTypeIssue, node: SynthesisNode): SynthesisDiagnostic {
+	return errorDiagnostic({
+		stage: 'type',
+		code: issue.code,
+		message: issue.message,
+		nodeId: node.id,
+		templateId: node.templateId,
+		path: `nodes.${node.id}.${issue.path}`,
+		...(issue.expected === undefined ? {} : { expected: issue.expected }),
+		...(issue.actual === undefined ? {} : { actual: issue.actual })
 	})
 }
 
@@ -832,6 +846,7 @@ export function normalizeSynthesisGraph(graph: SynthesisGraph): GraphNormalizati
 		return {
 			id: node.id,
 			templateId: node.templateId,
+			...(node.typeArguments ? { typeArguments: node.typeArguments } : {}),
 			inputs
 		}
 	}
@@ -937,6 +952,8 @@ function validateStaticGraph(
 		}
 
 		const ports = templateInputs(template)
+		const instantiated = instantiateTemplateContracts(template.typeParameters, template.inputs, template.output, node.typeArguments)
+		diagnostics.push(...instantiated.issues.map(issue => genericTypeDiagnostic(issue, node)))
 		for (const [inputName, port] of Object.entries(ports)) {
 			if (
 				!options.allowMissingRequiredInputs &&
@@ -1604,16 +1621,16 @@ function missingManifestIdentityDiagnostic(
 	path = 'artifact.source.templateManifestDigest'
 ): SynthesisDiagnostic | undefined {
 	return typeof artifact.source.templateManifestDigest === 'string'
-		&& /^t1_[a-f0-9]{64}$/u.test(artifact.source.templateManifestDigest)
+		&& /^t[12]_[a-f0-9]{64}$/u.test(artifact.source.templateManifestDigest)
 		? undefined
 		: errorDiagnostic({
 			stage: 'template',
 			code: 'MissingTemplateManifestIdentity',
-			message: 'Persisted artifacts require an exact t1_ template manifest identity before filling or finalization.',
+			message: 'Persisted artifacts require an exact versioned template manifest identity before filling or finalization.',
 			...(artifact.id ? { nodeId: artifact.id } : {}),
 			templateId: artifact.source.templateId,
 			path,
-			expected: 't1_<sha256>',
+			expected: 't1_<sha256> or t2_<sha256>',
 			actual: artifact.source.templateManifestDigest
 		})
 }
@@ -2109,11 +2126,18 @@ function compileGraphPartial(
 		if (!template) return undefined
 		if (executing.has(nodeId)) return undefined
 		executing.add(nodeId)
+		const instantiated = instantiateTemplateContracts(template.typeParameters, template.inputs, template.output, node.typeArguments)
+		if (!instantiated.contracts) {
+			diagnostics.push(...instantiated.issues.map(issue => genericTypeDiagnostic(issue, node)))
+			executing.delete(nodeId)
+			return undefined
+		}
+		const instantiatedInputs = instantiated.contracts.inputs
 
 		const resolvedInputs: Record<string, ResolvedGraphInput> = {}
 		const unresolvedInputs: Record<string, UnresolvedTemplateInput> = {}
 
-		for (const [inputName, port] of Object.entries(template.inputs) as Array<[string, InputPort]>) {
+		for (const [inputName, port] of Object.entries(instantiatedInputs) as Array<[string, InputPort]>) {
 			if (portIsRequired(port) && !Object.prototype.hasOwnProperty.call(node.inputs, inputName)) {
 				const compilationScope = getCompilationScope()
 				if (!compilationScope) continue
@@ -2147,7 +2171,7 @@ function compileGraphPartial(
 		}
 
 		for (const [inputName, rawInput] of Object.entries(node.inputs)) {
-			const port = template.inputs[inputName]
+			const port = instantiatedInputs[inputName]
 			if (!port) continue
 			const input = normalizeSynthesisInput(rawInput)
 
@@ -2227,7 +2251,13 @@ function compileGraphPartial(
 		}
 
 		try {
-			const artifact = template.invokePartial({ nodeId: node.id, inputs: resolvedInputs, unresolvedInputs, options })
+			const artifact = template.invokePartial({
+				nodeId: node.id,
+				typeArguments: instantiated.contracts.typeArguments,
+				inputs: resolvedInputs,
+				unresolvedInputs,
+				options
+			})
 			const artifactDiagnostics = [
 				...validateTemplateArtifactIntegrity(artifact),
 				...validateArtifactSyntax(artifact, options)

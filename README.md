@@ -386,8 +386,8 @@ parameter contexts retain the full security policy.
 The higher-level template layer can model code generation as a typed graph. Each
 template is a graph operator with explicit input ports and one output port. Graph
 compilation validates node references, input compatibility, basic type metadata,
-and then invokes the existing marker replacement engine for final TypeScript
-generation.
+instantiates explicit generic contracts, and then invokes the existing marker
+replacement engine for final TypeScript generation.
 
 For the conceptual model and end-to-end workflows, start with the dedicated
 [template authoring](./docs/TEMPLATES.md) and
@@ -517,6 +517,64 @@ const manifest = {
 const IdentityExpression = defineTemplate(manifest);
 ```
 
+Templates can declare correlated TypeScript contract parameters. Placeholders
+are allowed only in template-owned `TypeDescriptor.ts` strings:
+
+```ts
+const ArrayMap = defineTemplate({
+  modelId: "ArrayMap",
+  typeParameters: {
+    T: { description: "Input element type.", constraint: { ts: "unknown" } },
+    U: { description: "Result element type.", constraint: { ts: "unknown" } }
+  },
+  inputs: {
+    array: fragmentPort({
+      regionKind: "expression",
+      accepts: {
+        outputKind: "expression",
+        type: { ts: "readonly {{T}}[]", schema: { type: "array" } }
+      }
+    }),
+    callback: fragmentPort({
+      regionKind: "expression",
+      accepts: {
+        outputKind: "expression",
+        type: { ts: "(value: {{T}}) => {{U}}" }
+      }
+    })
+  },
+  output: {
+    kind: "expression",
+    type: { ts: "{{U}}[]", schema: { type: "array" } }
+  },
+  source: `(
+    /** @TYPE expression id=array **/[]/** @END **/
+  ).map(
+    /** @TYPE expression id=callback **/undefined/** @END **/
+  )`
+});
+
+const mapUsersNode = {
+  id: "views",
+  templateId: "ArrayMap",
+  typeArguments: {
+    T: { ts: "{ id: string; name: string }" },
+    U: { ts: "{ label: string }" }
+  },
+  inputs: {
+    array: { $ref: "users" },
+    callback: { $ref: "toView" }
+  }
+};
+```
+
+Generic arguments are explicit: every generic node must supply exactly the
+declared names, with no inference or defaults. The compiler rejects missing or
+extra arguments, malformed or forbidden-`any` types, constraint failures, and
+incompatible producers. It substitutes the concrete arguments before checking
+fragment compatibility, partial unresolved ports, final goals, and output
+metadata. JSON Schemas are not substituted; use conservative fixed schemas.
+
 For persisted or externally supplied JSON catalogs, use the runtime manifest
 boundary instead of constructing executable definition objects:
 
@@ -538,7 +596,9 @@ template IDs, invalid or mixed-region unions, invalid collection bounds,
 malformed raw-code policies, and broken fragment source allowlists. Use
 `validateTemplateCatalog()` when diagnostics are preferable to an exception;
 construction and mutation throw `TemplateCatalogValidationError` containing all
-catalog issues.
+catalog issues. Generic declarations are also validated for legal names,
+concrete constraints, declared and used placeholders, and valid substituted
+contracts.
 
 Registry mutations are explicit and atomic:
 
@@ -562,8 +622,8 @@ the same declarative catalog:
 ```ts
 const snapshot = registry.snapshot();
 const compiler = buildGraphCompiler(registry);
-const contractDigest = snapshot.contractDigest; // c4_<sha256>
-const manifestDigest = snapshot.manifestDigest; // m1_<sha256>
+const contractDigest = snapshot.contractDigest; // c5_<sha256>
+const manifestDigest = snapshot.manifestDigest; // m2_<sha256>
 const runner = createGraphRunner(snapshot, graph, {
   expectedCatalogDigest: contractDigest,
   expectedCatalogManifestDigest: manifestDigest
@@ -590,15 +650,20 @@ transitions to `failed` for the same mismatch. A mismatched
 `expectedCatalogManifestDigest` similarly produces
 `CatalogManifestDigestMismatch`.
 
-The versioned `c4_` digest hashes normalized planner-facing summaries, including
+The versioned `c5_` digest hashes normalized planner-facing summaries, including
 versions, descriptions, inputs, defaulted port settings, policies, allowlists,
-canonical schemas, types, and outputs. Its payload also identifies the supported
-JSON Schema profile and the schema and TypeScript compatibility-engine versions.
-It intentionally excludes marked source. Each definition's `t1_` digest hashes
-that template's normalized contract and LF-normalized source; the catalog's
-`m1_` digest aggregates those executable identities. New artifacts record the
-producing `t1_` value as `source.templateManifestDigest`. Change a template's
-`version` when its behavior changes even if its ports do not.
+canonical schemas, types, type parameters, and outputs. Its payload also
+identifies the supported JSON Schema profile and the schema and TypeScript
+compatibility-engine versions. It intentionally excludes marked source. Each
+definition's `t2_` digest hashes that template's normalized contract and
+LF-normalized source; the catalog's `m2_` digest aggregates those executable
+identities. New artifacts record the producing `t2_` value as
+`source.templateManifestDigest`. Change a template's `version` when its
+behavior changes even if its ports do not.
+
+Legacy artifacts remain structurally readable, but an older manifest identity
+cannot finalize against a nonmatching current catalog. Digest-shaped strings
+alone never establish artifact ownership.
 
 Partial compilation preserves required inputs as durable artifact markers. Each
 entry in `unresolvedInputs` has a stable opaque ID; use that ID when filling a
@@ -622,10 +687,11 @@ if (partial.ok && partial.finalArtifact.complete === false) {
 ```
 
 Use the catalog-aware fill and finalize functions at every serialization or
-caller-trust boundary. They bind the artifact's template ID, exact `t1_`
-manifest digest, unresolved port contracts, and nested fragment provenance to
-the captured catalog. Caller-supplied child artifacts are recursively checked
-and security-screened before their code is composed.
+caller-trust boundary. They bind the artifact's template ID, exact `t2_`
+manifest digest, concrete generic arguments, unresolved port contracts, and
+nested fragment provenance to the captured catalog. Caller-supplied child
+artifacts are recursively checked and security-screened before their code is
+composed.
 
 `fillTemplateArtifact()` and `finalizeTemplateArtifact()` are convenience APIs
 for artifacts produced and retained by this library in the current process.
@@ -661,9 +727,10 @@ const partialGraphSchema =
 ```
 
 The partial schema allows omitted required inputs and dangling reference/final
-IDs while still constraining selected template IDs and supplied inputs. Both
-schemas are structural planner gates; `compileGraph()` remains authoritative
-for topology, producer compatibility, cycles, and final goals.
+IDs while still constraining selected template IDs, exact generic argument
+maps, and supplied inputs. Both schemas are structural planner gates;
+`compileGraph()` remains authoritative for topology, producer compatibility,
+cycles, and final goals.
 
 ### Typed graph repair protocol
 
@@ -703,10 +770,12 @@ if (repairState.kind === "needsArtifactInputs") {
 ```
 
 Runner actions include `addNode`, `removeNode`, `setInput`, `removeInput`,
-`setFinalNode`, `setGoal`, and `removeGoal`, plus the `replaceGraph` escape
-hatch and artifact `fill`. Patches are immutable and transactional. IDs target
-top-level or recursively inline nodes; removing an inline node removes its
-containing input or collection item without cascading to references.
+`setTypeArgument`, `removeTypeArgument`, `setFinalNode`, `setGoal`, and
+`removeGoal`, plus the `replaceGraph` escape hatch and artifact `fill`. Patches
+are immutable and transactional. IDs target top-level or recursively inline
+nodes; removing an inline node removes its containing input or collection item
+without cascading to references. Type-argument patches update one explicit
+binding and are revalidated on the next compilation.
 `applyGraphPatch()` exposes the same patch behavior without creating a runner.
 Failed graph-compilation and artifact operations expose the same contextual
 `classification` field as actionable runner states.

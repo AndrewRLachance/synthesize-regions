@@ -8,6 +8,7 @@ import type {
 	RawCodeInputPort,
 	RegionKind,
 	SynthesisDiagnostic,
+	TemplateTypeParameterDefinition,
 	TypeDescriptor
 } from './graphTypes.js'
 import {
@@ -20,9 +21,10 @@ import {
 	validateTypeScriptType,
 	type TypeScriptTypeIssue
 } from './typeScriptCompatibility.js'
+import { instantiateTemplateContracts } from './genericTypes.js'
 
 /** Template definition shape accepted by catalog validation. */
-export type CatalogTemplate = GraphTemplateDefinition<any, string, any>
+export type CatalogTemplate = GraphTemplateDefinition<any, string, any, any>
 
 /** Error thrown when one or more template catalog contracts are invalid. */
 export class TemplateCatalogValidationError extends SynthesizeRegionsError {
@@ -545,9 +547,36 @@ export function validateTemplateCatalog(
 	}
 
 	for (const [templateIndex, template] of templates.entries()) {
-		for (const inputName of Object.keys(template.inputs).sort()) {
+		const templateTypeParameters = (template.typeParameters ?? {}) as Record<string, TemplateTypeParameterDefinition>
+		const validationArguments = Object.fromEntries(
+			Object.entries(templateTypeParameters).map(([name, parameter]) => [
+				name,
+				parameter.constraint ?? { ts: 'unknown' }
+			])
+		)
+		const instantiated = instantiateTemplateContracts(
+			template.typeParameters,
+			template.inputs,
+			template.output,
+			validationArguments
+		)
+		if (!instantiated.contracts) {
+			for (const issue of instantiated.issues) {
+				context.diagnostics.push(diagnostic(
+					issue.code,
+					issue.message,
+					template,
+					`templates[${templateIndex}].${issue.path}`,
+					{ expected: issue.expected, actual: issue.actual }
+				))
+			}
+			continue
+		}
+		const validationInputs = instantiated.contracts.inputs
+		const validationOutput = instantiated.contracts.output
+		for (const inputName of Object.keys(validationInputs).sort()) {
 			validatePort(
-				template.inputs[inputName]!,
+				validationInputs[inputName]!,
 				template,
 				inputName,
 				`templates[${templateIndex}].inputs.${inputName}`,
@@ -556,20 +585,20 @@ export function validateTemplateCatalog(
 		}
 
 		let outputIsValid = validateTypeDescriptor(
-			template.output.type,
+			validationOutput.type,
 			template,
 			undefined,
 			`templates[${templateIndex}].output.type`,
 			context
 		)
-		if (template.output.kind === 'sourceFile') {
-			if (template.output.type !== undefined) {
+		if (validationOutput.kind === 'sourceFile') {
+			if (validationOutput.type !== undefined) {
 				context.diagnostics.push(diagnostic(
 					'IncompatibleSourceFileMetadata',
 					'sourceFile outputs cannot declare value-level TypeDescriptor metadata.',
 					template,
 					`templates[${templateIndex}].output.type`,
-					{ expected: undefined, actual: template.output.type }
+					{ expected: undefined, actual: validationOutput.type }
 				))
 				outputIsValid = false
 			}

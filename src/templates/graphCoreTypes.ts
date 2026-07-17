@@ -81,6 +81,7 @@ export const BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES = [
 	'FinalGoalTypeMismatch',
 	'GeneratedTypeScriptInvalid',
 	'GraphPatchInputNotFound',
+	'GraphPatchTypeArgumentNotFound',
 	'GraphPatchTargetAmbiguous',
 	'GraphPatchTargetNotFound',
 	'IncompatibleCollectionSize',
@@ -118,12 +119,16 @@ export const BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES = [
 	'InvalidTemplateManifestSource',
 	'InvalidTypeScriptProjectConfigurationPath',
 	'InvalidTypeScriptType',
+	'InvalidTypeParameterName',
+	'GenericTypeParameterConstraint',
 	'MalformedArtifactMarkers',
 	'MalformedTemplateArtifact',
 	'MissingArtifactMarker',
 	'MissingArtifactBaseFile',
 	'MissingRequiredInput',
 	'MissingTypeScriptProjectConfiguration',
+	'MissingTypeArgument',
+	'MissingTypeScriptTypeArgument',
 	'MissingTemplateManifestIdentity',
 	'MissingWorkspaceSnapshotIdentity',
 	'ArtifactCatalogRequired',
@@ -145,6 +150,9 @@ export const BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES = [
 	'UnknownSourceModelId',
 	'UnknownTemplate',
 	'UnknownTemplateReplacement',
+	'UnknownTypeArgument',
+	'UndeclaredTypeParameter',
+	'UnusedTypeParameter',
 	'UntrustedTemplateCatalogView',
 	'UntrustedTemplateDefinition',
 	'UnresolvedArtifactSetInputs',
@@ -173,7 +181,8 @@ export const BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES = [
 	'UnsupportedSchemaKeyword',
 	'UnsupportedJsonSchemaKeyword',
 	'UnsupportedJsonSchemaReference',
-	'ForbiddenAnyType'
+	'ForbiddenAnyType',
+	'IncompatibleTypeArgument'
 ] as const
 
 /** Closed union of package-provided diagnostics; custom diagnostics remain supported. */
@@ -209,6 +218,7 @@ const GRAPH_REPAIRABLE_DIAGNOSTIC_CODES = new Set<BuiltInSynthesisDiagnosticCode
 	'FinalGoalTypeMismatch',
 	'GeneratedTypeScriptInvalid',
 	'GraphPatchInputNotFound',
+	'GraphPatchTypeArgumentNotFound',
 	'GraphPatchTargetAmbiguous',
 	'GraphPatchTargetNotFound',
 	'IncompatibleCollectionSize',
@@ -216,6 +226,7 @@ const GRAPH_REPAIRABLE_DIAGNOSTIC_CODES = new Set<BuiltInSynthesisDiagnosticCode
 	'IncompatibleFragmentSource',
 	'IncompatibleFragmentType',
 	'IncompatibleInputKind',
+	'IncompatibleTypeArgument',
 	'IncompatibleSourceOutputKind',
 	'IncompatibleSourceSchema',
 	'IncompatibleSourceType',
@@ -230,9 +241,12 @@ const GRAPH_REPAIRABLE_DIAGNOSTIC_CODES = new Set<BuiltInSynthesisDiagnosticCode
 	'InvalidRunnerTransition',
 	'InvalidSemanticTarget',
 	'JsonSchemaMismatch',
+	'MissingTypeArgument',
+	'MissingTypeScriptTypeArgument',
 	'MissingArtifactBaseFile',
 	'OverlappingArtifactTargets',
 	'RawCodeRejected',
+	'UnknownTypeArgument',
 	'TypeScriptSemanticError',
 	'TypeScriptTypeMismatch',
 	'UnknownFinalNode',
@@ -291,6 +305,8 @@ export const GRAPH_PATCH_ACTION_KIND_VALUES = [
 	'removeNode',
 	'setInput',
 	'removeInput',
+	'setTypeArgument',
+	'removeTypeArgument',
 	'setFinalNode',
 	'setGoal',
 	'removeGoal'
@@ -366,6 +382,14 @@ export interface TypeDescriptor {
 	ts?: string
 	/** Canonical JSON Schema contract used for value and fragment compatibility. */
 	schema?: SupportedJsonSchema
+}
+
+/** One named generic type accepted by a template manifest. */
+export interface TemplateTypeParameterDefinition {
+	/** Human-readable purpose shown to planners and catalog consumers. */
+	description?: string
+	/** Optional concrete upper-bound contract for explicit node type arguments. */
+	constraint?: TypeDescriptor
 }
 
 /** Planner-facing suggestion for how to repair a diagnostic. */
@@ -452,6 +476,8 @@ export interface GeneratedFragment {
 		inputRefs?: string[]
 		/** Literal input values consumed by the template. */
 		literalInputs?: Record<string, unknown>
+		/** Concrete generic type arguments used to instantiate this fragment. */
+		typeArguments?: Record<string, TypeDescriptor>
 	}
 	/** Persisted source ownership ranges for graph-aware diagnostic attribution. */
 	sourceMap?: GeneratedSourceMap
@@ -659,6 +685,8 @@ export interface SynthesisNode {
 	id: string
 	/** Template model ID to invoke for this node. */
 	templateId: string
+	/** Explicit concrete bindings for every generic parameter declared by the template. */
+	typeArguments?: Record<string, TypeDescriptor>
 	/** Inputs keyed by the selected template's port names. */
 	inputs: Record<string, SynthesisInput>
 }
@@ -736,6 +764,8 @@ export type GraphPatchAction =
 	| { kind: 'removeNode'; nodeId: string }
 	| { kind: 'setInput'; nodeId: string; inputName: string; input: SynthesisInput }
 	| { kind: 'removeInput'; nodeId: string; inputName: string }
+	| { kind: 'setTypeArgument'; nodeId: string; parameterName: string; typeArgument: TypeDescriptor }
+	| { kind: 'removeTypeArgument'; nodeId: string; parameterName: string }
 	| { kind: 'setFinalNode'; nodeId: string }
 	| { kind: 'setGoal'; goal: SynthesisGoal }
 	| { kind: 'removeGoal' }
@@ -766,6 +796,7 @@ export type GraphPatchResult =
 export type AuthoredGraphNode = {
 	readonly id: string
 	readonly templateId: string
+	readonly typeArguments?: Readonly<Record<string, TypeDescriptor>>
 	readonly inputs: Record<string, unknown>
 }
 
@@ -784,6 +815,8 @@ export interface TemplateSummary {
 	version?: string
 	/** Human-readable template description. */
 	description?: string
+	/** Generic parameters that graph nodes must bind explicitly. */
+	typeParameters?: Record<string, TemplateTypeParameterDefinition>
 	/** Summaries of accepted inputs keyed by input name. */
 	inputs: Record<string, InputPortSummary>
 	/** Summary of the generated output. */
@@ -913,6 +946,8 @@ export type ResolvedGraphInput =
 interface BaseGraphTemplateInvocation {
 	/** Graph node ID for provenance, when invoked from graph compilation. */
 	nodeId?: string
+	/** Validated concrete generic bindings for this invocation. */
+	typeArguments?: Record<string, TypeDescriptor>
 	/** Inputs resolved and matched to concrete ports. */
 	inputs: Record<string, ResolvedGraphInput>
 	/** Generation options forwarded to the replacement engine. */
@@ -932,7 +967,8 @@ export interface GraphTemplatePartialInvocation extends BaseGraphTemplateInvocat
 export interface GraphTemplateManifest<
 	I extends Record<string, InputPort> = Record<string, InputPort>,
 	M extends string = string,
-	O extends OutputPort = OutputPort
+	O extends OutputPort = OutputPort,
+	P extends Record<string, TemplateTypeParameterDefinition> | undefined = Record<string, TemplateTypeParameterDefinition> | undefined
 > {
 	/** Stable template/model identifier used by graph nodes. */
 	readonly modelId: M
@@ -940,6 +976,8 @@ export interface GraphTemplateManifest<
 	readonly version?: string
 	/** Optional human-readable summary for planners and registries. */
 	readonly description?: string
+	/** Named generic parameters referenced as `{{Name}}` in TypeDescriptor.ts strings. */
+	readonly typeParameters?: P
 	/** Named input ports accepted by this template. */
 	readonly inputs: I
 	/** Output fragment contract produced by the template. */
@@ -957,8 +995,9 @@ export interface GraphTemplateManifest<
 export interface GraphTemplateDefinition<
 	I extends Record<string, InputPort> = Record<string, InputPort>,
 	M extends string = string,
-	O extends OutputPort = OutputPort
-> extends GraphTemplateManifest<I, M, O> {
+	O extends OutputPort = OutputPort,
+	P extends Record<string, TemplateTypeParameterDefinition> | undefined = Record<string, TemplateTypeParameterDefinition> | undefined
+> extends GraphTemplateManifest<I, M, O, P> {
 	/** Digest of this template's normalized contract and exact executable source. */
 	readonly manifestDigest: string
 	/** Invoke the template with already-resolved graph inputs. */

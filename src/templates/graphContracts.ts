@@ -63,7 +63,8 @@ const GeneratedFragmentProperties = {
 	schema: Type.Optional(Type.Ref('SupportedJsonSchema')),
 	provenance: Type.Optional(Type.Object({
 		nodeId: Type.Optional(Type.String()), inputRefs: Type.Optional(Type.Array(Type.String())),
-		literalInputs: Type.Optional(Type.Record(Type.String(), Type.Unknown()))
+		literalInputs: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+		typeArguments: Type.Optional(Type.Record(Type.String(), Type.Ref('CompilationTypeDescriptor')))
 	}, { additionalProperties: false })),
 	sourceMap: Type.Optional(Type.Ref('GeneratedSourceMap')),
 	diagnostics: Type.Optional(Type.Array(Type.Ref('SynthesisDiagnostic')))
@@ -96,6 +97,10 @@ const GraphContractDefinitions = {
 	...SUPPORTED_JSON_SCHEMA_CONTRACT_DEFINITIONS,
 	GraphRegionKind: RegionKindDefinition,
 	GraphTypeDescriptor: TypeDescriptorDefinition,
+	GraphTemplateTypeParameterDefinition: Type.Object({
+		description: Type.Optional(Type.String()),
+		constraint: Type.Optional(Type.Ref('GraphTypeDescriptor'))
+	}, { additionalProperties: false }),
 	SynthesisInput: Type.Union([
 		Type.Object({ kind: Type.Literal('literal'), value: Type.Unknown() }, { additionalProperties: false }),
 		Type.Object({ kind: Type.Literal('ref'), nodeId: Type.String() }, { additionalProperties: false }),
@@ -114,6 +119,7 @@ const GraphContractDefinitions = {
 	SynthesisNode: Type.Object({
 		id: Type.String(),
 		templateId: Type.String(),
+		typeArguments: Type.Optional(Type.Record(Type.String(), Type.Ref('GraphTypeDescriptor'))),
 		inputs: Type.Record(Type.String(), Type.Ref('SynthesisInput'))
 	}, { additionalProperties: false }),
 	SynthesisGoal: Type.Object({
@@ -134,6 +140,10 @@ const SummaryContractModule = Type.Module({
 	...SUPPORTED_JSON_SCHEMA_CONTRACT_DEFINITIONS,
 	SummaryRegionKind: RegionKindDefinition,
 	SummaryTypeDescriptor: TypeDescriptorDefinition,
+	SummaryTemplateTypeParameterDefinition: Type.Object({
+		description: Type.Optional(Type.String()),
+		constraint: Type.Optional(Type.Ref('SummaryTypeDescriptor'))
+	}, { additionalProperties: false }),
 	SummaryRawCodePolicy: RawCodePolicyDefinition,
 	FragmentAcceptsSummary: Type.Object({
 		outputKind: Type.Ref('SummaryRegionKind'),
@@ -180,6 +190,7 @@ const SummaryContractModule = Type.Module({
 		modelId: Type.String(),
 		version: Type.Optional(Type.String()),
 		description: Type.Optional(Type.String()),
+		typeParameters: Type.Optional(Type.Record(Type.String(), Type.Ref('SummaryTemplateTypeParameterDefinition'))),
 		inputs: Type.Record(Type.String(), Type.Ref('InputPortSummary')),
 		output: Type.Ref('OutputPortSummary')
 	}, { additionalProperties: false })
@@ -189,6 +200,10 @@ const CompilationContractModule = Type.Module({
 	...GraphContractDefinitions,
 	CompilationRegionKind: RegionKindDefinition,
 	CompilationTypeDescriptor: TypeDescriptorDefinition,
+	CompilationTemplateTypeParameterDefinition: Type.Object({
+		description: Type.Optional(Type.String()),
+		constraint: Type.Optional(Type.Ref('CompilationTypeDescriptor'))
+	}, { additionalProperties: false }),
 	CompilationRawCodePolicy: RawCodePolicyDefinition,
 	SynthesisFailureClassification: Type.Union([
 		Type.Literal('graphRepairable'),
@@ -274,6 +289,7 @@ const CompilationContractModule = Type.Module({
 		modelId: Type.String({ minLength: 1 }),
 		version: Type.Optional(Type.String()),
 		description: Type.Optional(Type.String()),
+		typeParameters: Type.Optional(Type.Record(Type.String(), Type.Ref('CompilationTemplateTypeParameterDefinition'))),
 		inputs: Type.Record(Type.String(), Type.Ref('InputPort')),
 		output: Type.Ref('OutputPort'),
 		source: Type.String()
@@ -335,8 +351,8 @@ const CompilationContractModule = Type.Module({
 	ValidatedArtifactChangeSet: Type.Object({
 		validation: Type.Literal('static'),
 		changes: Type.Array(Type.Ref('ArtifactSetChange')), changeSetHash: Type.String(),
-		contractDigest: Type.String({ pattern: '^c4_[a-f0-9]{64}$' }),
-		manifestDigest: Type.String({ pattern: '^m1_[a-f0-9]{64}$' }),
+		contractDigest: Type.String({ pattern: '^c5_[a-f0-9]{64}$' }),
+		manifestDigest: Type.String({ pattern: '^m2_[a-f0-9]{64}$' }),
 		workspaceSnapshotHash: Type.String({ pattern: '^ws1_[a-f0-9]{64}$' }),
 		staticPolicyVersion: Type.Integer({ minimum: 1 }),
 		constraintAcceptance: Type.Optional(Type.Ref('ConstraintBoundStaticAcceptance'))
@@ -345,8 +361,8 @@ const CompilationContractModule = Type.Module({
 		Type.Object({
 			ok: Type.Literal(true), validation: Type.Literal('static'),
 			changes: Type.Array(Type.Ref('ArtifactSetChange')), changeSetHash: Type.String(),
-			contractDigest: Type.String({ pattern: '^c4_[a-f0-9]{64}$' }),
-			manifestDigest: Type.String({ pattern: '^m1_[a-f0-9]{64}$' }),
+			contractDigest: Type.String({ pattern: '^c5_[a-f0-9]{64}$' }),
+			manifestDigest: Type.String({ pattern: '^m2_[a-f0-9]{64}$' }),
 			workspaceSnapshotHash: Type.String({ pattern: '^ws1_[a-f0-9]{64}$' }),
 			staticPolicyVersion: Type.Integer({ minimum: 1 }),
 			constraintAcceptance: Type.Optional(Type.Ref('ConstraintBoundStaticAcceptance')),
@@ -446,8 +462,8 @@ const CompilationContractModule = Type.Module({
 		units: Type.Array(Type.Ref('ArtifactSetUnitCompilation')),
 		validation: Type.Literal('static'),
 		changes: Type.Array(Type.Ref('ArtifactSetChange')), changeSetHash: Type.String(),
-		contractDigest: Type.String({ pattern: '^c4_[a-f0-9]{64}$' }),
-		manifestDigest: Type.String({ pattern: '^m1_[a-f0-9]{64}$' }),
+		contractDigest: Type.String({ pattern: '^c5_[a-f0-9]{64}$' }),
+		manifestDigest: Type.String({ pattern: '^m2_[a-f0-9]{64}$' }),
 		workspaceSnapshotHash: Type.String({ pattern: '^ws1_[a-f0-9]{64}$' }),
 		staticPolicyVersion: Type.Integer({ minimum: 1 }),
 		diagnostics: Type.Array(Type.Ref('ArtifactSetDiagnostic'))
@@ -458,8 +474,8 @@ const CompilationContractModule = Type.Module({
 		units: Type.Array(Type.Ref('ArtifactSetUnitCompilation')),
 		validation: Type.Literal('static'),
 		changes: Type.Array(Type.Ref('ArtifactSetChange')), changeSetHash: Type.String(),
-		contractDigest: Type.String({ pattern: '^c4_[a-f0-9]{64}$' }),
-		manifestDigest: Type.String({ pattern: '^m1_[a-f0-9]{64}$' }),
+		contractDigest: Type.String({ pattern: '^c5_[a-f0-9]{64}$' }),
+		manifestDigest: Type.String({ pattern: '^m2_[a-f0-9]{64}$' }),
 		workspaceSnapshotHash: Type.String({ pattern: '^ws1_[a-f0-9]{64}$' }),
 		staticPolicyVersion: Type.Integer({ minimum: 1 }),
 		diagnostics: Type.Array(Type.Ref('ArtifactSetDiagnostic'))
@@ -468,8 +484,8 @@ const CompilationContractModule = Type.Module({
 		kind: Type.Literal('artifactSetCompilation'), mode: Type.Literal('partial'),
 		ok: Type.Literal(true), complete: Type.Literal(false), plan: Type.Ref('ArtifactSetPlan'),
 		units: Type.Array(Type.Ref('ArtifactSetUnitCompilation')), changes: Type.Tuple([]),
-		contractDigest: Type.String({ pattern: '^c4_[a-f0-9]{64}$' }),
-		manifestDigest: Type.String({ pattern: '^m1_[a-f0-9]{64}$' }),
+		contractDigest: Type.String({ pattern: '^c5_[a-f0-9]{64}$' }),
+		manifestDigest: Type.String({ pattern: '^m2_[a-f0-9]{64}$' }),
 		workspaceSnapshotHash: Type.String({ pattern: '^ws1_[a-f0-9]{64}$' }),
 		diagnostics: Type.Array(Type.Ref('ArtifactSetDiagnostic'))
 	}, { additionalProperties: false }),
@@ -499,16 +515,16 @@ const CompilationContractModule = Type.Module({
 			kind: Type.Literal('artifactSetGraphCompilation'), mode: Type.Union([Type.Literal('strict'), Type.Literal('partial')]),
 			ok: Type.Literal(true), complete: Type.Literal(true), plan: Type.Ref('ArtifactSetPlan'),
 			units: Type.Array(Type.Ref('ArtifactSetUnitCompilation')), diagnostics: Type.Array(Type.Ref('ArtifactSetDiagnostic')),
-			contractDigest: Type.Optional(Type.String({ pattern: '^c4_[a-f0-9]{64}$' })),
-			manifestDigest: Type.Optional(Type.String({ pattern: '^m1_[a-f0-9]{64}$' })),
+			contractDigest: Type.Optional(Type.String({ pattern: '^c5_[a-f0-9]{64}$' })),
+			manifestDigest: Type.Optional(Type.String({ pattern: '^m2_[a-f0-9]{64}$' })),
 			workspaceSnapshotHash: Type.Optional(Type.String({ pattern: '^ws1_[a-f0-9]{64}$' }))
 		}, { additionalProperties: false }),
 		Type.Object({
 			kind: Type.Literal('artifactSetGraphCompilation'), mode: Type.Literal('partial'),
 			ok: Type.Literal(true), complete: Type.Literal(false), plan: Type.Ref('ArtifactSetPlan'),
 			units: Type.Array(Type.Ref('ArtifactSetUnitCompilation')), diagnostics: Type.Array(Type.Ref('ArtifactSetDiagnostic')),
-			contractDigest: Type.Optional(Type.String({ pattern: '^c4_[a-f0-9]{64}$' })),
-			manifestDigest: Type.Optional(Type.String({ pattern: '^m1_[a-f0-9]{64}$' })),
+			contractDigest: Type.Optional(Type.String({ pattern: '^c5_[a-f0-9]{64}$' })),
+			manifestDigest: Type.Optional(Type.String({ pattern: '^m2_[a-f0-9]{64}$' })),
 			workspaceSnapshotHash: Type.Optional(Type.String({ pattern: '^ws1_[a-f0-9]{64}$' }))
 		}, { additionalProperties: false }),
 		Type.Object({
@@ -523,8 +539,8 @@ const CompilationContractModule = Type.Module({
 	ArtifactSetAssemblyResult: Type.Union([
 		Type.Object({
 			ok: Type.Literal(true), validation: Type.Literal('syntax'), changes: Type.Array(Type.Ref('ArtifactSetChange')),
-			changeSetHash: Type.String(), contractDigest: Type.String({ pattern: '^c4_[a-f0-9]{64}$' }),
-			manifestDigest: Type.String({ pattern: '^m1_[a-f0-9]{64}$' }),
+			changeSetHash: Type.String(), contractDigest: Type.String({ pattern: '^c5_[a-f0-9]{64}$' }),
+			manifestDigest: Type.String({ pattern: '^m2_[a-f0-9]{64}$' }),
 			workspaceSnapshotHash: Type.String({ pattern: '^ws1_[a-f0-9]{64}$' }),
 			diagnostics: Type.Array(Type.Ref('ArtifactSetDiagnostic'))
 		}, { additionalProperties: false }),
@@ -536,8 +552,8 @@ const CompilationContractModule = Type.Module({
 	ArtifactSetSemanticValidationResult: Type.Union([
 		Type.Object({
 			ok: Type.Literal(true), validation: Type.Literal('semantic'), changes: Type.Array(Type.Ref('ArtifactSetChange')),
-			contractDigest: Type.String({ pattern: '^c4_[a-f0-9]{64}$' }),
-			manifestDigest: Type.String({ pattern: '^m1_[a-f0-9]{64}$' }),
+			contractDigest: Type.String({ pattern: '^c5_[a-f0-9]{64}$' }),
+			manifestDigest: Type.String({ pattern: '^m2_[a-f0-9]{64}$' }),
 			workspaceSnapshotHash: Type.String({ pattern: '^ws1_[a-f0-9]{64}$' }),
 			diagnostics: Type.Array(Type.Ref('ArtifactSetDiagnostic'))
 		}, { additionalProperties: false }),
@@ -555,6 +571,13 @@ const CompilationContractModule = Type.Module({
 		}, { additionalProperties: false }),
 		Type.Object({
 			kind: Type.Literal('removeInput'), nodeId: Type.String(), inputName: Type.String()
+		}, { additionalProperties: false }),
+		Type.Object({
+			kind: Type.Literal('setTypeArgument'), nodeId: Type.String(), parameterName: Type.String(),
+			typeArgument: Type.Ref('CompilationTypeDescriptor')
+		}, { additionalProperties: false }),
+		Type.Object({
+			kind: Type.Literal('removeTypeArgument'), nodeId: Type.String(), parameterName: Type.String()
 		}, { additionalProperties: false }),
 		Type.Object({ kind: Type.Literal('setFinalNode'), nodeId: Type.String() }, { additionalProperties: false }),
 		Type.Object({ kind: Type.Literal('setGoal'), goal: Type.Ref('SynthesisGoal') }, { additionalProperties: false }),

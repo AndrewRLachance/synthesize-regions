@@ -4,6 +4,7 @@ import { buildReplacementEdits } from '../replacements/serialize.js'
 import { discoverReplacementRegions } from '../regions/discovery.js'
 import { portRegionKind, summarizeInputPort, summarizeOutputPort } from './compatibility.js'
 import { templateManifestDigest } from './catalogDigest.js'
+import { instantiateTemplateContracts, validateTemplateTypeParameters } from './genericTypes.js'
 import { defaultFragmentCollectionSeparator, templateModeForRegionKind } from './rendering.js'
 import {
 	applySourceMappedTextEdits,
@@ -37,6 +38,7 @@ import type {
 	StrictInputPortMap,
 	StrictOutputPort,
 	TemplateArtifact,
+	TemplateTypeParameterDefinition,
 	TypeDescriptor,
 	UnresolvedTemplateInput
 } from './graphTypes.js'
@@ -48,7 +50,7 @@ interface GraphTemplateMarkerContract {
 }
 
 const templateMarkerContracts = new WeakMap<object, Readonly<Record<string, GraphTemplateMarkerContract>>>()
-const manifestPropertyNames = new Set(['modelId', 'version', 'description', 'inputs', 'output', 'source'])
+const manifestPropertyNames = new Set(['modelId', 'version', 'description', 'typeParameters', 'inputs', 'output', 'source'])
 
 /** Internal authenticity check used by registries to reject forged executable definitions. */
 export function isLibraryOwnedTemplateDefinition(value: unknown): value is GraphTemplateDefinition<any, string, any> {
@@ -59,11 +61,13 @@ export function isLibraryOwnedTemplateDefinition(value: unknown): value is Graph
 export type GraphTemplateDefinitionInput<
     M extends string,
     I extends Record<string, InputPort>,
-    O extends OutputPort = OutputPort
+    O extends OutputPort = OutputPort,
+	P extends Record<string, TemplateTypeParameterDefinition> | undefined = undefined
 > = GraphTemplateManifest<
     StrictInputPortMap<I>,
     M,
-    StrictOutputPort<O>
+    StrictOutputPort<O>,
+	P
 >
 
 /** Render a replacement marker opening comment with the scoped artifact ID. */
@@ -185,7 +189,10 @@ function fragmentProvenance(
     return {
         ...(invocation.nodeId ? { nodeId: invocation.nodeId } : {}),
         ...(inputRefs.length > 0 ? { inputRefs } : {}),
-        ...(Object.keys(literalInputs).length > 0 ? { literalInputs } : {})
+        ...(Object.keys(literalInputs).length > 0 ? { literalInputs } : {}),
+		...(invocation.typeArguments && Object.keys(invocation.typeArguments).length > 0
+			? { typeArguments: invocation.typeArguments }
+			: {})
     }
 }
 
@@ -286,10 +293,35 @@ function sourceMappedTemplateEdits(
  * marker replacements, and brand the generated output with its model ID.
  */
 export function defineTemplate<
+	const M extends string,
+	const I extends Record<string, InputPort>,
+	const O extends OutputPort,
+	const P extends Record<string, TemplateTypeParameterDefinition>
+>(definition: GraphTemplateDefinitionInput<M, I, O, P> & { readonly typeParameters: P }): GraphTemplateDefinition<I, M, O, P>
+
+export function defineTemplate<
+	const M extends string,
+	const I extends Record<string, InputPort>,
+	const O extends OutputPort
+>(definition: GraphTemplateDefinitionInput<M, I, O, undefined>): GraphTemplateDefinition<I, M, O, undefined>
+
+export function defineTemplate<
+	const M extends string,
+	const I extends Record<string, InputPort>,
+	const O extends OutputPort
+>(definition: GraphTemplateDefinitionInput<
+	M,
+	I,
+	O,
+	Record<string, TemplateTypeParameterDefinition> | undefined
+>): GraphTemplateDefinition<I, M, O, Record<string, TemplateTypeParameterDefinition> | undefined>
+
+export function defineTemplate<
     const M extends string,
     const I extends Record<string, InputPort>,
-    const O extends OutputPort
->(definition: GraphTemplateDefinitionInput<M, I, O>): GraphTemplateDefinition<I, M, O> {
+    const O extends OutputPort,
+	const P extends Record<string, TemplateTypeParameterDefinition> | undefined
+>(definition: GraphTemplateDefinitionInput<M, I, O, P>): GraphTemplateDefinition<I, M, O, P> {
 	if (typeof definition !== 'object' || definition === null || Array.isArray(definition)) {
 		throw new TypeError('Template manifest must be a plain object.')
 	}
@@ -308,25 +340,31 @@ export function defineTemplate<
 	if (description !== undefined && typeof description !== 'string') throw new TypeError('template.description must be a string.')
 	const inputs = freezeManifestValue(definition.inputs, 'template.inputs') as I
 	const output = freezeManifestValue(definition.output, 'template.output') as O
+	const typeParameters = freezeManifestValue(definition.typeParameters, 'template.typeParameters')
+	const genericIssues = validateTemplateTypeParameters(typeParameters, inputs, output)
+	if (genericIssues[0]) {
+		throw new TypeError(`${genericIssues[0].code} at ${genericIssues[0].path}: ${genericIssues[0].message}`)
+	}
 	if (typeof definition.source !== 'string') throw new TypeError('template.source must be a string.')
 	const templateSource = definition.source.replace(/\r\n?/gu, '\n')
 	const markerContracts = markerContractsFor(modelId, templateSource, inputs, output)
 	const templateMode = templateModeForRegionKind(output.kind)
-	const advertisedOutputType = effectiveOutputType(output)
 	const summary = () => ({
 		modelId,
 		...(version ? { version } : {}),
 		...(description ? { description } : {}),
+		...(typeParameters ? { typeParameters } : {}),
 		inputs: Object.fromEntries(
 			Object.entries(inputs).map(([key, port]) => [key, summarizeInputPort(port)])
 		),
 		output: summarizeOutputPort(output)
 	})
 	const manifestDigest = templateManifestDigest({ source: templateSource, summary })
-	const executable: GraphTemplateDefinition<I, M, O> = {
+	const executable: GraphTemplateDefinition<I, M, O, P> = {
 		modelId,
 		...(version ? { version } : {}),
 		...(description ? { description } : {}),
+		...(typeParameters ? { typeParameters } : {}),
 		inputs,
 		output,
 		source: templateSource,
@@ -337,6 +375,10 @@ export function defineTemplate<
 		},
 
             invoke(invocation: GraphTemplateInvocation): GeneratedFragment {
+				const instantiated = instantiateTemplateContracts(typeParameters, inputs, output, invocation.typeArguments)
+				if (!instantiated.contracts) throw new TypeError(instantiated.issues[0]?.message ?? 'Invalid template type arguments.')
+				const instantiatedOutput = instantiated.contracts.output
+				const advertisedOutputType = effectiveOutputType(instantiatedOutput)
                 const replacements = graphInputsToReplacementMap(invocation.inputs)
                 const generationOptions: GenerateOptions = {
                     ...(invocation.options ?? {}),
@@ -369,16 +411,20 @@ export function defineTemplate<
                 return {
                     ...(invocation.nodeId ? { id: invocation.nodeId } : {}),
                     code: result.code,
-					kind: output.kind,
+					kind: instantiatedOutput.kind,
 					source: fragmentSource(modelId, version, manifestDigest),
 					...(advertisedOutputType ? { type: advertisedOutputType } : {}),
-					...(output.schema === undefined ? {} : { schema: output.schema }),
+					...(instantiatedOutput.schema === undefined ? {} : { schema: instantiatedOutput.schema }),
                     provenance: fragmentProvenance(invocation),
 					sourceMap
                 }
             },
 
             invokePartial(invocation: GraphTemplatePartialInvocation): TemplateArtifact {
+				const instantiated = instantiateTemplateContracts(typeParameters, inputs, output, invocation.typeArguments)
+				if (!instantiated.contracts) throw new TypeError(instantiated.issues[0]?.message ?? 'Invalid template type arguments.')
+				const instantiatedOutput = instantiated.contracts.output
+				const advertisedOutputType = effectiveOutputType(instantiatedOutput)
                 const passthroughCode = new Map<string, string>()
                 const serializedInputs: Record<string, ResolvedGraphInput> = {}
                 for (const [inputName, input] of Object.entries(invocation.inputs)) {
@@ -462,10 +508,10 @@ export function defineTemplate<
                 const base = {
                     ...(invocation.nodeId ? { id: invocation.nodeId } : {}),
                     code,
-					kind: output.kind,
+					kind: instantiatedOutput.kind,
 					source: fragmentSource(modelId, version, manifestDigest),
 					...(advertisedOutputType ? { type: advertisedOutputType } : {}),
-					...(output.schema === undefined ? {} : { schema: output.schema }),
+					...(instantiatedOutput.schema === undefined ? {} : { schema: instantiatedOutput.schema }),
                     provenance: fragmentProvenance(invocation),
 					sourceMap
                 }

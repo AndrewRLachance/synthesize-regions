@@ -620,6 +620,14 @@
         "templateId": {
           "type": "string"
         },
+        "typeArguments": {
+          "type": "object",
+          "patternProperties": {
+            "^(.*)$": {
+              "$ref": "#/$defs/GraphTypeDescriptor"
+            }
+          }
+        },
         "inputs": {
           "type": "object",
           "patternProperties": {
