@@ -141,6 +141,13 @@ Use self-contained structural TypeScript expressions for concrete arguments.
 Project-local names that cannot be resolved in the isolated type-contract
 context are not valid generic bindings.
 
+Candidate-owned malformed, unresolved, invalid-schema, and forbidden-`any`
+bindings are reported as graph-repairable `InvalidTypeArgument` diagnostics.
+They include the exact `nodeId`, `templateId`, `typeParameterName`, and path.
+The broader `InvalidTypeScriptType`, `UnresolvedTypeScriptType`, and
+`ForbiddenAnyType` codes remain terminal because the same evidence outside a
+node binding can identify a template-catalog defect.
+
 ### Input ports
 
 Every input port answers two questions:
@@ -418,17 +425,40 @@ schemas, TypeScript descriptors, generic declarations, and placeholder use.
 It contains model IDs, descriptions, generic parameter declarations, defaulted
 port contracts, and outputs. Catalogs expose two identities:
 
-- `contractDigest` (`c5_…`) identifies the normalized planner vocabulary and
+- `contractDigest` (`c6_…`) identifies the normalized planner vocabulary and
   excludes marked source;
-- `manifestDigest` (`m2_…`) identifies the exact executable catalog;
-- each definition has a `manifestDigest` (`t2_…`) recorded on artifacts as
+- `manifestDigest` (`m3_…`) identifies the exact executable catalog;
+- each definition has a `manifestDigest` (`t3_…`) recorded on artifacts as
   `source.templateManifestDigest`.
 
 Compilers and runners capture both identities with an immutable snapshot.
 Supply `expectedCatalogDigest` and `expectedCatalogManifestDigest` when
 resuming work planned and compiled against an earlier snapshot. Source-only
-changes keep `c5_` stable but change `t2_` and `m2_`. Type-parameter
+changes keep `c6_` stable but change `t3_` and `m3_`. Type-parameter
 declarations are part of both planner-facing and executable identities.
+
+Package `0.3.0` publishes catalog-contract version 6, template-manifest version
+3, catalog-manifest version 3, catalog planner-schema version 3, and source-free
+capability-closure version 2. The planner-schema and closure versions are bound
+into `c6_`. This is a hard cutover from `0.2.x`/`c5_`/`t2_`/`m2_`; old evidence
+is rejected rather than migrated.
+
+For a bounded planner or graph-repair disclosure, derive the closure from the
+source-free summaries rather than reimplementing generic compatibility:
+
+```ts
+const summaries = registry.summaries();
+const repairSummaries = deriveTemplateCapabilityClosure(summaries, {
+  kind: "graph",
+  graph: acceptedGraph
+});
+```
+
+Existing graph nodes are instantiated using their exact `typeArguments`.
+Unbound generic placeholders and indeterminate relationships are included
+conservatively, results are returned once each in model-ID order, and an unknown
+selected template falls back to the complete authorized summary catalog. The
+helper accepts and returns summary data only; it never exposes marked source.
 
 ## Serializable manifests and JSON catalogs
 

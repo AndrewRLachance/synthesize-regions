@@ -34,6 +34,17 @@ const STATIC_TSCONFIG = JSON.stringify({
 	}
 })
 
+it('publishes every package-owned assembly failure classification', () => {
+	for (const classification of ['graphRepairable', 'artifactFillable', 'templatePolicyFailure', 'terminalFailure'] as const) {
+		expect(checkContract(ArtifactSetAssemblyResultSchema, {
+			ok: false,
+			classification,
+			changes: [],
+			diagnostics: []
+		})).toBe(true)
+	}
+})
+
 function rawRegistry() {
 	const expression = defineTemplate({
 		modelId: 'ArtifactSetExpression',
@@ -130,8 +141,8 @@ describe('artifact-set compilation', () => {
 			validation: 'static',
 			contractDigest: registry.contractDigest,
 			manifestDigest: registry.manifestDigest,
-			workspaceSnapshotHash: expect.stringMatching(/^ws1_[a-f0-9]{64}$/u),
-			staticPolicyVersion: 1
+			workspaceSnapshotHash: expect.stringMatching(/^ws2_[a-f0-9]{64}$/u),
+			staticPolicyVersion: 2
 		})
 		expect(first.changes).toHaveLength(1)
 		expect(first.changes[0]).toMatchObject({
@@ -140,7 +151,7 @@ describe('artifact-set compilation', () => {
 			sourceText: 'export const first = 1;\nexport const second = 2;\n'
 		})
 		expect(first.changes[0]?.edits.map(edit => edit.artifactId)).toEqual(['second', 'first'])
-		expect(first.units[0]?.artifact?.source.templateManifestDigest).toMatch(/^t2_[a-f0-9]{64}$/u)
+		expect(first.units[0]?.artifact?.source.templateManifestDigest).toMatch(/^t3_[a-f0-9]{64}$/u)
 		expect(second.ok && second.changeSetHash).toBe(first.changeSetHash)
 		expect(normalizeArtifactTargetPath('.\\src/../src/values.ts')).toBe('src/values.ts')
 		expect(() => normalizeArtifactTargetPath('../outside.ts')).toThrow(/workspace/u)
@@ -349,19 +360,26 @@ describe('artifact-set compilation', () => {
 
 		const hash = `sha256:${'a'.repeat(64)}`
 		const acceptance = {
-			schemaVersion: 1 as const,
+			schemaVersion: 2 as const,
 			constraintEntryPath: '.constraints/main.wsc',
 			constraintDigest: `wc1_${'b'.repeat(64)}`,
 			constraintSourceSnapshotHash: hash,
-			constraintEngineVersion: 3,
+			constraintEngineVersion: 4,
+			evaluatorIdentity: 'workspace-constraints-evaluator-4',
+			toolchainIdentity: 'typescript-5.9.3',
 			analysisSnapshotHash: hash,
-			phaseResultBlobHashes: { plan: hash, artifact: hash, assembled: hash, semantic: hash }
+			phaseEvidence: {
+				plan: { taskHash: hash, resultBlobHash: hash },
+				artifact: { taskHash: hash, resultBlobHash: hash },
+				assembled: { taskHash: hash, resultBlobHash: hash },
+				semantic: { taskHash: hash, resultBlobHash: hash }
+			}
 		}
 		const finalized = finalizeArtifactSetStatic(plan, registry, {}, acceptance)
 		expect(finalized).toMatchObject({ ok: true, constraintAcceptance: acceptance })
 		const forged = finalizeArtifactSetStatic(plan, registry, {}, {
 			...acceptance,
-			phaseResultBlobHashes: { ...acceptance.phaseResultBlobHashes, semantic: 'forged' }
+			phaseEvidence: { ...acceptance.phaseEvidence, semantic: { ...acceptance.phaseEvidence.semantic, resultBlobHash: 'forged' } }
 		})
 		expect(forged).toMatchObject({
 			ok: false,

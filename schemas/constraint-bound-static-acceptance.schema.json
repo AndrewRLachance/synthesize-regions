@@ -5,6 +5,24 @@
   "description": "Exact Workspace Constraint identity and four phase-result blob hashes required by constrained finalization.",
   "$ref": "#/$defs/ConstraintBoundStaticAcceptance",
   "$defs": {
+    "ConstraintPhaseEvidence": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "taskHash",
+        "resultBlobHash"
+      ],
+      "properties": {
+        "taskHash": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "resultBlobHash": {
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "type": "string"
+        }
+      }
+    },
     "ConstraintBoundStaticAcceptance": {
       "additionalProperties": false,
       "type": "object",
@@ -14,12 +32,14 @@
         "constraintDigest",
         "constraintSourceSnapshotHash",
         "constraintEngineVersion",
+        "evaluatorIdentity",
+        "toolchainIdentity",
         "analysisSnapshotHash",
-        "phaseResultBlobHashes"
+        "phaseEvidence"
       ],
       "properties": {
         "schemaVersion": {
-          "const": 1,
+          "const": 2,
           "type": "number"
         },
         "constraintEntryPath": {
@@ -35,14 +55,22 @@
           "type": "string"
         },
         "constraintEngineVersion": {
-          "const": 3,
+          "const": 4,
           "type": "number"
+        },
+        "evaluatorIdentity": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "toolchainIdentity": {
+          "minLength": 1,
+          "type": "string"
         },
         "analysisSnapshotHash": {
           "pattern": "^sha256:[a-f0-9]{64}$",
           "type": "string"
         },
-        "phaseResultBlobHashes": {
+        "phaseEvidence": {
           "additionalProperties": false,
           "type": "object",
           "required": [
@@ -53,20 +81,16 @@
           ],
           "properties": {
             "plan": {
-              "pattern": "^sha256:[a-f0-9]{64}$",
-              "type": "string"
+              "$ref": "#/$defs/ConstraintPhaseEvidence"
             },
             "artifact": {
-              "pattern": "^sha256:[a-f0-9]{64}$",
-              "type": "string"
+              "$ref": "#/$defs/ConstraintPhaseEvidence"
             },
             "assembled": {
-              "pattern": "^sha256:[a-f0-9]{64}$",
-              "type": "string"
+              "$ref": "#/$defs/ConstraintPhaseEvidence"
             },
             "semantic": {
-              "pattern": "^sha256:[a-f0-9]{64}$",
-              "type": "string"
+              "$ref": "#/$defs/ConstraintPhaseEvidence"
             }
           }
         }

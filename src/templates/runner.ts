@@ -16,6 +16,7 @@ import { GraphRunnerActionSchema, checkContract } from './graphContracts.js'
 import { applyGraphPatch } from './graphPatch.js'
 import { captureTemplateCatalogView } from './catalogCapture.js'
 import { isLibraryOwnedGraphCompiler } from './compilerTrust.js'
+import { synthesisDiagnosticOriginForCode } from './diagnosticCatalog.js'
 
 export type GraphRunnerState =
 	| { kind: 'ready'; graph: SynthesisGraph }
@@ -41,6 +42,7 @@ function isGraphPatchAction(action: GraphRunnerAction): action is GraphPatchActi
 
 function invalidRunnerAction(action: unknown): SynthesisDiagnostic {
 	return {
+		origin: synthesisDiagnosticOriginForCode('InvalidGraphRunnerAction'),
 		stage: 'graph',
 		code: 'InvalidGraphRunnerAction',
 		severity: 'error',
@@ -64,6 +66,7 @@ function invalidTransition(graph: SynthesisGraph, state: GraphRunnerState, actio
 		classification: 'terminalFailure',
 		graph,
 		diagnostics: [{
+			origin: synthesisDiagnosticOriginForCode('InvalidRunnerTransition'),
 			stage: 'graph',
 			code: 'InvalidRunnerTransition',
 			severity: 'error',
@@ -186,7 +189,6 @@ export function createGraphRunner(
 				const pending = state
 				const filled = fillTemplateArtifactWithCatalog(state.artifact, action.inputs, catalog, {
 					...options,
-					trustedBaseArtifact: true
 				})
 				if (!filled.ok) {
 					if (filled.classification === 'artifactFillable') {

@@ -1,7 +1,5 @@
 import { createHash } from 'node:crypto'
-import { posix, resolve } from 'node:path'
-
-import { Project, ts, type Diagnostic, type SourceFile } from 'ts-morph'
+import { posix } from 'node:path'
 
 import { canonicalizeJson, canonicalizeSynthesisGraph } from './artifactIdentity.js'
 import { validateTemplateArtifactIntegrity } from './artifactIntegrity.js'
@@ -23,14 +21,25 @@ import type {
 	TemplateArtifactInputMap,
 	TemplateCatalogView
 } from './graphTypes.js'
-import { classifySynthesisDiagnosticCode, REGION_KIND_VALUES } from './graphTypes.js'
+import { REGION_KIND_VALUES } from './graphTypes.js'
 import { captureTemplateCatalogView } from './catalogCapture.js'
 import { deepestGeneratedSourceSpan } from './sourceSpans.js'
+import { compareCodeUnits } from './deterministic.js'
+import {
+	classifySynthesisDiagnostics,
+	selectSynthesisFailureClassification,
+	synthesisDiagnosticOriginForCode
+} from './diagnosticCatalog.js'
+import {
+	buildCapturedTypeScriptProject,
+	type CapturedCompilerIssue
+} from './capturedProject.js'
 
 const ARTIFACT_SET_IDENTITY_VERSION = 1
+const ARTIFACT_SET_WORKSPACE_IDENTITY_VERSION = 2
 
 /** Version of the mandatory checks represented by a validated change set. */
-export const ARTIFACT_SET_STATIC_POLICY_VERSION = 1
+export const ARTIFACT_SET_STATIC_POLICY_VERSION = 2
 
 /** A workspace-relative destination for one generated graph artifact. */
 export type ArtifactTarget =
@@ -94,14 +103,19 @@ export interface ArtifactSetCompileOptions extends GraphCompileOptions {
 	workspaceSnapshotId?: string
 	/** Canonical runtime capture manifest used to verify the full snapshot identity. */
 	workspaceManifest?: ArtifactSetWorkspaceManifest
+	/** Captured tsconfig paths explicitly authorized as project references. */
+	authorizedProjectReferences?: readonly string[]
 	/** Ordered, hash-chained fills to replay after partial graph compilation. */
 	fillLedger?: readonly ArtifactFillLedgerEntry[]
 }
 
 /** Canonical immutable workspace manifest accepted at static phase boundaries. */
 export interface ArtifactSetWorkspaceManifest {
-	schemaVersion: 1
+	schemaVersion: 2
+	providerId: string
+	providerSnapshotId: string
 	revision: string
+	capturePolicyDigest: string
 	tsConfigFilePath: string
 	files: readonly {
 		path: string
@@ -159,17 +173,19 @@ export interface ArtifactSetAcceptanceIdentity {
 
 /** Exact successful Workspace Constraint evidence accepted by final static validation. */
 export interface ConstraintBoundStaticAcceptance {
-	schemaVersion: 1
+	schemaVersion: 2
 	constraintEntryPath: string
 	constraintDigest: string
 	constraintSourceSnapshotHash: string
-	constraintEngineVersion: 3
+	constraintEngineVersion: 4
+	evaluatorIdentity: string
+	toolchainIdentity: string
 	analysisSnapshotHash: string
-	phaseResultBlobHashes: {
-		plan: string
-		artifact: string
-		assembled: string
-		semantic: string
+	phaseEvidence: {
+		plan: { taskHash: string; resultBlobHash: string }
+		artifact: { taskHash: string; resultBlobHash: string }
+		assembled: { taskHash: string; resultBlobHash: string }
+		semantic: { taskHash: string; resultBlobHash: string }
 	}
 }
 
@@ -281,6 +297,8 @@ export interface ArtifactSetAssemblyOptions {
 	/** Required for project-backed acceptance; omitted only for standalone new files. */
 	workspaceSnapshotId?: string
 	workspaceManifest?: ArtifactSetWorkspaceManifest
+	/** Captured tsconfig paths explicitly authorized as project references. */
+	authorizedProjectReferences?: readonly string[]
 	tsConfigFilePath?: string
 	/** Fixed raw/generated-source security policy used by static acceptance. */
 	securityPolicy?: NonNullable<GraphCompileOptions['securityPolicy']>
@@ -299,7 +317,7 @@ export type ArtifactSetAssemblyResult =
 	  }
 	| {
 			ok: false
-			classification: 'graphRepairable' | 'terminalFailure'
+			classification: SynthesisFailureClassification
 			changes: []
 			diagnostics: ArtifactSetDiagnostic[]
 	  }
@@ -341,15 +359,7 @@ interface PreparedAssemblyUnit extends ArtifactSetAssemblyUnit {
 	artifactHash: string
 }
 
-interface CompilerIssue {
-	kind: 'syntax' | 'semantic'
-	code: number
-	category: 'error' | 'warning' | 'suggestion' | 'message'
-	message: string
-	path?: string
-	start?: number
-	length?: number
-}
+type CompilerIssue = CapturedCompilerIssue
 
 /** Normalize a caller-provided path into the artifact protocol's workspace form. */
 export function normalizeArtifactTargetPath(input: string): string {
@@ -534,9 +544,7 @@ export function assembleArtifactSetTargets(
 	if (hasErrors(diagnostics)) {
 		return {
 			ok: false,
-			classification: hasArtifactIntegrityFailure
-				? 'terminalFailure'
-				: assemblyFailureClassification(diagnostics),
+				classification: classifySynthesisDiagnostics('artifactSetAssembly', diagnostics),
 			changes: [], diagnostics
 		}
 	}
@@ -711,13 +719,13 @@ export function assembleArtifactSetTargets(
 	}
 
 	if (hasErrors(diagnostics)) {
-		return { ok: false, classification: assemblyFailureClassification(diagnostics), changes: [], diagnostics }
+		return { ok: false, classification: classifySynthesisDiagnostics('artifactSetAssembly', diagnostics), changes: [], diagnostics }
 	}
 
 	const staticDiagnostics = validateAssembledSources(changes, workspace.files, options, prepared, false)
 	diagnostics.push(...staticDiagnostics)
 	if (hasErrors(staticDiagnostics)) {
-		return { ok: false, classification: 'graphRepairable', changes: [], diagnostics }
+		return { ok: false, classification: classifySynthesisDiagnostics('artifactSetAssembly', diagnostics), changes: [], diagnostics }
 	}
 
 	return {
@@ -751,16 +759,17 @@ function validateArtifactAssemblyStatic(
 	try {
 		catalogView = captureCatalog(catalog)
 	} catch (error) {
+		const diagnostics = catalogErrorDiagnostics(error)
 		return {
-			ok: false, classification: 'templatePolicyFailure', changes: [],
-			diagnostics: catalogErrorDiagnostics(error)
+			ok: false, classification: classifySynthesisDiagnostics('artifactSetStaticValidation', diagnostics), changes: [],
+			diagnostics
 		}
 	}
 	const workspace = normalizeWorkspaceFiles(options.workspaceFiles ?? {})
 	const contextDiagnostics = staticAcceptanceContextDiagnostics(units, workspace.files, options)
 	if (hasErrors([...workspace.diagnostics, ...contextDiagnostics])) {
 		return {
-			ok: false, classification: 'terminalFailure', changes: [],
+			ok: false, classification: classifySynthesisDiagnostics('artifactSetStaticValidation', [...workspace.diagnostics, ...contextDiagnostics]), changes: [],
 			diagnostics: [...workspace.diagnostics, ...contextDiagnostics]
 		}
 	}
@@ -780,7 +789,7 @@ function validateArtifactAssemblyStatic(
 	)
 	if (hasErrors(semanticDiagnostics)) {
 		return {
-			ok: false, classification: 'graphRepairable', changes: [],
+			ok: false, classification: classifySynthesisDiagnostics('artifactSetStaticValidation', semanticDiagnostics), changes: [],
 			diagnostics: [...assembled.diagnostics, ...semanticDiagnostics]
 		}
 	}
@@ -886,7 +895,7 @@ export function compileArtifactSetGraphs(
 				unitDiagnostics.push(diagnostic); diagnostics.push(diagnostic); classifications.push('terminalFailure'); break
 			}
 			const fillResult = fillTemplateArtifactWithCatalog(artifact, entry.inputs, catalogView, {
-				...graphOptions, checkSemanticDiagnostics: false, trustedBaseArtifact: true
+				...graphOptions, checkSemanticDiagnostics: false
 			})
 			if (!fillResult.ok) {
 				const fillDiagnostics = fillResult.diagnostics.map(diagnostic => ({ ...diagnostic, artifactId: unit.id }))
@@ -902,7 +911,12 @@ export function compileArtifactSetGraphs(
 		unitResult.artifact = artifact
 		unitResult.artifactHash = artifactHash
 	}
-	if (classifications.length > 0 || hasErrors(diagnostics)) return failedGraphCompilation(mode, normalizedPlan, units, diagnostics, combineClassifications(classifications), compilationIdentity)
+	if (classifications.length > 0 || hasErrors(diagnostics)) {
+		const classification = classifications.length > 0
+			? selectSynthesisFailureClassification(classifications)
+			: classifySynthesisDiagnostics('artifactSetGraphCompilation', diagnostics)
+		return failedGraphCompilation(mode, normalizedPlan, units, diagnostics, classification, compilationIdentity)
+	}
 	const incomplete = units.filter(unit => unit.artifact?.complete !== true)
 	if (incomplete.length > 0) {
 		if (mode === 'partial') return { kind: 'artifactSetGraphCompilation', mode, ok: true, complete: false, plan: normalizedPlan, units, diagnostics, ...compilationIdentity }
@@ -999,7 +1013,7 @@ export function finalizeArtifactSetStatic(
 	constraintAcceptance?: ConstraintBoundStaticAcceptance
 ): ArtifactSetStaticValidationResult {
 	const acceptanceDiagnostics = validateConstraintAcceptance(constraintAcceptance)
-	if (acceptanceDiagnostics.length > 0) return { ok: false, classification: 'terminalFailure', changes: [], diagnostics: acceptanceDiagnostics }
+	if (acceptanceDiagnostics.length > 0) return { ok: false, classification: classifySynthesisDiagnostics('artifactSetStaticValidation', acceptanceDiagnostics), changes: [], diagnostics: acceptanceDiagnostics }
 	const result = compileArtifactSet(plan, catalog, { ...options, mode: 'strict' })
 	if (!result.ok) {
 		return {
@@ -1052,7 +1066,7 @@ export function validateArtifactSetSemantics(
 		workspace.files,
 		options
 	)
-	if (hasErrors([...workspace.diagnostics, ...contextDiagnostics])) return { ok: false, classification: 'terminalFailure', changes: [], diagnostics: [...workspace.diagnostics, ...contextDiagnostics] }
+	if (hasErrors([...workspace.diagnostics, ...contextDiagnostics])) return { ok: false, classification: classifySynthesisDiagnostics('artifactSetSemanticValidation', [...workspace.diagnostics, ...contextDiagnostics]), changes: [], diagnostics: [...workspace.diagnostics, ...contextDiagnostics] }
 	const assembled = assembleArtifactSetTargets(
 		graphResult.units.map(unit => ({ id: unit.artifactId, target: unit.target, artifact: unit.artifact as CompleteTemplateArtifact, ...(unit.artifactHash === undefined ? {} : { artifactHash: unit.artifactHash }) })),
 		catalog,
@@ -1065,7 +1079,7 @@ export function validateArtifactSetSemantics(
 	}))
 	const semanticDiagnostics = validateAssembledSources(assembled.changes, workspace.files, options, prepared, true)
 	const diagnostics = [...assembled.diagnostics, ...semanticDiagnostics]
-	if (hasErrors(semanticDiagnostics)) return { ok: false, classification: 'graphRepairable', changes: [], diagnostics }
+	if (hasErrors(semanticDiagnostics)) return { ok: false, classification: classifySynthesisDiagnostics('artifactSetSemanticValidation', diagnostics), changes: [], diagnostics }
 	return {
 		ok: true, validation: 'semantic', changes: assembled.changes,
 		contractDigest: assembled.contractDigest, manifestDigest: assembled.manifestDigest,
@@ -1076,15 +1090,18 @@ export function validateArtifactSetSemantics(
 function validateConstraintAcceptance(value: ConstraintBoundStaticAcceptance | undefined): ArtifactSetDiagnostic[] {
 	if (value === undefined) return []
 	const blobHash = /^sha256:[a-f0-9]{64}$/u
-	const valid = value.schemaVersion === 1
+	const valid = value.schemaVersion === 2
 		&& typeof value.constraintEntryPath === 'string' && value.constraintEntryPath.length > 0
 		&& /^wc1_[a-f0-9]{64}$/u.test(value.constraintDigest)
 		&& blobHash.test(value.constraintSourceSnapshotHash)
-		&& value.constraintEngineVersion === 3
+		&& value.constraintEngineVersion === 4
+		&& typeof value.evaluatorIdentity === 'string' && value.evaluatorIdentity.length > 0
+		&& typeof value.toolchainIdentity === 'string' && value.toolchainIdentity.length > 0
 		&& blobHash.test(value.analysisSnapshotHash)
-		&& Object.values(value.phaseResultBlobHashes).length === 4
-		&& Object.values(value.phaseResultBlobHashes).every(hash => blobHash.test(hash))
-	return valid ? [] : [setDiagnostic('InvalidConstraintBoundStaticAcceptance', 'Constraint-bound finalization requires four valid identity-bound phase result hashes.', { stage: 'policy', actual: value })]
+		&& Object.values(value.phaseEvidence).length === 4
+		&& Object.values(value.phaseEvidence).every(evidence =>
+			isRecord(evidence) && blobHash.test(String(evidence.taskHash)) && blobHash.test(String(evidence.resultBlobHash)))
+	return valid ? [] : [setDiagnostic('InvalidConstraintBoundStaticAcceptance', 'Constraint-bound finalization requires engine 4 identities and four task/result evidence bindings.', { stage: 'policy', actual: value })]
 }
 
 function normalizeArtifactSetPlan(
@@ -1234,11 +1251,11 @@ function workspaceSnapshotHash(
 	workspaceManifest?: ArtifactSetWorkspaceManifest
 ): string {
 	if (workspaceManifest !== undefined) {
-		return versionedHash('ws', ['runtime-workspace-manifest', ARTIFACT_SET_IDENTITY_VERSION, workspaceManifest])
+		return workspaceVersionedHash(['runtime-workspace-manifest', ARTIFACT_SET_WORKSPACE_IDENTITY_VERSION, workspaceManifest])
 	}
-	return versionedHash('ws', [
+	return workspaceVersionedHash([
 		'artifact-set-workspace-snapshot',
-		ARTIFACT_SET_IDENTITY_VERSION,
+		ARTIFACT_SET_WORKSPACE_IDENTITY_VERSION,
 		tsConfigFilePath ?? null,
 		[...files.entries()]
 			.sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
@@ -1271,7 +1288,13 @@ function workspaceManifestDiagnostics(
 		}
 		return diagnostics
 	}
-	if (manifest.schemaVersion !== 1 || typeof manifest.revision !== 'string' || manifest.revision.length === 0) {
+	if (
+		manifest.schemaVersion !== 2
+		|| typeof manifest.providerId !== 'string' || manifest.providerId.length === 0
+		|| typeof manifest.providerSnapshotId !== 'string' || manifest.providerSnapshotId.length === 0
+		|| typeof manifest.revision !== 'string' || manifest.revision.length === 0
+		|| typeof manifest.capturePolicyDigest !== 'string' || !/^cp1_[a-f0-9]{64}$/u.test(manifest.capturePolicyDigest)
+	) {
 		diagnostics.push(setDiagnostic('InvalidWorkspaceManifest', 'Workspace manifest has an unsupported schema version or empty revision.', { stage: 'policy' }))
 		return diagnostics
 	}
@@ -1474,9 +1497,11 @@ function graphCompileOptions(options: ArtifactSetCompileOptions): GraphCompileOp
 		workspaceRoot: _workspaceRoot,
 		workspaceSnapshotId: _workspaceSnapshotId,
 		workspaceManifest: _workspaceManifest,
+		authorizedProjectReferences: _authorizedProjectReferences,
 		fillLedger: _fillLedger,
 		semanticContext: _semanticContext,
 		filePath: _filePath,
+		tsConfigFilePath: _tsConfigFilePath,
 		...graphOptions
 	} = options
 	return graphOptions
@@ -1510,15 +1535,6 @@ function artifactCompilationScope(baseScope: string | undefined, artifactId: str
 	])
 }
 
-function combineClassifications(
-	classifications: readonly SynthesisFailureClassification[]
-): SynthesisFailureClassification {
-	for (const classification of ['terminalFailure', 'templatePolicyFailure', 'graphRepairable', 'artifactFillable'] as const) {
-		if (classifications.includes(classification)) return classification
-	}
-	return 'graphRepairable'
-}
-
 function validateAssembledSources(
 	changes: readonly ArtifactSetChange[],
 	workspaceFiles: ReadonlyMap<string, string>,
@@ -1534,13 +1550,16 @@ function validateAssembledSources(
 		baseline,
 		options.workspaceRoot,
 		options.tsConfigFilePath,
-		semantic
+		semantic,
+		options.authorizedProjectReferences
 	)
 	const candidateIssues = collectCompilerIssues(
 		candidate,
 		options.workspaceRoot,
 		options.tsConfigFilePath,
-		semantic
+		semantic,
+		options.authorizedProjectReferences,
+		changes.map(change => change.path)
 	)
 	const existing = issueMultiset(baselineIssues, issue => compilerIssueKey(issue, issue.start))
 	const changeByPath = new Map(changes.map(change => [change.path, change]))
@@ -1580,11 +1599,18 @@ function validateAssembledSources(
 				issue.start - edit.resultStart,
 				issue.length ?? 0
 			)
+		const code = issue.kind === 'configuration'
+			? 'TypeScriptProjectConfigurationError'
+			: issue.kind === 'global'
+				? 'TypeScriptGlobalError'
+				: issue.kind === 'syntax'
+					? 'ArtifactSetTypeScriptSyntaxError'
+					: 'ArtifactSetTypeScriptSemanticError'
 		return setDiagnostic(
-			issue.kind === 'syntax' ? 'ArtifactSetTypeScriptSyntaxError' : 'ArtifactSetTypeScriptSemanticError',
+			code,
 			issue.message,
 			{
-				stage: issue.kind === 'syntax' ? 'ast' : 'type',
+				stage: issue.kind === 'configuration' ? 'policy' : issue.kind === 'syntax' ? 'ast' : 'type',
 				...(edit === undefined ? {} : { artifactId: edit.artifactId }),
 				...(owner?.nodeId === undefined ? {} : { nodeId: owner.nodeId }),
 				...(owner?.templateId === undefined ? {} : { templateId: owner.templateId }),
@@ -1606,152 +1632,28 @@ function collectCompilerIssues(
 	files: ReadonlyMap<string, string>,
 	workspaceRoot: string | undefined,
 	tsConfigFilePath: string | undefined,
-	semantic: boolean
+	semantic: boolean,
+	authorizedProjectReferences: readonly string[] | undefined,
+	requiredAnalysisPaths: readonly string[] = []
 ): CompilerIssue[] {
-	if (files.size === 0) return []
-	const root = workspaceRoot ?? '/__synthesize_regions_workspace__'
-	const projectOptions = snapshotCompilerOptions(files, tsConfigFilePath, root)
-	if (projectOptions.issues.length > 0) return projectOptions.issues
-	const project = new Project({
-		useInMemoryFileSystem: true,
-		compilerOptions: projectOptions.compilerOptions
+	const result = buildCapturedTypeScriptProject({
+		files,
+		...(workspaceRoot === undefined ? {} : { workspaceRoot }),
+		...(tsConfigFilePath === undefined ? {} : { tsConfigFilePath }),
+		semantic,
+		...(authorizedProjectReferences === undefined ? {} : { authorizedProjectReferences })
 	})
-	const configPath = tsConfigFilePath === undefined
-		? undefined
-		: normalizeArtifactTargetPath(tsConfigFilePath)
-	const sourceFiles: Array<{ path: string; sourceFile: SourceFile }> = []
-	for (const [path, sourceText] of files) {
-		if (path === configPath || !isTypeScriptProjectSource(path, projectOptions.compilerOptions.allowJs === true)) continue
-		sourceFiles.push({
-			path,
-			sourceFile: project.createSourceFile(resolve(root, path), sourceText, { overwrite: true })
-		})
-	}
-
-	const issues: CompilerIssue[] = []
-	const program = project.getProgram()
-	for (const { path, sourceFile } of sourceFiles) {
-		for (const diagnostic of program.getSyntacticDiagnostics(sourceFile)) {
-			issues.push(compilerIssue('syntax', diagnostic, path))
-		}
-		if (semantic) {
-			for (const diagnostic of program.getSemanticDiagnostics(sourceFile)) {
-				issues.push(compilerIssue('semantic', diagnostic, path))
-			}
-		}
-	}
-	return issues.sort((left, right) =>
-		(left.path ?? '').localeCompare(right.path ?? '') ||
-		(left.start ?? -1) - (right.start ?? -1) ||
-		left.code - right.code ||
-		left.message.localeCompare(right.message)
-	)
-}
-
-function snapshotCompilerOptions(
-	files: ReadonlyMap<string, string>,
-	tsConfigFilePath: string | undefined,
-	workspaceRoot: string
-): { compilerOptions: ts.CompilerOptions; issues: CompilerIssue[] } {
-	if (tsConfigFilePath === undefined) {
-		return {
-			compilerOptions: {
-				target: ts.ScriptTarget.ES2022,
-				module: ts.ModuleKind.ES2022,
-				moduleResolution: ts.ModuleResolutionKind.Bundler,
-				strict: true,
-				skipLibCheck: true
-			},
-			issues: []
-		}
-	}
-
-	let normalizedPath: string
-	try {
-		normalizedPath = normalizeArtifactTargetPath(tsConfigFilePath)
-	} catch (error) {
-		return {
-			compilerOptions: {},
-			issues: [compilerConfigIssue(
-				5083,
-				errorMessage(error),
-				tsConfigFilePath
-			)]
-		}
-	}
-	const sourceText = files.get(normalizedPath)
-	if (sourceText === undefined) {
-		return {
-			compilerOptions: {},
-			issues: [compilerConfigIssue(
-				5083,
-				`Cannot read immutable project configuration ${normalizedPath}.`,
-				normalizedPath
-			)]
-		}
-	}
-	const parsed = ts.parseConfigFileTextToJson(resolve(workspaceRoot, normalizedPath), sourceText)
-	if (parsed.error) {
-		return {
-			compilerOptions: {},
-			issues: [compilerConfigIssue(
-				parsed.error.code,
-				ts.flattenDiagnosticMessageText(parsed.error.messageText, '\n'),
-				normalizedPath
-			)]
-		}
-	}
-	const converted = ts.convertCompilerOptionsFromJson(
-		(parsed.config as { compilerOptions?: Record<string, unknown> }).compilerOptions ?? {},
-		workspaceRoot,
-		normalizedPath
-	)
-	if (converted.errors.length > 0) {
-		return {
-			compilerOptions: {},
-			issues: converted.errors.map(error => compilerConfigIssue(
-				error.code,
-				ts.flattenDiagnosticMessageText(error.messageText, '\n'),
-				normalizedPath
-			))
-		}
-	}
-	return {
-		compilerOptions: { ...converted.options, noEmit: true },
-		issues: []
-	}
-}
-
-function compilerConfigIssue(code: number, message: string, path: string): CompilerIssue {
-	return { kind: 'syntax', code, category: 'error', message, path }
-}
-
-function isTypeScriptProjectSource(path: string, allowJs: boolean): boolean {
-	return /\.(?:cts|mts|tsx?|d\.ts)$/u.test(path)
-		|| (allowJs && /\.(?:cjs|mjs|jsx?|d\.js)$/u.test(path))
-}
-
-function compilerIssue(kind: CompilerIssue['kind'], diagnostic: Diagnostic, path: string): CompilerIssue {
-	const start = diagnostic.getStart()
-	const length = diagnostic.getLength()
-	return {
-		kind,
-		code: diagnostic.getCode(),
-		category: compilerCategory(diagnostic.getCategory()),
-		message: ts.flattenDiagnosticMessageText(diagnostic.compilerObject.messageText, '\n'),
-		path,
-		...(start === undefined ? {} : { start }),
-		...(length === undefined ? {} : { length })
-	}
-}
-
-function compilerCategory(category: ts.DiagnosticCategory): CompilerIssue['category'] {
-	switch (category) {
-		case ts.DiagnosticCategory.Warning: return 'warning'
-		case ts.DiagnosticCategory.Suggestion: return 'suggestion'
-		case ts.DiagnosticCategory.Message: return 'message'
-		default: return 'error'
-	}
+	const analyzed = new Set(result.sourceFilePaths)
+	const outsideProjectIssues: CompilerIssue[] = requiredAnalysisPaths
+		.filter(path => /\.(?:cts|mts|tsx?|d\.ts|cjs|mjs|jsx?|d\.js)$/u.test(path) && !analyzed.has(path))
+		.map(path => ({
+			kind: 'configuration',
+			code: 18003,
+			category: 'error',
+			message: `Artifact target ${path} is outside the captured TypeScript project.`,
+			path
+		}))
+	return [...result.issues, ...outsideProjectIssues]
 }
 
 function issueMultiset(
@@ -1816,6 +1718,7 @@ function setDiagnostic(
 	severity: ArtifactSetDiagnostic['severity'] = 'error'
 ): ArtifactSetDiagnostic {
 	return {
+		origin: details.origin ?? synthesisDiagnosticOriginForCode(code),
 		stage: details.stage ?? 'graph',
 		code,
 		severity,
@@ -1839,18 +1742,14 @@ function hasErrors(diagnostics: readonly ArtifactSetDiagnostic[]): boolean {
 	return diagnostics.some(diagnostic => diagnostic.severity === 'error')
 }
 
-function assemblyFailureClassification(
-	diagnostics: readonly ArtifactSetDiagnostic[]
-): 'graphRepairable' | 'terminalFailure' {
-	return diagnostics.every(diagnostic => {
-		const classification = classifySynthesisDiagnosticCode(diagnostic.code)
-		return classification === 'graphRepairable' || classification === 'artifactFillable'
-	}) ? 'graphRepairable' : 'terminalFailure'
-}
-
 function versionedHash(prefix: string, value: unknown): string {
 	const payload = canonicalizeJson(value)
 	return `${prefix}${ARTIFACT_SET_IDENTITY_VERSION}_${createHash('sha256').update(payload, 'utf8').digest('hex')}`
+}
+
+function workspaceVersionedHash(value: unknown): string {
+	const payload = canonicalizeJson(value)
+	return `ws${ARTIFACT_SET_WORKSPACE_IDENTITY_VERSION}_${createHash('sha256').update(payload, 'utf8').digest('hex')}`
 }
 
 function errorMessage(error: unknown): string {

@@ -1,13 +1,18 @@
+import Ajv2020 from 'ajv/dist/2020.js'
 import { describe, expect, it } from 'vitest'
 import {
 	applyGraphPatch,
 	checkContract,
+	classifySynthesisDiagnosticCode,
 	compileGraph,
 	createTemplateRegistry,
 	defineTemplate,
 	fragmentPort,
+	graphTemplateDefinitionToJsonSchema,
 	GraphTemplateManifestSchema,
 	SynthesisGraphSchema,
+	templateRegistryToPartialSynthesisGraphJsonSchema,
+	templateRegistryToSynthesisGraphJsonSchema,
 	TemplateSummarySchema,
 	type SynthesisGraph
 } from '../src/index.js'
@@ -72,7 +77,15 @@ const StringArrayConsumer = defineTemplate({
 	source: `(${"/** @TYPE expression id=value **/[]/** @END **/"}).length`
 })
 
-const templates = [GenericMap, Users, ToName, WrongCallback, StringArrayConsumer] as const
+const StringConstrainedValue = defineTemplate({
+	modelId: 'GenericTypeTestStringConstrainedValue',
+	typeParameters: { T: { constraint: { ts: 'string' } } },
+	inputs: {},
+	output: { kind: 'expression', type: { ts: '{{T}}' } },
+	source: '"value"'
+})
+
+const templates = [GenericMap, Users, ToName, WrongCallback, StringArrayConsumer, StringConstrainedValue] as const
 const registry = createTemplateRegistry(templates)
 const userType = { ts: '{ id: string }' }
 const stringType = { ts: 'string', schema: { type: 'string' } } as const
@@ -99,9 +112,9 @@ function genericGraph(callback = 'callback'): SynthesisGraph {
 describe('generic template type contracts', () => {
 	it('summarizes declared parameters and changes manifest identity', () => {
 		expect(GenericMap.summary().typeParameters).toEqual(GenericMap.typeParameters)
-		expect(GenericMap.manifestDigest).toMatch(/^t2_[a-f0-9]{64}$/u)
-		expect(registry.contractDigest).toMatch(/^c5_[a-f0-9]{64}$/u)
-		expect(registry.manifestDigest).toMatch(/^m2_[a-f0-9]{64}$/u)
+		expect(GenericMap.manifestDigest).toMatch(/^t3_[a-f0-9]{64}$/u)
+		expect(registry.contractDigest).toMatch(/^c6_[a-f0-9]{64}$/u)
+		expect(registry.manifestDigest).toMatch(/^m3_[a-f0-9]{64}$/u)
 	})
 
 	it('round-trips generic declarations and bindings through closed contracts', () => {
@@ -130,19 +143,106 @@ describe('generic template type contracts', () => {
 	it('rejects missing, extra, invalid, and incompatible explicit arguments', () => {
 		const missing = genericGraph()
 		delete missing.nodes[2]?.typeArguments?.U
-		expect(compileGraph(missing, registry).diagnostics).toContainEqual(expect.objectContaining({ code: 'MissingTypeArgument' }))
+		expect(compileGraph(missing, registry).diagnostics).toContainEqual(expect.objectContaining({
+			code: 'MissingTypeArgument', typeParameterName: 'U'
+		}))
 
 		const extra = genericGraph()
 		extra.nodes[2]!.typeArguments!.Extra = { ts: 'string' }
-		expect(compileGraph(extra, registry).diagnostics).toContainEqual(expect.objectContaining({ code: 'UnknownTypeArgument' }))
+		expect(compileGraph(extra, registry).diagnostics).toContainEqual(expect.objectContaining({
+			code: 'UnknownTypeArgument', typeParameterName: 'Extra'
+		}))
 
 		const invalid = genericGraph()
 		invalid.nodes[2]!.typeArguments!.T = { ts: 'any' }
-		expect(compileGraph(invalid, registry).diagnostics).toContainEqual(expect.objectContaining({ code: 'ForbiddenAnyType' }))
+		expect(compileGraph(invalid, registry).diagnostics).toContainEqual(expect.objectContaining({
+			code: 'InvalidTypeArgument', typeParameterName: 'T'
+		}))
+		expect(classifySynthesisDiagnosticCode('InvalidTypeArgument')).toBe('graphRepairable')
+
+		const unresolved = genericGraph()
+		unresolved.nodes[2]!.typeArguments!.T = { ts: 'GenericTypeTestMissingType' }
+		expect(compileGraph(unresolved, registry).diagnostics).toContainEqual(expect.objectContaining({
+			code: 'InvalidTypeArgument', typeParameterName: 'T'
+		}))
+		expect(classifySynthesisDiagnosticCode('InvalidTypeScriptType')).toBe('terminalFailure')
+		expect(classifySynthesisDiagnosticCode('UnresolvedTypeScriptType')).toBe('terminalFailure')
+		expect(classifySynthesisDiagnosticCode('ForbiddenAnyType')).toBe('terminalFailure')
+		expect(classifySynthesisDiagnosticCode('InvalidTypeParameterName')).toBe('templatePolicyFailure')
+		expect(classifySynthesisDiagnosticCode('GenericTypeParameterConstraint')).toBe('templatePolicyFailure')
+		expect(classifySynthesisDiagnosticCode('UndeclaredTypeParameter')).toBe('templatePolicyFailure')
+		expect(classifySynthesisDiagnosticCode('UnusedTypeParameter')).toBe('templatePolicyFailure')
 
 		expect(compileGraph(genericGraph('wrong'), registry).diagnostics).toContainEqual(
 			expect.objectContaining({ code: 'IncompatibleFragmentType', inputName: 'callback' })
 		)
+	})
+
+	it('leaves constraint assignability to authoritative graph compilation', () => {
+		const graph: SynthesisGraph = {
+			nodes: [{
+				id: 'constrained',
+				templateId: StringConstrainedValue.modelId,
+				typeArguments: { T: { ts: 'number' } },
+				inputs: {}
+			}],
+			finalNodeId: 'constrained'
+		}
+		const validate = new Ajv2020({ allErrors: true, strict: true }).compile(
+			templateRegistryToSynthesisGraphJsonSchema(registry)
+		)
+		expect(validate(graph), JSON.stringify(validate.errors, null, 2)).toBe(true)
+		expect(compileGraph(graph, registry)).toMatchObject({
+			ok: false,
+			classification: 'graphRepairable',
+			diagnostics: [{
+				code: 'IncompatibleTypeArgument',
+				typeParameterName: 'T',
+				nodeId: 'constrained'
+			}]
+		})
+	})
+
+	it('derives exact generic bindings in standalone, strict, partial, and recursive planner schemas', () => {
+		const ajv = new Ajv2020({ allErrors: true, strict: true })
+		const standalone = ajv.compile(graphTemplateDefinitionToJsonSchema(GenericMap))
+		const strict = ajv.compile(templateRegistryToSynthesisGraphJsonSchema(registry))
+		const partial = ajv.compile(templateRegistryToPartialSynthesisGraphJsonSchema(registry))
+		const mapped = genericGraph().nodes[2]!
+
+		expect(standalone(mapped), JSON.stringify(standalone.errors, null, 2)).toBe(true)
+		expect(standalone({ ...mapped, typeArguments: undefined })).toBe(false)
+		expect(standalone({ ...mapped, typeArguments: { T: userType } })).toBe(false)
+		expect(standalone({
+			...mapped,
+			typeArguments: { ...mapped.typeArguments, Extra: { ts: 'number' } }
+		})).toBe(false)
+
+		expect(strict(genericGraph()), JSON.stringify(strict.errors, null, 2)).toBe(true)
+		const missingInputs = genericGraph()
+		missingInputs.nodes[2]!.inputs = {}
+		expect(strict(missingInputs)).toBe(false)
+		expect(partial(missingInputs), JSON.stringify(partial.errors, null, 2)).toBe(true)
+		delete missingInputs.nodes[2]!.typeArguments
+		expect(partial(missingInputs)).toBe(false)
+
+		const nongenericArguments = genericGraph()
+		nongenericArguments.nodes[0]!.typeArguments = { T: userType }
+		expect(partial(nongenericArguments)).toBe(false)
+
+		const recursive = genericGraph()
+		recursive.nodes[3]!.inputs.value = {
+			kind: 'inline',
+			node: { ...recursive.nodes[2]!, id: 'inline-mapped' }
+		}
+		recursive.nodes.splice(2, 1)
+		expect(strict(recursive), JSON.stringify(strict.errors, null, 2)).toBe(true)
+		const inlineValue = recursive.nodes[2]!.inputs.value
+		if (!inlineValue || !('kind' in inlineValue) || inlineValue.kind !== 'inline') {
+			throw new Error('Expected recursive inline test node.')
+		}
+		delete inlineValue.node.typeArguments
+		expect(strict(recursive)).toBe(false)
 	})
 
 	it('instantiates unresolved partial ports', () => {
@@ -168,6 +268,14 @@ describe('generic template type contracts', () => {
 		})
 		expect(restored.ok).toBe(true)
 		expect(graph.nodes[2]?.typeArguments?.U).toEqual(stringType)
+
+		const missing = applyGraphPatch(graph, {
+			kind: 'removeTypeArgument', nodeId: 'mapped', parameterName: 'Missing'
+		})
+		expect(missing).toMatchObject({
+			ok: false,
+			diagnostics: [{ code: 'GraphPatchTypeArgumentNotFound', typeParameterName: 'Missing' }]
+		})
 	})
 
 	it('rejects undeclared and unused manifest parameters', () => {

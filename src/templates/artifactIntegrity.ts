@@ -22,6 +22,7 @@ import type {
 } from './graphTypes.js'
 import type { SupportedJsonSchema } from './schemaTypes.js'
 import { templateModeForRegionKind } from './rendering.js'
+import { synthesisDiagnosticOriginForCode } from './diagnosticCatalog.js'
 
 /** Add artifact identity to an integrity diagnostic when the value provides it. */
 function artifactIdentity(artifact: TemplateArtifact): Pick<SynthesisDiagnostic, 'nodeId' | 'templateId'> {
@@ -34,10 +35,11 @@ function artifactIdentity(artifact: TemplateArtifact): Pick<SynthesisDiagnostic,
 /** Create a graph-native integrity error associated with an artifact. */
 function integrityDiagnostic(
 	artifact: TemplateArtifact,
-	diagnostic: Omit<SynthesisDiagnostic, 'severity' | 'nodeId' | 'templateId'>
+	diagnostic: Omit<SynthesisDiagnostic, 'severity' | 'origin' | 'nodeId' | 'templateId'>
 ): SynthesisDiagnostic {
 	return {
 		...diagnostic,
+		origin: synthesisDiagnosticOriginForCode(diagnostic.code),
 		...artifactIdentity(artifact),
 		severity: 'error'
 	}
@@ -77,6 +79,7 @@ function metadataDiagnostic(
 		? 'schema'
 		: relative ? `${path}.${relative}` : path
 	return {
+		origin: synthesisDiagnosticOriginForCode(metadataIssueCode(issue.code)),
 		stage: 'type',
 		code: metadataIssueCode(issue.code),
 		severity: 'error',
@@ -123,6 +126,7 @@ function policyDiagnostic(
 	actual?: unknown
 ): SynthesisDiagnostic {
 	return {
+		origin: synthesisDiagnosticOriginForCode(code),
 		stage: 'policy', code, severity: 'error', message,
 		...safeArtifactIdentity(value), inputName, path,
 		...(actual === undefined ? {} : { actual })
@@ -137,6 +141,7 @@ function sourceFileMetadataDiagnostic(
 	inputName?: string
 ): SynthesisDiagnostic {
 	return {
+		origin: synthesisDiagnosticOriginForCode('IncompatibleSourceFileMetadata'),
 		stage: 'type',
 		code: 'IncompatibleSourceFileMetadata',
 		severity: 'error',
@@ -299,6 +304,7 @@ function generatedSourceMapDiagnostics(value: Record<string, unknown>): Synthesi
 		expected: unknown,
 		actual: unknown
 	): SynthesisDiagnostic => ({
+		origin: synthesisDiagnosticOriginForCode('InvalidGeneratedSourceMap'),
 		stage: 'template',
 		code: 'InvalidGeneratedSourceMap',
 		severity: 'error',
@@ -467,6 +473,7 @@ export function validateTemplateArtifactIntegrity(value: unknown): SynthesisDiag
 	})
 	if (!checkContract(TemplateArtifactSchema, value) && !validExceptForEmptyInputList) {
 		return [...metadataDiagnostics, {
+			origin: synthesisDiagnosticOriginForCode('MalformedTemplateArtifact'),
 			stage: 'template',
 			code: 'MalformedTemplateArtifact',
 			severity: 'error',

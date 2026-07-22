@@ -2,14 +2,28 @@
 
 ## Product Description
 
+> **Cross-project snapshot:** `synthesize-regions` owns the static library
+> contracts described here, while runtime-core owns the implemented Phase 1–3
+> workflow and this document's authoritative source. Runtime Phase 1–3 ends at
+> immutable `readyForApproval` staging; approval and filesystem application are
+> future, separately versioned Phase 4 concerns and are not implemented here.
+
 Synthesize Regions Agent Runtime is a local-first agentic system for producing
 statically validated TypeScript artifact sets from a controlled catalog of
 declarative code templates.
 
-The runtime combines:
+> **Implementation status:** runtime-core implements capture, planning,
+> deterministic repair, four constraint phases, compilation, assembly,
+> semantics, and content-addressed static staging through `readyForApproval`.
+> The exact approval/result-binding protocol exists, but authentication, live
+> target preflight, journaled filesystem application, HTTP transport, and
+> telemetry are Phase 4 or deployment-integration work and are not implemented
+> by this package.
 
-- locally hosted Qwen models;
-- `llama.cpp` inference servers;
+The implemented core combines:
+
+- a deployment-selected OpenAI-compatible structured-output provider (for
+  example a locally hosted Qwen model through `llama-server`);
 - the Vercel AI SDK;
 - JSON Schema-constrained model output;
 - the graph, template, and artifact-set APIs from `synthesize-regions`;
@@ -41,10 +55,15 @@ synthesis with explicit answers to these questions:
 - What exact change set is waiting for approval?
 - Can every accepted decision be reconstructed after interruption?
 
-A request describes an objective, one or more authorized targets, an immutable
-workspace snapshot, a TypeScript configuration, catalog identity, static policy,
-model profiles, resource budgets, and optionally an authorized
+A caller supplies an objective, authorized targets/create roots, resource
+budgets, a workspace-capture draft, a validated declarative catalog, a
+deployment-owned policy bundle, and optionally an authorized
 [Workspace Constraints](./workspace-constraints-product-description.md) entry.
+`captureSessionInput()` derives the immutable workspace, catalog, policy, and
+constraint identities; callers do not assert those authority-bearing values.
+Every capture-policy required path must be an actual regular file in that
+snapshot. A symlink at the path or in an ancestor is recorded but never followed
+and cannot satisfy the requirement.
 
 A successful session produces:
 
@@ -54,8 +73,10 @@ A successful session produces:
 - generated TypeScript artifacts and provenance;
 - static diagnostics and project-semantic results;
 - constraint phase results and diagnostics when constraints are configured;
-- a content-addressed staged change set;
-- an approval and application history when application was requested.
+- a content-addressed staged change set and pointer-only staging receipt.
+
+The Phase 4 design extends that result with authenticated approval, live-target
+revalidation, and application history.
 
 ## Product Boundaries
 
@@ -72,8 +93,9 @@ The runtime is deliberately static. It does not:
 - delete or rename files;
 - claim that static acceptance proves runtime behavior or business correctness.
 
-The runtime may stage and apply an explicitly approved artifact set. Application
-is a controlled delivery operation, not model authority.
+The current runtime stages an artifact set and binds an exact approval envelope.
+The Phase 4 application design applies an explicitly approved set as a
+controlled delivery operation; it is never model authority.
 
 Workspace Constraints do not weaken this boundary. They are parsed as a closed,
 data-only language and evaluated by library-owned fact providers; they cannot
@@ -164,12 +186,16 @@ authoritative candidate consists of:
 
 - the artifact-set plan;
 - every artifact's current graph revision;
+- every graph node's explicit generic type arguments, when its template declares
+  parameters;
 - the accepted fill ledger;
-- the captured workflow ID, version, and digest;
 - contract and manifest digests;
 - the workspace snapshot identity;
-- the captured constraint identity, when constraints are configured;
-- the staged change-set hash, when present.
+- the captured constraint identity, when constraints are configured.
+
+Workflow, policy, catalog-manifest/disclosure, and staging identities belong to
+the enclosing session and approval envelope. A `StagingReceipt` is session
+state derived from the candidate; it is not a field of `ArtifactSetCandidate`.
 
 The optional constraint identity binds the entry path, semantic digest, exact
 source snapshot, fact-engine version, and authorized analysis snapshot. Each
@@ -186,8 +212,14 @@ transition metadata. It contains no model calls, compiler work, filesystem
 operations, database access, or authorization callbacks.
 
 The normalized definition has a version and digest captured by every session.
-Runtime upgrades replay a stream under its captured workflow identity or an
-explicit migration; they never reinterpret old events under a changed topology.
+This private `0.1.x` core does not migrate or upcast persisted development data:
+unsupported workflow, protocol, reducer, or database versions fail explicitly
+and require a fresh database.
+The current hard-cutover identities are workflow `7`, protocol/reducer `6`,
+database schema `9`, model-role contract `3`, prompt set `3`, captured
+context/static tasks `4`, and approval envelope `4`. Catalogs use the exact
+`synthesize-regions` `0.3.0` `c6_`/`t3_`/`m3_` identity generations. Earlier
+development databases and evidence are recreated; there is no migration.
 The topology contains the four constraint-check phases and set-repair loop even
 when a session has no constraints. Repository `.wsc` files supply policy data
 only; they cannot add states, transitions, effects, or authorization logic.
@@ -208,8 +240,8 @@ Production state management remains explicit:
 - a pure event reducer reconstructs state from accepted events;
 - exhaustive TypeScript matching handles status-specific data changes;
 - SQLite appends events and updates materialized state with revision CAS;
-- a transactional outbox schedules model, compiler, and application work only
-  after the state transaction commits.
+- a transactional outbox schedules model and static work only after the state
+  transaction commits; workflow 7 contains no filesystem-application work.
 
 XState is a generated workflow representation for visualization, reachability,
 path analysis, and model-based testing. XState actor snapshots, actions, and
@@ -237,9 +269,15 @@ Patches are validated and applied transactionally.
 
 ### Input Synthesizer
 
-Supplies one authorized graph input or unresolved artifact fill. For raw-code
-ports it receives only the owning artifact, node, input name, exact region kind,
-type metadata, source policy, and a small source excerpt.
+Proposes either one authorized graph input or raw/literal values for one exact
+unresolved artifact fill. For raw-code ports it receives only the owning
+artifact, node, input name, exact region kind, type metadata, source policy, and
+a small source excerpt. A fill proposal carries the current artifact, graph,
+and base-artifact identities plus only the authorized unresolved input value;
+the role input and state-specific schema bind its unresolved-input and port
+identities. It carries no resulting artifact hash. A runtime-owned one-shot
+worker verifies and applies the proposal and computes that authoritative hash
+before the fill may be accepted.
 
 ### Artifact-Set Repairer
 
@@ -257,155 +295,59 @@ Repairer or set-level coordinator without inventing causal attribution.
 ## End-to-End Synthesis Flow
 
 ```mermaid
-flowchart TD
-  subgraph capture["1. Authorized request and immutable capture"]
-    request["Authorized request<br/>objective, write targets, and optional constraint entry"]
-    captured["Capture workspace, catalog, policies, and budgets<br/>plus immutable constraint and analysis identity when configured"]
-    request --> captured
+flowchart LR
+  subgraph current["Implemented Phases 1–3"]
+    direction LR
+    capture["Immutable capture<br/>workspace, catalog, policies, constraints"]
+    plan["Bounded plan and graph proposals"]
+    authorize["Authorize and commit<br/>current revision"]
+    build["Compile authoritative candidate"]
+    accept{"Static acceptance<br/>four constraint gates, assembly, semantics"}
+    route{"Closed ownership route"}
+    repair["Bounded input, graph, or set repair proposal"]
+    stage["Content-addressed staging<br/>readyForApproval"]
+    terminal(["Terminal, budget, cancellation,<br/>or no-progress outcome"])
+
+    capture --> plan --> authorize --> build --> accept
+    accept -->|pass| stage
+    accept -->|repairable| route --> repair --> authorize
+    accept -->|indeterminate, integrity, or policy failure| terminal
   end
 
-  subgraph models["Untrusted model proposals from bounded roles"]
-    setPlanner["Artifact-Set Planner<br/>propose targets and artifact goals"]
-    graphPlanner["Graph Planner<br/>propose one partial graph per artifact"]
-    graphRepairer["Graph Repairer<br/>propose one scoped graph patch"]
-    inputSynth["Input Synthesizer<br/>propose one setInput action or artifact fill"]
-    setRepair["Artifact-Set Repairer<br/>propose one authorized plan-shape patch"]
-    retryRole["Retry the same authorized role<br/>with bounded rejection history"]
-  end
+  stage -.->|"Phase 4 boundary: authenticated approval,<br/>live preflight, and application"| phase4["Planned deployment integration"]
 
-  subgraph runtime["2. Deterministic authorization, commitment, and compilation"]
-    proposalGate{"Canonical schema + current-state authorization<br/>catalog, target, identity, and budget checks<br/>transactional graph, patch, and fill validation"}
-    rejected["Reject proposal<br/>accepted candidate remains unchanged"]
-    retryDecision{"Retry budget and progress check"}
-    commitPlan["Commit artifact-set plan revision"]
-    commitGraphs["Commit initial graph revisions"]
-    commitRepair["Commit graph patch or fill revision<br/>candidate changes invalidate staging and approval"]
-    commitSetRepair["Commit artifact-set patch<br/>invalidate affected graphs and fills"]
-    compile["Compile authoritative candidate<br/>plan + graph revisions + accepted fill ledger"]
-    compileResult{"Compilation classification"}
-  end
-
-  subgraph acceptance["3. Immutable-overlay static acceptance"]
-    planConstraints{"Plan constraints<br/>passed, failed, or explicitly skipped"}
-    artifactConstraints{"Artifact/provenance constraints<br/>passed, failed, or explicitly skipped"}
-    assemble["Fixed syntax, integrity, source-policy, target,<br/>base-snapshot, and virtual assembly gates"]
-    assembledConstraints{"Assembled constraints<br/>passed, failed, or explicitly skipped"}
-    semanticCheck["Mandatory baseline/candidate<br/>TypeScript semantic comparison"]
-    semanticConstraints{"Semantic constraints<br/>passed, failed, or explicitly skipped"}
-    staticResult{"All fixed and configured gates pass"}
-    staticOnly["Static assurance only<br/>no generated-code execution, tests, linting,<br/>or claim of behavioral correctness"]
-  end
-
-  subgraph delivery["4. Authenticated write-authority boundary"]
-    stage["Stage immutable content-addressed change set"]
-    ready["readyForApproval"]
-    approval{"Authenticated approval matches<br/>current session revision + exact change-set hash?"}
-    approvalRejected["Reject stale approval<br/>readyForApproval remains unchanged"]
-    preflight{"Live target preflight<br/>root and symlink containment, base hashes, ranges,<br/>create absence, overlap, and approval freshness"}
-    apply["Journaled recoverable application<br/>temporary files, fsync, backups, and renames"]
-    applyResult{"Application result"}
-    recovery["Finish the exact approved set<br/>or restore from the recovery journal"]
-    completed(["completed"])
-  end
-
-  controls["Generated transition topology + pure command/event protocol<br/>SQLite event/materialized-state CAS, outbox, leases, fencing,<br/>idempotency, budgets, and fingerprints"]
-  terminal(["terminal catalog / identity / integrity failure"])
-  cancelled(["cancelled"])
-  exhausted(["budgetExhausted"])
-  noProgress(["noProgress"])
-  staleTarget(["stale or unsafe live target<br/>no filesystem mutation"])
-  applicationFailed(["applicationFailed after recovery"])
-
-  captured --> setPlanner
-  captured -.->|"initialize session controls"| controls
-  controls -.->|"govern every accepted transition"| proposalGate
-  controls -.->|"authorized cancellation"| cancelled
-  controls -.->|"budget exhaustion from any nonterminal state"| exhausted
-  controls -.->|"repeated candidate or diagnostic fingerprints"| noProgress
-
-  setPlanner --> proposalGate
-  proposalGate -->|"accepted artifact-set plan"| commitPlan
-  commitPlan --> planConstraints
-  planConstraints -->|"passed or skipped"| graphPlanner
-  planConstraints -->|"set-level violation"| setRepair
-  graphPlanner --> proposalGate
-  proposalGate -->|"accepted graph proposal"| commitGraphs
-  commitGraphs --> compile
-
-  proposalGate -->|"rejected"| rejected
-  rejected --> retryDecision
-  retryDecision -->|"retry permitted"| retryRole
-  retryRole --> proposalGate
-  retryDecision -->|"budget exhausted"| exhausted
-  retryDecision -->|"repeated fingerprint"| noProgress
-
-  compile --> compileResult
-  compileResult -->|"graphRepairable"| graphRepairer
-  compileResult -->|"artifactFillable"| inputSynth
-  compileResult -->|"complete artifact set"| artifactConstraints
-  compileResult -->|"catalog, manifest, identity, or integrity failure"| terminal
-
-  graphRepairer --> proposalGate
-  inputSynth --> proposalGate
-  setRepair --> proposalGate
-  proposalGate -->|"accepted patch or fill"| commitRepair
-  proposalGate -->|"accepted artifact-set patch"| commitSetRepair
-  commitRepair --> compile
-  commitSetRepair --> planConstraints
-
-  artifactConstraints -->|"passed or skipped"| assemble
-  artifactConstraints -->|"localized violation"| graphRepairer
-  artifactConstraints -->|"set-level violation"| setRepair
-  assemble --> assembledConstraints
-  assembledConstraints -->|"passed or skipped"| semanticCheck
-  assembledConstraints -->|"localized violation"| graphRepairer
-  assembledConstraints -->|"set-level violation"| setRepair
-  semanticCheck -->|"fixed semantic gates pass"| semanticConstraints
-  semanticCheck -->|"diagnostic owned by one input"| inputSynth
-  semanticCheck -->|"diagnostic owned by graph composition"| graphRepairer
-  semanticCheck -->|"cross-artifact diagnostic"| setRepair
-  semanticConstraints -->|"passed or skipped"| staticResult
-  semanticConstraints -->|"localized violation"| graphRepairer
-  semanticConstraints -->|"set-level violation"| setRepair
-  artifactConstraints -->|"invalid or indeterminate mandatory policy"| terminal
-  assembledConstraints -->|"invalid or indeterminate mandatory policy"| terminal
-  semanticConstraints -->|"invalid or indeterminate mandatory policy"| terminal
-  staticResult -.-> staticOnly
-  staticResult --> stage
-
-  stage --> ready
-  ready --> approval
-  approval -->|"absent or declined"| ready
-  approval -->|"stale revision or hash"| approvalRejected
-  approvalRejected --> ready
-  approval -->|"exact approval"| preflight
-  preflight -->|"stale or unsafe target"| staleTarget
-  preflight -->|"pass"| apply
-  apply --> applyResult
-  applyResult -->|"all files committed"| completed
-  applyResult -->|"interrupted or partially committed"| recovery
-  recovery -->|"exact set completed"| completed
-  recovery -->|"restore or completion fails"| applicationFailed
-
+  classDef runtime fill:#e8f1ff,stroke:#315f9b,color:#10243e;
   classDef model fill:#fff7d6,stroke:#8a6d1d,color:#2f2500;
-  classDef gate fill:#e8f1ff,stroke:#315f9b,color:#10243e;
-  classDef write fill:#e8f7ec,stroke:#2f7d43,color:#153b20;
+  classDef success fill:#e8f7ec,stroke:#2f7d43,color:#153b20;
   classDef failure fill:#fdecec,stroke:#a33a3a,color:#4d1717;
-  class setPlanner,graphPlanner,graphRepairer,inputSynth,setRepair,retryRole model;
-  class proposalGate,compileResult,planConstraints,artifactConstraints,assembledConstraints,semanticConstraints,staticResult,approval,preflight,applyResult gate;
-  class stage,ready,apply,recovery,completed write;
-  class terminal,cancelled,exhausted,noProgress,staleTarget,applicationFailed failure;
+  classDef future fill:#f1f3f5,stroke:#6c757d,color:#343a40,stroke-dasharray:5 5;
+  class capture,authorize,build,accept,route runtime;
+  class plan,repair model;
+  class stage success;
+  class terminal failure;
+  class phase4 future;
 ```
 
 Every model result crosses the canonical schema and current-state authorization
 gate before it can change the accepted candidate. Static acceptance never
 executes generated code, runs tests or linting, or proves behavioral
-correctness. The only path to filesystem mutation crosses exact revision/hash
-approval and the live target preflight.
+correctness. Solid arrows are implemented control flow. The dotted gray edge is
+the unimplemented Phase 4 boundary; this package stops at `readyForApproval`.
 
-For the lifecycle states, guarded transitions, self-loops, and repair cycles
-without the component-level detail, see the
-[Session State Machine](./synthesis-workflow-technical-design.md#15-state-machine).
+Detailed views are split by the question they answer:
+
+| Question | Diagram |
+| --- | --- |
+| How are workspace, catalog, policy, and constraint identities captured? | [Immutable capture and reconstruction](./synthesis-workflow-technical-design.md#81-immutable-capture-and-reconstruction) |
+| How do generic catalog declarations become planned bindings, repair authority, and provenance? | [Generic catalog dataflow and repair](./synthesis-workflow-technical-design.md#73-catalog-disclosure) |
+| How is a model fill turned into an authoritative artifact hash? | [Input Synthesizer sequence](./synthesis-workflow-technical-design.md#114-input-synthesizer) |
+| How does a failure reach input, graph, set, or terminal handling? | [Deterministic failure routing](./synthesis-workflow-technical-design.md#12-deterministic-failure-routing) |
+| Which evidence gates staging? | [Static acceptance pipeline](./synthesis-workflow-technical-design.md#14-static-acceptance-pipeline) |
+| Which lifecycle transitions are authoritative? | [Session state machine](./synthesis-workflow-technical-design.md#15-state-machine) |
+| How is work committed and executed after the transaction? | [Atomic outbox sequence](./synthesis-workflow-technical-design.md#173-atomic-append-projection-and-outbox) |
+| What happens to expired work after restart? | [External-work reconciliation](./synthesis-workflow-technical-design.md#174-external-work-and-reconciliation) |
+| How do exact bytes and evidence become a pointer-only receipt? | [Staging evidence binding](./synthesis-workflow-technical-design.md#18-staging-and-approval) |
+| How do Workspace Constraints interleave with synthesis? | [Four-phase evaluation pipeline](./workspace-constraints-technical-design.md#13-evaluation-pipeline) |
 
 ## Static Acceptance Pipeline
 
@@ -432,8 +374,10 @@ data within those phases. A phase records `notConfigured` when the request has
 no constraint set and `noApplicableRules` when the captured set has no rule for
 that phase.
 
-A controlled default TypeScript project may be used for standalone new files;
-project changes otherwise require a captured project snapshot and `tsconfig`.
+Semantic and Workspace Constraint analysis always uses the exact captured
+`tsconfig` and authorized immutable workspace snapshot. Missing, malformed, or
+non-text configuration and inaccessible required analysis files fail closed;
+there is no fallback TypeScript project.
 
 Static acceptance means that the candidate satisfied this policy. It does not
 prove runtime safety, business behavior, performance, or test correctness.
@@ -447,6 +391,17 @@ references. Compilation distinguishes:
 - unresolved artifact input filling;
 - catalog or manifest policy failures;
 - terminal session identity or integrity failures.
+
+Generic templates declare named type parameters in source-free summaries, and
+each planned generic node supplies a complete concrete `typeArguments` map.
+Catalog-specific schemas enforce names and completeness; authoritative
+compilation enforces constraints and compatibility. Candidate-originated
+missing, invalid, or incompatible bindings carry exact `typeParameterName`
+ownership and grant the Graph Repairer only a revision/hash-bound
+`setTypeArgument` action. An exact unknown present argument grants only
+`removeTypeArgument`. Accepted repairs increment that artifact's graph revision,
+invalidate downstream evidence, and recompile. Successful artifacts retain the
+concrete bindings in provenance and therefore in candidate and staging hashes.
 
 Constraint evaluation adds deterministic ownership routes: exact generated
 inputs return to the Input Synthesizer, graph-owned violations return to the
@@ -463,17 +418,57 @@ Semantic failures are mapped through artifact and graph source maps when a
 compiler location permits exact attribution. Provenance describes textual
 ownership, not behavioral causality.
 
-## Staging, Approval, and Application
+## Staging and the Phase 4 Approval/Application Boundary
 
 A statically accepted candidate becomes a content-addressed change set in
-`readyForApproval`. The change set includes the workspace snapshot, both catalog
-digests, optional constraint and analysis identity, target descriptors, base
-hashes, exact generated bytes, phase diagnostics, and source provenance.
+`readyForApproval`. Resulting files, the ordered change manifest, full library
+result, and approval envelope are separate CAS blobs. The session retains a
+bounded pointer-only receipt containing their hashes plus ordered file
+path/kind/base/result/source-blob metadata; generated source is not stored
+inline in session state.
 
-Approval is a separate authenticated operation containing the current session
-revision and exact change-set hash. Approval becomes stale after any candidate,
-catalog, policy, workflow, workspace, constraint-source, constraint-engine, or
-analysis-snapshot change.
+The approval envelope binds a future approval to the current session revision
+and exact envelope hash. Authentication, the approval command, and the live
+application worker are Phase 4 integration responsibilities. Such an approval
+becomes stale after any
+candidate, catalog, policy, workflow, workspace, constraint-source,
+constraint-engine, or analysis-snapshot change.
+
+The remaining behavior in this section is the Phase 4 design, not current
+runtime-core behavior.
+
+```mermaid
+flowchart LR
+  ready["readyForApproval<br/>exact envelope hash"]
+  approval{"Authenticated approval<br/>matches current revision?"}
+  preflight{"Live targets still match<br/>captured authority?"}
+  apply["Journaled application"]
+  recover["Finish exact set<br/>or restore from journal"]
+  unchanged["Remain readyForApproval"]
+  stale(["staleTarget<br/>no mutation"])
+  completed(["completed"])
+  failed(["applicationFailed"])
+
+  ready -.-> approval
+  approval -.->|declined or stale| unchanged
+  approval -.->|exact approval| preflight
+  preflight -.->|stale or unsafe| stale
+  preflight -.->|pass| apply
+  apply -.->|all files committed| completed
+  apply -.->|interrupted or partial| recover
+  recover -.->|exact set completed| completed
+  recover -.->|recovery fails| failed
+
+  classDef success fill:#e8f7ec,stroke:#2f7d43,color:#153b20;
+  classDef failure fill:#fdecec,stroke:#a33a3a,color:#4d1717;
+  classDef future fill:#f1f3f5,stroke:#6c757d,color:#343a40,stroke-dasharray:5 5;
+  class ready,unchanged,completed success;
+  class approval,preflight,apply,recover future;
+  class stale,failed failure;
+```
+
+Every edge is dotted because this entire process is a planned Phase 4
+integration rather than current runtime-core behavior.
 
 Immediately before application, the runtime rechecks:
 
@@ -505,32 +500,55 @@ decider checks state-specific authorization, hashes, revisions, policies, and
 budgets. A separate pure reducer applies committed events. The reducer target
 must match the transition declared by the canonical workflow definition.
 
-The event history records proposals, schema rejections, accepted graph
+The event history records proposals, bounded role rejections, accepted graph
 revisions, fills, fill invalidations, compilations, constraint captures, phase
 passes/failures/skips, artifact-set patches, static diagnostics, staged change
-sets, approvals, application attempts, cancellations, budget outcomes, and
-terminal failures.
+sets, cancellations, budget outcomes, and terminal failures. It contains no
+approval or application events; Phase 4 consumes the immutable envelope through
+its own versioned protocol.
 
 Content blobs are staged before events reference them. Event append,
 materialized-state comparison-and-swap, and insertion of derived outbox work
 occur in one database transaction. Model inference, compilation, static
-analysis, and filesystem operations run after commit and report completion or
-failure through new commands. Interrupted work is reconciled by invocation ID
-after restart.
+analysis, and future filesystem operations run after commit and report
+completion or failure through new commands. Interrupted work is reconciled from
+handler recovery metadata after restart. Deterministic work is retried. External
+work is retried before its durable start marker, after a gateway-certified
+`requestNotSent` outcome, or when the captured gateway capability declares
+invocation-ID idempotency. A durably captured `responseReceived` outcome is also
+locally replayable without repeating the provider request. A non-idempotent
+external call with an unknown post-start outcome terminalizes the still-bound
+session instead of being blindly repeated. Received responses are captured and
+charged even when their structured output is rejected. Failure kind and external
+outcome are recorded as separate facts. Provider-controlled output is normalized
+iteratively without invoking accessors and is rejected into a canonical
+chargeable envelope when it exceeds the role byte/depth bounds or is not JSON
+data.
 
-## Local Model Runtime
+## Model Runtime
 
-Qwen models run through configured `llama.cpp` servers. The Vercel AI SDK
-provides transport, structured output, cancellation, and usage accounting.
+The runtime uses a configured OpenAI-compatible provider. Qwen served by
+`llama-server` is one deployment option, not a protocol requirement. The Vercel
+AI SDK provides transport, structured output, cancellation, and usage
+accounting.
 
 Every role returns one direct JSON value. The initial design does not expose an
 open-ended, model-controlled tool loop. Model-facing schemas are conservative
 projections of canonical schemas; canonical validation always runs afterward.
 
-Large catalogs are exposed incrementally. A planner first receives a compact
-capability index, selects candidate model IDs, and then receives complete
-summaries for a bounded session-visible subset. A catalog gap is reported only
-after the configured retrieval and expansion budget is exhausted.
+Capture persists one complete source-free catalog disclosure and fails closed
+if its summary-count or byte limits are exceeded; summaries are never silently
+truncated. Artifact planning receives that bounded capability index. Graph and
+repair roles receive deterministic compatible-producer closures and referenced
+template summaries rather than the full catalog. There is no model-driven
+catalog retrieval or expansion loop.
+
+The capability closure is owned by `synthesize-regions`, not reimplemented by
+the runtime. It instantiates existing nodes with their exact generic bindings,
+uses exact type/schema comparison for concrete contracts, and conservatively
+retains placeholder-bearing or indeterminate generic producers only after
+output-kind, schema, and source-model restrictions pass. Disclosure remains
+source-free and bounded; conservative inclusion never adds catalog authority.
 
 ## Security and Resource Model
 
@@ -544,20 +562,31 @@ Security controls include:
 - closed structured model protocols;
 - state-specific authorization;
 - exact existing-file targets and bounded create roots;
+- Linux descriptor-rooted workspace capture using held `/proc/self/fd`
+  directory handles and `O_NOFOLLOW`, with no path-based fallback;
 - evaluator-only analysis roots that grant neither writes nor automatic model
   disclosure;
 - immutable workflow, catalog, workspace, and optional constraint identities;
 - mandatory source-policy and TypeScript checks;
 - explicit approval before filesystem mutation;
-- redaction, bounded persistence, retention, and restricted storage access.
+- bounded materialized state, single-blob and cumulative session CAS quotas;
+- SQLite-reserved write scopes plus exclusive, grace-period, reachability-safe
+  blob and stale-temporary sweeping;
+- FIFO byte reservations for context materialization and a settled-only,
+  effective-budget-keyed weighted LRU;
+- redaction, retention, and restricted storage access.
 
-Model and compiler work runs in cancellable workers for resource isolation, not
-for generated-code execution. Sessions bound model calls, revisions, rejected
+Model and compiler work runs in cancellable one-shot workers for resource
+isolation, not for generated-code execution. Captured deployment policy bounds
+aggregate worker count, reserved heap, in-flight bytes, and per-operation
+input/output sizes. Sessions bound model calls, revisions, rejected
 actions, artifacts, nodes, nesting, collection sizes, raw source, schema depth,
 generated bytes, diagnostics, storage, wall time, memory, and concurrency.
 Configured constraints add bounds for imported modules, rule and expression
-structure, selected subjects, fact and join rows, type queries, diagnostics,
-evaluation time, and evaluation memory.
+structure, files/source/syntax scans, selected subjects, path steps, fact rows,
+join pairs, quantifier/aggregate work, type queries, violations, and diagnostics.
+Constraint evidence has no wall-clock budget; timeout or heap exhaustion is a
+worker failure and fails closed separately.
 
 Repeated candidate and diagnostic fingerprints trigger strategy changes and
 then a deterministic no-progress or budget-exhausted result.

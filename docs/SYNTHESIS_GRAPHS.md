@@ -315,7 +315,7 @@ Persist or transfer the catalog snapshot identity alongside the artifact, then
 resume with `fillTemplateArtifactWithCatalog()` or
 `finalizeTemplateArtifactWithCatalog()`. These APIs compare provenance and
 unresolved ports with the selected catalog template and recursively validate
-and security-screen supplied child artifacts. The `t2_` prefix and digest shape
+and security-screen supplied child artifacts. The `t3_` prefix and digest shape
 alone are not an identity check.
 
 The shorter `fillTemplateArtifact()` and `finalizeTemplateArtifact()` helpers
@@ -371,11 +371,24 @@ const strictPlannerSchema =
   templateRegistryToSynthesisGraphJsonSchema(snapshot);
 const partialPlannerSchema =
   templateRegistryToPartialSynthesisGraphJsonSchema(snapshot);
+
+const repairSummaries = deriveTemplateCapabilityClosure(snapshot.summaries(), {
+  kind: "graph",
+  graph: acceptedGraph
+});
 ```
 
 These catalog-specific schemas are planner gates, not substitutes for
 `compileGraph()`: duplicate IDs, actual reference existence, cycles, producer
 compatibility, and final-goal compatibility remain compiler checks.
+
+The capability helper operates only on source-free summaries. It instantiates
+the exact type arguments on existing nodes and walks compatible producer
+requirements. Generic placeholders, missing or invalid bindings, and
+indeterminate comparisons are retained conservatively so a repair role is not
+denied an otherwise authorized producer. Results are cloned, deduplicated, and
+sorted by model ID. If the graph references an unknown template, the result is
+the complete already-authorized summary catalog rather than a guessed subset.
 
 ## Runner-based coding loop
 
@@ -414,7 +427,7 @@ while (state.kind !== "complete" && state.kind !== "failed") {
 A practical LLM loop is:
 
 1. Present template summaries, including type parameters, and the captured
-   `c5_` contract digest.
+   `c6_` contract digest.
 2. Ask for an initial partial graph or one graph patch action.
 3. Validate the action against the published runner-action schema.
 4. Advance the runner.
@@ -485,7 +498,7 @@ filters pre-existing diagnostics, and never writes the target file.
 Artifacts retain:
 
 - the producing template ID and version;
-- the producing template's `t2_` manifest digest;
+- the producing template's `t3_` manifest digest;
 - the concrete generic type arguments used to instantiate the fragment;
 - graph node and input provenance;
 - literal input summaries where applicable;
@@ -496,23 +509,35 @@ Semantic diagnostics use the deepest source span at the compiler location, so
 errors can identify the child `nodeId`, `templateId`, and `inputName` that
 contributed the invalid source rather than blaming only the final node.
 
+Generic binding diagnostics additionally carry `typeParameterName`.
+`InvalidTypeArgument`, missing/unknown arguments, incompatible constraints, and
+type-argument patch misses are graph repairable. Broad TypeScript descriptor
+failures outside a candidate node binding remain terminal, while invalid
+generic declarations are template-policy failures.
+
 ## Catalog snapshots and reproducibility
 
 Compilers and runners capture an immutable catalog snapshot with two identities:
 
-- `contractDigest` (`c5_…`) hashes planner-facing summaries, generic parameter
+- `contractDigest` (`c6_…`) hashes planner-facing summaries, generic parameter
   declarations, and compatibility-engine versions, but not marked source;
-- `manifestDigest` (`m2_…`) hashes the catalog's exact executable manifests,
-  including each template's `t2_…` content digest.
+- `manifestDigest` (`m3_…`) hashes the catalog's exact executable manifests,
+  including each template's `t3_…` content digest.
 
 Pass both `expectedCatalogDigest` and `expectedCatalogManifestDigest` when
 resuming a persisted session. Either mismatch is terminal. The first prevents
 planning against a different vocabulary; the second prevents source-only
 implementation changes from silently changing generated code.
 
-Legacy artifacts remain structurally readable, but an older manifest identity
-cannot finalize against a nonmatching current catalog. Structural readability
-is not an identity migration or compatibility guarantee.
+The package `0.3.0` matrix is catalog contract 6 (`c6_`), template manifest 3
+(`t3_`), catalog manifest 3 (`m3_`), planner schema 3, and capability closure 2.
+Planner-schema and closure versions participate in the `c6_` payload. Package
+`0.2.x` and earlier databases, artifacts, and `c5_`/`t2_`/`m2_` evidence must be recreated;
+there is no migration path.
+
+Closed package contracts reject older manifest identities before fill or
+finalization. There is no identity migration: recapture the catalog and
+reproduce dependent artifacts.
 
 ## Whole files and artifact sets
 
@@ -588,7 +613,7 @@ responsibilities.
 
 ## Design guidance
 
-- Plan against immutable summaries and a captured `c5_` digest; execute against
+- Plan against immutable summaries and a captured `c6_` digest; execute against
   both captured catalog identities.
 - Bind every generic parameter explicitly and persist those bindings with the
   graph; do not treat artifact metadata as type inference.

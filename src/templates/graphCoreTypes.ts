@@ -5,7 +5,7 @@ import type { SupportedJsonSchema } from './schemaTypes.js'
 export type RegionKind = MarkerExpectedKind
 
 /** Version of the parser-wrapper and AST-context contract for region kinds. */
-export const REGION_SYNTAX_ENGINE_VERSION = 1 as const
+export const REGION_SYNTAX_ENGINE_VERSION = 2 as const
 
 /** Runtime list of supported graph region kinds, aligned with `RegionKind`. */
 export const REGION_KIND_VALUES = [
@@ -118,6 +118,7 @@ export const BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES = [
 	'InvalidTemplateManifest',
 	'InvalidTemplateManifestSource',
 	'InvalidTypeScriptProjectConfigurationPath',
+	'InvalidTypeArgument',
 	'InvalidTypeScriptType',
 	'InvalidTypeParameterName',
 	'GenericTypeParameterConstraint',
@@ -141,6 +142,8 @@ export const BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES = [
 	'RawCodeRejected',
 	'SchemaCompatibilityIndeterminate',
 	'TypeScriptSemanticError',
+	'TypeScriptProjectConfigurationError',
+	'TypeScriptGlobalError',
 	'TypeScriptTypeMismatch',
 	'UnknownArtifactFillKey',
 	'UnknownArtifactMarker',
@@ -187,6 +190,18 @@ export const BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES = [
 
 /** Closed union of package-provided diagnostics; custom diagnostics remain supported. */
 export type BuiltInSynthesisDiagnosticCode = typeof BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES[number]
+
+/** Authority boundary that owns the condition represented by a diagnostic. */
+export const SYNTHESIS_DIAGNOSTIC_ORIGIN_VALUES = [
+	'candidate',
+	'catalog',
+	'workspace',
+	'deployment',
+	'integrity',
+	'internal'
+] as const
+
+export type SynthesisDiagnosticOrigin = typeof SYNTHESIS_DIAGNOSTIC_ORIGIN_VALUES[number]
 
 /** Contextual repair channel attached to failed operations and actionable runner states. */
 export const SYNTHESIS_FAILURE_CLASSIFICATION_VALUES = [
@@ -240,6 +255,7 @@ const GRAPH_REPAIRABLE_DIAGNOSTIC_CODES = new Set<BuiltInSynthesisDiagnosticCode
 	'InvalidLiteralInput',
 	'InvalidRunnerTransition',
 	'InvalidSemanticTarget',
+	'InvalidTypeArgument',
 	'JsonSchemaMismatch',
 	'MissingTypeArgument',
 	'MissingTypeScriptTypeArgument',
@@ -267,8 +283,12 @@ const ARTIFACT_FILLABLE_DIAGNOSTIC_CODES = new Set<BuiltInSynthesisDiagnosticCod
 /** Package diagnostics that indicate a deployment-owned template-policy defect. */
 const TEMPLATE_POLICY_DIAGNOSTIC_CODE_VALUES = new Set<BuiltInSynthesisDiagnosticCode>([
 	'CatalogContractNotSerializable',
+	'GenericTypeParameterConstraint',
 	'InvalidTemplateManifest',
 	'InvalidTemplateManifestSource',
+	'InvalidTypeParameterName',
+	'UndeclaredTypeParameter',
+	'UnusedTypeParameter',
 	'UntrustedTemplateCatalogView',
 	'UntrustedTemplateDefinition'
 ])
@@ -404,6 +424,8 @@ export interface SynthesisRepairHint {
 
 /** Structured validation or compilation issue emitted by graph compilation. */
 export interface SynthesisDiagnostic {
+	/** Authority boundary that owns the diagnosed condition. */
+	origin: SynthesisDiagnosticOrigin
 	/** Pipeline stage that produced the diagnostic. */
 	stage: 'graph' | 'template' | 'input' | 'port' | 'region' | 'ast' | 'type' | 'policy'
 	/** Machine-readable diagnostic code. */
@@ -418,6 +440,8 @@ export interface SynthesisDiagnostic {
 	templateId?: string
 	/** Template input name associated with the diagnostic, when available. */
 	inputName?: string
+	/** Generic template parameter associated with the diagnostic, when available. */
+	typeParameterName?: string
 	/** Path to the problematic graph or input value, when available. */
 	path?: string
 	/** Expected value, type, schema, or port metadata. */

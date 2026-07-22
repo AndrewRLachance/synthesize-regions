@@ -5,6 +5,26 @@
   "description": "Syntax-validated immutable target assembly result without project-wide semantic acceptance.",
   "$ref": "#/$defs/ArtifactSetAssemblyResult",
   "$defs": {
+    "SynthesisFailureClassification": {
+      "anyOf": [
+        {
+          "const": "graphRepairable",
+          "type": "string"
+        },
+        {
+          "const": "artifactFillable",
+          "type": "string"
+        },
+        {
+          "const": "templatePolicyFailure",
+          "type": "string"
+        },
+        {
+          "const": "terminalFailure",
+          "type": "string"
+        }
+      ]
+    },
     "SynthesisRepairHint": {
       "additionalProperties": true,
       "type": "object",
@@ -25,12 +45,41 @@
       "additionalProperties": false,
       "type": "object",
       "required": [
+        "origin",
         "stage",
         "code",
         "severity",
         "message"
       ],
       "properties": {
+        "origin": {
+          "anyOf": [
+            {
+              "const": "candidate",
+              "type": "string"
+            },
+            {
+              "const": "catalog",
+              "type": "string"
+            },
+            {
+              "const": "workspace",
+              "type": "string"
+            },
+            {
+              "const": "deployment",
+              "type": "string"
+            },
+            {
+              "const": "integrity",
+              "type": "string"
+            },
+            {
+              "const": "internal",
+              "type": "string"
+            }
+          ]
+        },
         "stage": {
           "anyOf": [
             {
@@ -92,6 +141,9 @@
           "type": "string"
         },
         "inputName": {
+          "type": "string"
+        },
+        "typeParameterName": {
           "type": "string"
         },
         "path": {
@@ -285,15 +337,15 @@
               "type": "string"
             },
             "contractDigest": {
-              "pattern": "^c5_[a-f0-9]{64}$",
+              "pattern": "^c6_[a-f0-9]{64}$",
               "type": "string"
             },
             "manifestDigest": {
-              "pattern": "^m2_[a-f0-9]{64}$",
+              "pattern": "^m3_[a-f0-9]{64}$",
               "type": "string"
             },
             "workspaceSnapshotHash": {
-              "pattern": "^ws1_[a-f0-9]{64}$",
+              "pattern": "^ws2_[a-f0-9]{64}$",
               "type": "string"
             },
             "diagnostics": {
@@ -319,16 +371,7 @@
               "type": "boolean"
             },
             "classification": {
-              "anyOf": [
-                {
-                  "const": "graphRepairable",
-                  "type": "string"
-                },
-                {
-                  "const": "terminalFailure",
-                  "type": "string"
-                }
-              ]
+              "$ref": "#/$defs/SynthesisFailureClassification"
             },
             "changes": {
               "type": "array",

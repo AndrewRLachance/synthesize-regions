@@ -2,23 +2,29 @@
 
 ## Product Description
 
+> **Cross-project snapshot:** Workspace Constraints owns declarative static
+> evaluation; runtime-core owns orchestration and this integration document's
+> authoritative source. Phase 1–3 binds evaluator evidence through immutable
+> staging and ends at `readyForApproval`; approval and filesystem application
+> belong to a future external Phase 4 workflow.
+
 Workspace Constraints is a declarative policy layer for the Synthesize Regions
 Agent Runtime. It lets a project describe directory, file, module, TypeScript
 semantic, dependency, and synthesis-provenance invariants that every accepted
 artifact set must satisfy.
 
-[Graph templates](./TEMPLATES.md) define controlled source-producing
-operations, and [synthesis graphs](./SYNTHESIS_GRAPHS.md) compose those
-operations into artifacts. Workspace Constraints evaluates the larger result:
+[Graph templates and synthesis graphs](./synthesis-workflow-synthesize-regions-contracts.md)
+define and compose controlled source-producing operations. Workspace Constraints
+evaluates the larger result:
 
-```text
-reviewed templates produce fragments
-              |
-synthesis graphs produce artifacts
-              |
-artifact-set assembly produces a candidate workspace
-              |
-Workspace Constraints checks project-wide invariants
+```mermaid
+flowchart LR
+    Templates["Reviewed templates"] --> Fragments["Generated fragments"]
+    Graphs["Schema-bounded synthesis graphs"] --> Fragments
+    Fragments --> Artifacts["Compiled artifacts"]
+    Artifacts --> Candidate["In-memory candidate workspace"]
+    Candidate --> Constraints["Workspace Constraints"]
+    Constraints --> Evidence["Identity-bound static evidence"]
 ```
 
 For syntax and examples, see the
@@ -29,8 +35,10 @@ agent product is described in the
 [runtime product description](./synthesis-workflow-product-description.md) and
 [runtime technical design](./synthesis-workflow-technical-design.md).
 
-> **Status:** Proposed v1. This document defines product intent; it does not
-> describe an implemented package feature.
+> **Status:** Workspace Constraints v1 is implemented as a data-only parser,
+> normalized typed IR, four-phase evaluator, and runtime staging integration.
+> The source-language/parser contract is version `1`, normalized evaluation
+> contracts are schema version `3`, and evaluator evidence uses engine `4`.
 
 ## Product Goal
 
@@ -159,10 +167,11 @@ The readable language compiles into a normalized JSON
 ### Project policy is separate from model intent
 
 Models do not author, select, weaken, or approve the active constraint set. A
-synthesis request may name a repository entry path and expected
-`constraintDigest`. When it does, the runtime captures and freezes that
-configuration before planning. A session that omits constraints still traverses
-the runtime's fixed constraint phases through explicit skip events.
+production capture draft may name a repository entry path and authorized
+analysis roots. The runtime captures the exact files, derives the normalized
+`constraintDigest`, and writes that derived identity into the authoritative
+request before planning. A session that omits constraints still traverses the
+runtime's fixed constraint phases through explicit skip events.
 
 Constraint modules cannot be modified by the same session whose candidate they
 govern.
@@ -177,8 +186,9 @@ analysis roots grant the evaluator enough visibility to derive facts, but they:
 - do not alter exact replacement targets or allowed create roots;
 - cannot be expanded by a constraint file or model proposal.
 
-The runtime gives models only bounded policy summaries and diagnostics needed
-for the current repair.
+The runtime gives models only bounded policy/catalog summaries and diagnostics
+needed for the current repair. It does not disclose constraint source or the
+normalized constraint set.
 
 ### Acceptance is reproducible
 
@@ -188,13 +198,15 @@ module bytes have a separate source-snapshot hash. Both are bound to:
 - the authoritative candidate;
 - persisted session and event state;
 - the staged change set;
-- explicit approval;
+- the runtime-owned approval envelope;
 - the deterministic change-set hash.
 
 Changing rule meaning, the parser contract, the fact-engine contract, or a
 supported semantic operation changes the digest. Comment-only and formatting
 changes preserve the digest but change the captured source-snapshot hash. A
-stale session cannot silently run under changed files or changed semantics.
+captured session cannot silently switch to changed files or changed semantics.
+Checking a later mutable live target against that capture belongs to the
+Phase 4 application preflight and is not part of Phase 3 static staging.
 
 ### Failure is attributable
 
@@ -211,7 +223,10 @@ A false assertion and an indeterminate assertion are distinct outcomes.
 Indeterminate results include inaccessible selected paths, incomplete mandatory
 fact extraction, unresolved required types, and exhausted analysis budgets.
 
-An indeterminate error rule never counts as accepted.
+Indeterminate evidence always fails closed before enforcement-mode comparison,
+regardless of the authored rule severity. In `noNewViolations`, only determinate
+failed occurrences can be subtracted; inaccessible baseline and candidate facts
+can never cancel each other.
 
 ## Constraint Capabilities
 
@@ -234,7 +249,10 @@ these facts without defining custom AST traversal logic.
 
 Using the captured `tsconfig` and workspace snapshot, rules can inspect
 resolved modules, symbols, signatures, and TypeScript types. They can express
-assignability and bounded cross-file relationships.
+assignability and bounded cross-file relationships. The evaluator parses that
+exact captured configuration without a fallback project and fails closed when
+configuration, imports, aliases, descriptors, or required compiler evidence
+cannot be resolved within the authorized analysis roots.
 
 These checks prove only compiler-visible static properties.
 
@@ -265,9 +283,30 @@ its adoption policy explicit:
 There is no global implicit mode. Reviewers can see from each rule whether it
 enforces strict convergence, changed-code quality, or non-regression.
 
+For `noNewViolations`, indeterminate evidence is handled before comparison:
+
+```mermaid
+flowchart TD
+    Baseline["Evaluate baseline occurrences"] --> Determinacy{"All required evidence determinate?"}
+    Candidate["Evaluate candidate occurrences"] --> Determinacy
+    Determinacy -- No --> Closed["Gating indeterminate diagnostic"]
+    Determinacy -- Yes --> Keys["Build stable violation-key multisets"]
+    Keys --> Subtract["Subtract matching baseline multiplicities"]
+    Subtract --> New["Candidate remainder: new or worsened violations"]
+    Subtract --> Improved["Baseline remainder: improvements"]
+
+    classDef runtime fill:#e8f1ff,stroke:#315f9b,color:#10243e;
+    classDef success fill:#e8f7ec,stroke:#2f7d43,color:#153b20;
+    classDef failure fill:#fdecec,stroke:#a33a3a,color:#4d1717;
+    class Baseline,Candidate,Determinacy,Keys,Subtract runtime;
+    class Improved success;
+    class Closed,New failure;
+```
+
 ## Evaluation and Repair
 
-Rules are associated with the earliest facts they require:
+Rules run at one declared phase, and the compiler verifies that every referenced
+fact is available by that phase:
 
 - plan rules check proposed artifacts, goals, and authorized target layouts;
 - artifact rules check compiled fragments and provenance;
@@ -302,15 +341,18 @@ can be committed.
 
 ## Successful Outcome
 
-A successful synthesis session with Workspace Constraints provides:
+A successful Phase 3 static-staging session with Workspace Constraints
+provides:
 
 - the captured constraint entry path and exact digest;
-- the normalized rule summary used for planning and repair;
-- baseline and candidate evaluation results;
+- the normalized rule summary captured alongside the IR;
+- phase results that include baseline/candidate comparison where the selected
+  mode requires it;
 - structured constraint diagnostics, including non-gating warnings;
 - provenance attribution for generated subjects;
 - a statically accepted change set bound to the constraint identity;
-- explicit approval for those exact bytes under those exact rules.
+- a content-addressed approval envelope for those exact bytes under those exact
+  rules.
 
 Static acceptance means the candidate satisfied the configured structural,
 source-policy, TypeScript, and Workspace Constraint gates. It is not a claim
@@ -350,7 +392,10 @@ Deployments bound:
 - join width and aggregate work;
 - TypeScript compiler work;
 - diagnostic volume;
-- evaluation time and memory.
+- deterministic attempted-work counters for every evaluation family.
+
+Wall-clock timeout and heap ceilings are runtime worker failures, not
+constraint-policy evidence.
 
 Unknown syntax, unsupported facts, root escapes, import cycles, duplicate IDs,
 stale digests, and mandatory resource exhaustion are rejected explicitly.
@@ -360,28 +405,50 @@ stale digests, and mandatory resource exhaustion are rejected explicitly.
 Workspace Constraints extends the fixed static acceptance pipeline described in
 the [agent runtime technical design](./synthesis-workflow-technical-design.md):
 
-```text
-constraint capture and identity
-          |
-artifact-set planning ---- plan constraints or explicit skip
-          |
-graph compilation -------- artifact constraints or explicit skip
-          |
-virtual assembly ---------- assembled constraints or explicit skip
-          |
-TypeScript semantic delta - semantic constraints or explicit skip
-          |
-canonical change-set hash bound to constraintDigest
+```mermaid
+flowchart TD
+    Capture["Capture workspace, policies, catalog, and optional constraints"] --> Plan["Artifact-set plan"]
+    Plan --> PlanGate["Plan constraints or explicit skip"]
+    PlanGate --> Compile["Graph planning and compilation"]
+    Compile --> ArtifactGate["Artifact constraints or explicit skip"]
+    ArtifactGate --> Assemble["Virtual assembly"]
+    Assemble --> AssembledGate["Assembled constraints or explicit skip"]
+    AssembledGate --> Semantic["TypeScript semantic comparison"]
+    Semantic --> SemanticGate["Semantic constraints or explicit skip"]
+    SemanticGate --> Stage["Constraint-bound CAS staging"]
+
+    PlanGate -- Failed --> Router["Closed deterministic router<br/>(determinate plan failures are set-scoped)"]
+    ArtifactGate -- Failed --> Router
+    AssembledGate -- Failed --> Router
+    SemanticGate -- Failed --> Router
+    Router --> InputRepair["Input Synthesizer"]
+    Router --> GraphRepair["Graph Repairer"]
+    Router --> SetRepair["Artifact-Set Repairer"]
+    Router --> Terminal["Terminal failure"]
+    InputRepair --> Compile
+    GraphRepair --> Compile
+    SetRepair --> PlanGate
+
+    classDef runtime fill:#e8f1ff,stroke:#315f9b,color:#10243e;
+    classDef model fill:#fff7d6,stroke:#8a6d1d,color:#2f2500;
+    classDef success fill:#e8f7ec,stroke:#2f7d43,color:#153b20;
+    classDef failure fill:#fdecec,stroke:#a33a3a,color:#4d1717;
+    class Capture,PlanGate,Compile,ArtifactGate,Assemble,AssembledGate,Semantic,SemanticGate,Router runtime;
+    class Plan,InputRepair,GraphRepair,SetRepair model;
+    class Stage success;
+    class Terminal failure;
 ```
 
-The application coordinator still requires exact approval and revalidates live
-targets before writing. Workspace Constraints changes acceptance and repair
-inputs; it does not change the runtime's rule that models propose and
-infrastructure commits.
+Phase 3 produces the exact approval envelope and the protocol can bind an exact
+approval. The authenticated approval coordinator, live-target revalidation, and
+recoverable filesystem journal/application worker are Phase 4 work and are not
+implemented here. Workspace Constraints changes acceptance and repair inputs;
+it does not change the rule that models propose and trusted infrastructure
+commits.
 
-## Initial Acceptance Criteria
+## Implemented v1 Acceptance Criteria
 
-The v1 product is complete when it can:
+The implemented v1 product can:
 
 1. Capture a repository entry module and explicit import closure as data.
 2. Produce the same normalized IR and digest for semantically identical input.
@@ -392,5 +459,5 @@ The v1 product is complete when it can:
    semantics, or resource exhaustion.
 7. Attribute generated-source violations through artifact provenance.
 8. Route plan-shape failures through bounded set repair.
-9. Bind successful evaluation to staging and exact approval.
+9. Bind successful evaluation to staged bytes and the exact approval envelope.
 10. Perform no generated-code execution or project-command invocation.

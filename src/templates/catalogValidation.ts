@@ -22,6 +22,8 @@ import {
 	type TypeScriptTypeIssue
 } from './typeScriptCompatibility.js'
 import { instantiateTemplateContracts } from './genericTypes.js'
+import { compareCodeUnits } from './deterministic.js'
+import { synthesisDiagnosticOriginForCode } from './diagnosticCatalog.js'
 
 /** Template definition shape accepted by catalog validation. */
 export type CatalogTemplate = GraphTemplateDefinition<any, string, any, any>
@@ -59,6 +61,7 @@ function diagnostic(
 	details: Pick<SynthesisDiagnostic, 'inputName' | 'expected' | 'actual'> = {}
 ): SynthesisDiagnostic {
 	return {
+		origin: synthesisDiagnosticOriginForCode(code),
 		stage: 'template',
 		code,
 		severity: 'error',
@@ -231,7 +234,8 @@ function validateRawCodePolicy(
 		))
 	}
 
-	for (const [patternIndex, pattern] of (policy.forbiddenPatterns ?? []).entries()) {
+	const patterns = [...new Set(policy.forbiddenPatterns ?? [])].sort(compareCodeUnits)
+	for (const [patternIndex, pattern] of patterns.entries()) {
 		try {
 			new RegExp(pattern, 'u')
 		} catch (error) {

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 
 import type { SynthesisGraph } from './graphCoreTypes.js'
+import { compareCodeUnits } from './deterministic.js'
 
 const IDENTITY_VERSION = 1
 const COMPILATION_SCOPE_IDENTITY_VERSION = 2
@@ -70,7 +71,7 @@ export function canonicalizeJson(value: unknown): string {
 			}
 
 			const properties = Object.keys(current)
-				.sort()
+				.sort(compareCodeUnits)
 				.map(key => `${JSON.stringify(key)}:${serialize(current[key], `${path}.${key}`)}`)
 			return `{${properties.join(',')}}`
 		} finally {

@@ -23,7 +23,7 @@ describe('TypeScript descriptor validation', () => {
 			})
 		}
 
-		expect(TYPESCRIPT_COMPATIBILITY_ENGINE_VERSION).toBe('ts1')
+		expect(TYPESCRIPT_COMPATIBILITY_ENGINE_VERSION).toBe('ts2')
 	})
 
 	it('rejects syntax errors, injected declarations, and unresolved names', () => {

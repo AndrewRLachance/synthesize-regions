@@ -6,10 +6,14 @@ export * from "./templates/schemaContract.js";
 export * from "./templates/schemaCompatibility.js";
 export * from "./templates/typeScriptCompatibility.js";
 export * from "./templates/compatibility.js";
+export * from "./templates/diagnosticCatalog.js";
+export * from "./templates/deterministic.js";
 export * from "./templates/catalogValidation.js";
+export * from "./templates/contractIdentity.js";
+export * from "./templates/contractManifest.js";
+export * from "./templates/capabilityClosure.js";
+export * from "./templates/capturedProject.js";
 export {
-	TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION,
-	TEMPLATE_MANIFEST_DIGEST_VERSION,
 	templateCatalogDigest,
 	templateCatalogManifestDigest,
 	templateManifestDigest

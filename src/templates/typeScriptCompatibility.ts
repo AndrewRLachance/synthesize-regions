@@ -1,7 +1,8 @@
 import { Node, Project, ScriptKind, SyntaxKind, ts, type Diagnostic, type SourceFile, type TypeNode } from 'ts-morph'
+import { BoundedLruMap } from './deterministic.js'
 
 /** Version of the TypeScript descriptor compatibility rules used by catalog digests. */
-export const TYPESCRIPT_COMPATIBILITY_ENGINE_VERSION = 'ts1' as const
+export const TYPESCRIPT_COMPATIBILITY_ENGINE_VERSION = 'ts2' as const
 
 /** Stable issue codes produced while validating TypeScript type descriptors. */
 export const TYPESCRIPT_TYPE_ISSUE_CODE_VALUES = [
@@ -97,8 +98,19 @@ const compatibilityProject = new Project({
 	skipAddingFilesFromTsConfig: true
 })
 
-const validationCache = new Map<string, CachedTypeValidation>()
-const comparisonCache = new Map<string, boolean>()
+/** Maximum retained parsed TypeScript descriptor contracts. */
+export const TYPESCRIPT_TYPE_VALIDATION_CACHE_CAPACITY = 512 as const
+
+/** Maximum retained assignability comparisons. */
+export const TYPESCRIPT_TYPE_COMPARISON_CACHE_CAPACITY = 2_048 as const
+
+const validationCache = new BoundedLruMap<string, CachedTypeValidation>(
+	TYPESCRIPT_TYPE_VALIDATION_CACHE_CAPACITY,
+	(_key, value) => {
+		if (value.ok) compatibilityProject.removeSourceFile(value.file)
+	}
+)
+const comparisonCache = new BoundedLruMap<string, boolean>(TYPESCRIPT_TYPE_COMPARISON_CACHE_CAPACITY)
 let sourceSequence = 0
 
 const TYPE_ALIAS_PREFIX = 'export type __SynthesisRegionsType = '

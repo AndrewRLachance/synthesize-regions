@@ -520,12 +520,41 @@
       "additionalProperties": false,
       "type": "object",
       "required": [
+        "origin",
         "stage",
         "code",
         "severity",
         "message"
       ],
       "properties": {
+        "origin": {
+          "anyOf": [
+            {
+              "const": "candidate",
+              "type": "string"
+            },
+            {
+              "const": "catalog",
+              "type": "string"
+            },
+            {
+              "const": "workspace",
+              "type": "string"
+            },
+            {
+              "const": "deployment",
+              "type": "string"
+            },
+            {
+              "const": "integrity",
+              "type": "string"
+            },
+            {
+              "const": "internal",
+              "type": "string"
+            }
+          ]
+        },
         "stage": {
           "anyOf": [
             {
@@ -587,6 +616,9 @@
           "type": "string"
         },
         "inputName": {
+          "type": "string"
+        },
+        "typeParameterName": {
           "type": "string"
         },
         "path": {
@@ -937,6 +969,7 @@
               "type": "string"
             },
             "templateManifestDigest": {
+              "pattern": "^t3_[a-f0-9]{64}$",
               "type": "string"
             }
           }
@@ -1025,6 +1058,7 @@
               "type": "string"
             },
             "templateManifestDigest": {
+              "pattern": "^t3_[a-f0-9]{64}$",
               "type": "string"
             }
           }

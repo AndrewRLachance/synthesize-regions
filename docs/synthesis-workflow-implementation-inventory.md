@@ -1,6 +1,12 @@
 # Synthesis Workflow Implementation Inventory
 
-**Status:** Phase 3 implemented
+> **Cross-project snapshot:** this repository owns the `synthesize-regions`
+> contracts listed here; runtime-core owns the live workflow, runtime
+> dependencies, and this inventory's authoritative source. Runtime Phase 1–3
+> stops at `readyForApproval`; Phase 4 approval/application surfaces are
+> planned external work, not current exports.
+
+**Status:** Phases 1-3 implemented; Phase 4 and integration-layer surfaces planned
 **Runtime baseline:** Node.js 24 LTS, ES2022, TypeScript
 **Companion designs:**
 [product description](./synthesis-workflow-product-description.md),
@@ -14,8 +20,8 @@ Runtime. It answers two questions:
 
 1. Which libraries, platform modules, external components, and internal modules
    does the runtime use?
-2. Which public `synthesize-regions` patterns, types, schemas, and APIs does the
-   runtime consume, and which additional library contracts are still required?
+2. Which public `synthesize-regions` and `workspace-constraints` patterns,
+   types, schemas, and APIs does the runtime consume?
 
 This is an allowlist, not a survey of every available package export. A symbol
 not listed as consumed is not part of the runtime integration without a design
@@ -36,9 +42,9 @@ source module do not activate surfaces marked `Not used`, and contracts marked
 
 | Status | Meaning |
 | --- | --- |
-| Selected | Required production dependency or platform choice. |
-| Recommended | Concrete initial implementation choice; changing it requires an architecture review. |
-| Optional | Loaded only when the corresponding deployment feature is enabled. |
+| Selected | Installed or directly used by the current Phase 1-3 runtime. |
+| Planned | Not installed or implemented by this package; reserved for Phase 4 or an integration layer. |
+| Planned optional | A planned integration dependency that is needed only when that deployment feature is enabled. |
 | Development-only | Used to build, generate, verify, or test the product. |
 | External component | Process or model artifact configured outside the Node.js package graph. |
 | Current | Public `synthesize-regions` contract available now. |
@@ -46,59 +52,59 @@ source module do not activate surfaces marked `Not used`, and contracts marked
 | Runtime-owned | Contract implemented by the agent runtime rather than the library. |
 | Not used | Intentionally excluded from the runtime dependency surface. |
 
-## 3. Platform and Production Libraries
+## 3. Current and Planned Platform Libraries
 
-### 3.1 Runtime packages
+### 3.1 Current runtime and planned integration packages
 
 | Package or component | Status | Owner | Purpose and boundary |
 | --- | --- | --- | --- |
 | Node.js 24 LTS | Selected | Platform | Executes the local/private runtime. The compilation target remains ES2022. |
 | `synthesize-regions` | Selected | Library | Data-only catalog capture, graph compilation and repair, artifact assembly, static validation, schemas, and provenance. It never owns sessions or filesystem application. |
+| `workspace-constraints` | Selected | Companion library | Data-only `.wsc` parsing, normalized typed IR/source maps, immutable module-closure compilation, library-owned facts, bounded four-phase evaluation, schemas, summaries, diagnostics, and semantic/source identity. |
 | `ai` | Selected | Model gateway | Performs one bounded model invocation and validates schema-backed structured output with `generateText()` and `Output.object()`. It is not used as an open-ended agent/tool loop. |
-| `@ai-sdk/openai-compatible` | Selected | Model gateway | Creates the provider for the OpenAI-compatible `llama-server` endpoint with `createOpenAICompatible()`. |
+| `@ai-sdk/openai-compatible` | Selected | Model gateway | Creates the provider for the deployment-configured OpenAI-compatible endpoint with `createOpenAICompatible()`. |
 | `xstate` v5 | Selected | Workflow tooling | Generated visualization and graph/model-test projection. Graph utilities are imported from `xstate/graph`; the deprecated standalone `@xstate/graph` package is not installed. |
 | `@sinclair/typebox` | Selected | Protocol/schema | Defines canonical JSON-safe runtime and model-facing schemas and derives TypeScript types. |
 | `ajv` | Selected | Protocol/schema | Performs canonical runtime JSON Schema validation with unknown-field rejection and deployment limits. |
 | `ts-pattern` | Selected | Protocol core | Exhaustive matching in pure command decisions, reducers, diagnostic routing, and trusted discriminated-union handling. |
-| `fastify` v5 | Recommended | API | Hosts the authenticated local/private HTTP API with bounded request bodies and schema-driven serialization. |
-| `@fastify/type-provider-typebox` | Recommended | API | Connects route request/response schemas to the same TypeBox contracts used by the protocol. |
-| `better-sqlite3` | Recommended | Persistence | Implements short synchronous transactions for event append, materialized-state CAS, idempotency, leases, fencing, and outbox insertion. No transaction spans model, compiler, constraint, or filesystem work. |
-| `pino` | Recommended | Observability | Emits structured local logs from API and worker processes under the runtime redaction policy. |
-| `jose` | Optional | Authentication | Verifies signed JWT/OIDC credentials in private-network deployments. A local-only deployment may instead use a server-owned token adapter. |
-| `@opentelemetry/api` | Optional | Observability | Allows internal modules to emit traces and metrics without requiring an exporter. |
-| `@opentelemetry/sdk-node` | Optional | Observability | Enables configured Node.js telemetry. External telemetry remains disabled by default. |
-| `@opentelemetry/exporter-trace-otlp-http` | Optional | Observability | Exports traces only when explicitly configured for an authorized private endpoint. |
-| `@opentelemetry/exporter-metrics-otlp-http` | Optional | Observability | Exports metrics only when explicitly configured for an authorized private endpoint. |
+| `better-sqlite3` | Selected | Persistence | Implements short synchronous transactions for event append, materialized-state CAS, idempotency, leases, fencing, and outbox insertion. Model, compiler, constraint, and normal command work never spans a transaction; the maintenance sweeper deliberately holds one exclusive transaction across its reachability mark and filesystem deletes. |
+| `fastify` v5 | Planned | Phase 4/integration API | Proposed host for an authenticated local/private HTTP API. It is not installed or implemented in this package. |
+| `@fastify/type-provider-typebox` | Planned | Phase 4/integration API | Proposed connection between future route schemas and the runtime's TypeBox contracts. It is not installed. |
+| `pino` | Planned | Integration observability | Proposed structured local logging under a deployment redaction policy. It is not installed or used by the Phase 1-3 core. |
+| `jose` | Planned optional | Integration authentication | Proposed JWT/OIDC verification for private-network deployments. Authentication remains outside this package. |
+| `@opentelemetry/api` | Planned optional | Integration observability | Proposed trace/metric API for deployments that enable telemetry. It is not installed. |
+| `@opentelemetry/sdk-node` | Planned optional | Integration observability | Proposed telemetry SDK for configured deployments. It is not installed. |
+| `@opentelemetry/exporter-trace-otlp-http` | Planned optional | Integration observability | Proposed authorized private trace exporter. It is not installed. |
+| `@opentelemetry/exporter-metrics-otlp-http` | Planned optional | Integration observability | Proposed authorized private metrics exporter. It is not installed. |
 
 The AI SDK provides an
 [OpenAI-compatible provider](https://ai-sdk.dev/providers/openai-compatible-providers),
 and its current structured-output API validates objects through
 [`Output.object()`](https://ai-sdk.dev/docs/reference/ai-sdk-core/output).
-Fastify's official TypeBox integration is
+The planned Fastify integration would use
 [`@fastify/type-provider-typebox`](https://fastify.dev/docs/latest/Reference/Type-Providers/).
 XState's [graph documentation](https://stately.ai/docs/graph) specifies the
 `xstate/graph` import and marks the standalone `@xstate/graph` package as
 deprecated.
 
-`better-sqlite3` is preferred for the initial implementation because it exposes
-explicit, short transaction functions and supports worker threads. Node 24's
-built-in [`node:sqlite`](https://nodejs.org/download/release/latest-v24.x/docs/api/sqlite.html)
-is still release-candidate, while
-[`better-sqlite3`](https://github.com/WiseLibs/better-sqlite3) documents full
-transaction support. The repository layer hides the driver so a later migration
-does not change protocol or domain contracts.
+`better-sqlite3` is selected for production because it exposes explicit, short
+transaction functions and supports worker threads. The repository layer hides
+the driver, and the built-in
+[`node:sqlite`](https://nodejs.org/download/release/latest-v24.x/docs/api/sqlite.html)
+implementation is used only as a test conformance driver, so a later production
+driver change does not alter protocol or domain contracts.
 
 ### 3.2 External components
 
 | Component | Status | Purpose and boundary |
 | --- | --- | --- |
-| `llama-server` from `llama.cpp` | External component | Serves a configured OpenAI-compatible endpoint with schema-constrained JSON output. It is supervised outside the authoritative session transaction. |
-| Qwen GGUF model | External component | Deployment-selected local model artifact. Model path, quantization, context size, and role assignment come only from server configuration. |
+| OpenAI-compatible model endpoint, such as `llama-server` from `llama.cpp` | External component | Serves schema-constrained structured output. Endpoint supervision remains outside the authoritative session transaction. |
+| Deployment-selected model artifact, such as a Qwen GGUF model | External component | Model identity, path, quantization, context size, and role assignment come only from server configuration; the runtime does not hardcode Qwen. |
 | SQLite database file | External component | Durable event, projection, idempotency, lease, fencing, and outbox store owned by one runtime deployment. |
-| Content-addressed blob directory | External component | Stores exact request, model, graph, artifact, constraint, diagnostic, change-set, and application-journal blobs before events reference them. |
+| Content-addressed blob directory | External component | Stores captured manifests and source bytes, model input/output evidence, phase results, diagnostics, static results, change manifests, approval envelopes, and generated files before events reference them. |
 | Immutable workspace snapshot | External component | Read-only captured project view used by target, TypeScript, and optional constraint analysis. |
 
-`llama-server` supports an OpenAI-compatible API and schema-constrained
+As one supported deployment choice, `llama-server` provides an OpenAI-compatible API and schema-constrained
 `response_format`; see the
 [`llama.cpp` server documentation](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md).
 No generated artifact is sent back to `llama-server` for execution.
@@ -108,14 +114,14 @@ No generated artifact is sent back to `llama-server` for execution.
 | Module or global | Status | Use |
 | --- | --- | --- |
 | `node:crypto` | Selected | SHA-256 identities, content hashes, secure random bytes, and `randomUUID()`. |
-| `node:fs/promises` | Selected | Immutable snapshot reads, blob writes, staging, fsync-capable file handles, journaled application, and recovery. |
+| `node:fs` and `node:fs/promises` | Selected | Descriptor-rooted workspace capture, exact-byte blob persistence, and generated workflow artifacts. The current runtime does not perform live-target application or journal recovery. |
 | `node:path` and `node:url` | Selected | Workspace-relative POSIX normalization, containment, file identity, and module-relative resource resolution. |
 | `node:worker_threads` | Selected | Cancellable compiler, constraint, and other CPU/memory-isolated workers. Workers never execute generated code. |
-| `node:stream` | Selected | Bounded blob and HTTP streaming without unbounded buffering. |
-| `node:events` | Selected | In-process lifecycle notification only; durable coordination remains in SQLite/outbox records. |
-| `node:os` | Selected | Platform-aware temporary and resource configuration. |
-| `node:timers/promises` | Selected | Cancellable lease renewal, polling, and bounded backoff. |
-| `AbortController`, `fetch`, `URL`, `TextEncoder`, `TextDecoder` | Selected | Cancellation, model/telemetry HTTP transport, URL handling, and canonical byte conversion. |
+| `node:sqlite` | Development-only | Supplies the repository conformance driver used by tests when the production native binding is unavailable. |
+| `node:stream` | Planned | Proposed bounded streaming for a future HTTP integration; it is not imported by the current runtime. |
+| `node:events`, `node:os`, `node:timers/promises` | Not used | The current source does not import these modules. Dispatcher timing uses an injected scheduler backed by global timers. |
+| `AbortController`, `URL`, `TextEncoder`, `TextDecoder` | Selected | Cancellation, worker-module resolution, canonical byte conversion, and strict UTF-8 decoding. The AI SDK owns its configured provider transport. |
+| `fetch` | Planned | Reserved for future HTTP or telemetry integrations; the current runtime does not call it directly. |
 | `node:child_process` | Not used | The runtime does not run project commands. Any deployment-level `llama-server` supervision is outside candidate orchestration. |
 | `node:vm` | Not used | Constraints, templates, and generated artifacts are data and are never evaluated. |
 
@@ -129,8 +135,8 @@ No generated artifact is sent back to `llama-server` for execution.
 | `fast-check` | Development-only | Property-based command/event, CAS, fencing, scheduler, hashing, and canonicalization tests. |
 | `@types/node` | Development-only | Node.js platform types for the Node 24 baseline. |
 | `@types/better-sqlite3` | Development-only | Type declarations for the selected SQLite driver. |
-| `@vitest/coverage-v8` | Development-only | Optional engineering coverage reporting; not part of candidate acceptance. |
-| `@mermaid-js/mermaid-cli` | Development-only | Verifies generated workflow diagrams in documentation/CI. |
+| `@vitest/coverage-v8` | Planned | Optional future engineering coverage reporting; it is not installed and is not part of candidate acceptance. |
+| `@mermaid-js/mermaid-cli` | Planned | Optional future diagram rendering validation; it is not installed. Current workflow Mermaid text is generated and drift-checked by the repository generator. |
 
 The `synthesize-regions` package itself owns `ts-morph`, `type-fest`, TypeBox,
 Ajv, `ts-pattern`, and TypeScript where its implementation imports them. The
@@ -141,28 +147,28 @@ that package; it must not rely on transitive dependencies.
 
 These are internal ownership boundaries, not additional npm packages.
 
-| Module | Depends on | Responsibility |
-| --- | --- | --- |
-| Configuration and policy | TypeBox, Ajv, Node platform | Loads fixed model, static, auth, retention, redaction, path, concurrency, and resource policies. Requests cannot supply implementations. |
-| HTTP API and authentication | Fastify, TypeBox provider, optional `jose` | Authenticates callers, validates request/response contracts, and submits protocol commands. |
-| Protocol schemas | TypeBox, Ajv | Owns runtime commands, events, sessions, approvals, rejection results, HTTP schemas, and model-facing projections. |
-| Workflow definition/compiler | TypeBox, `xstate` | Validates one declarative topology and generates unions, transition indexes, schemas, XState projection, diagrams, and fixtures. |
-| Command decider | `ts-pattern`, protocol types | Pure `decide(state, command)` authorization and domain-event proposal. Performs no I/O. |
-| Event reducer | `ts-pattern`, protocol types | Pure `evolve(state, event)` reconstruction checked against the generated transition target. |
-| SQLite repository | `better-sqlite3` | Atomically appends events, reduces materialized state, applies revision CAS, and inserts outbox work. |
-| Blob store | Node crypto/files | Writes and verifies content-addressed blobs before an event may reference them. |
-| Outbox dispatcher | SQLite repository, timers | Claims durable work with leases/fencing and dispatches post-commit workers. |
-| Model gateway | `ai`, OpenAI-compatible provider | Executes one role-specific structured invocation with cancellation and usage accounting. |
-| Catalog capture/disclosure | `synthesize-regions` | Loads manifest data, captures immutable identities, derives schemas, and reveals bounded summaries. |
-| Role handlers | Model gateway, protocol schemas | Implements Artifact-Set Planner, Graph Planner, Graph Repairer, Input Synthesizer, and Artifact-Set Repairer requests. |
-| Workspace capture | Node files/crypto | Produces immutable normalized source views, target descriptors, and snapshot identities. |
-| Synthesis/static adapter | `synthesize-regions`, worker threads | Compiles authoritative plans and fills, assembles overlays, performs static checks, and returns provenance. |
-| Workspace Constraint adapter | `workspace-constraints` public APIs | Captures `.wsc` data and evaluates fixed plan, artifact, assembled, and semantic phases. It cannot add workflow topology. |
-| Diagnostic router | `ts-pattern`, provenance contracts | Routes structured failures without a classifier model. |
-| Budget/progress manager | Protocol types, crypto | Charges resources and fingerprints candidate/diagnostic state for deterministic no-progress termination. |
-| Staging and approval | Blob store, protocol core | Builds the runtime approval envelope and binds exact session/workflow/catalog/workspace/constraint identities. |
-| Application coordinator | Node files/path/crypto | Revalidates live authority and applies only the exact approved bytes through a recoverable journal. |
-| Observability/redaction | Pino, optional OpenTelemetry | Emits bounded, redacted logs, traces, and metrics without changing protocol decisions. |
+| Module | Status | Depends on | Responsibility |
+| --- | --- | --- | --- |
+| Configuration and policy | Current | TypeBox, Ajv, Node platform | Captures fixed static/model policies, security options, prompt versions, disclosure limits, model profiles, and role bounds. Requests cannot supply implementations. Authentication, retention, and telemetry policy remain integration concerns. |
+| HTTP API and authentication | Planned | Fastify, TypeBox provider, optional `jose` | A future integration authenticates callers, validates transport contracts, and submits caller commands. No HTTP routes or authentication adapter are implemented here. |
+| Protocol schemas | Current | TypeBox, Ajv | Owns Phase 1-3 commands, events, sessions, staging envelopes, rejection results, work bindings, and model-facing projections. It exposes no Phase 4 approval/application commands or HTTP routes. |
+| Workflow definition/compiler | Current | TypeBox, `xstate` | Validates one declarative topology and generates unions, transition indexes, schemas, XState projection, diagrams, and fixtures. |
+| Command decider | Current | `ts-pattern`, protocol types | Pure `decide(state, command)` authorization and domain-event proposal. Performs no I/O. |
+| Event reducer | Current | `ts-pattern`, protocol types | Pure `evolve(state, event)` reconstruction checked against the generated transition target. |
+| SQLite repository | Current | `better-sqlite3` | Atomically appends events, reduces materialized state, applies revision CAS, and inserts outbox work. |
+| Blob store | Current | Node crypto/files | Writes and verifies content-addressed blobs before an event may reference them. |
+| Outbox dispatcher | Current | SQLite repository, scheduler seam | Validates and snapshots bounded timing options, transactionally reconciles and claims bound work with its session lease, durably records provider starts and canonical responses, renews fencing, enforces hard timeouts, and dispatches post-commit handlers. |
+| Model gateway | Current | `ai`, OpenAI-compatible provider | Executes one role-specific structured invocation with cancellation and usage accounting. |
+| Catalog capture/disclosure | Current | `synthesize-regions` | Loads manifest data, captures exact `c6_`/`t3_`/`m3_` identities, derives state-specific generic schemas, and reveals complete bounded source-free disclosures or package-owned conservative capability closures. |
+| Role handlers | Current | Model gateway, protocol schemas | Implements Artifact-Set Planner, Graph Planner, Graph Repairer, Input Synthesizer, and Artifact-Set Repairer requests. Graph Repairer receives exact generic parameter authority; Input Synthesizer proposes exact graph inputs or unhashed fill values and infrastructure prepares authoritative fills. |
+| Workspace capture | Current | Node files/crypto, blob store | On Linux, traverses from held directory descriptors through `/proc/self/fd` with no-follow opens and pre/post identity checks; records but never follows symlinks, requires every policy-required path to be a regular file, stores exact bytes, and derives full and analysis-root snapshot identities. Unsupported platforms fail closed. |
+| Synthesis/static workers | Current | `synthesize-regions`, `workspace-constraints`, worker threads | Execute schema-closed compilation, fill preparation, constraint evaluation, assembly, semantic validation, and finalization tasks over reconstructed immutable context. |
+| Workspace Constraint capture adapter | Current | `workspace-constraints` | Captures `.wsc` data, validates the immutable module closure and expected digest, and binds protected module/analysis identities. It cannot add workflow topology. |
+| Diagnostic router | Current | `ts-pattern`, package-owned classifications, provenance contracts | Routes known structured failures to exact input, graph, or set repair and fails closed on unknown or indeterminate evidence. |
+| Budget/progress manager | Current | Protocol types, crypto | Charges resources and fingerprints candidate/diagnostic state for deterministic no-progress termination. |
+| Staging envelope protocol | Current | Blob store, protocol core | Stores generated files, the change manifest, static result, and approval envelope as separate blobs and retains a pointer-only staging receipt. The Phase 1-3 protocol terminates at `readyForApproval`; approval is not a runtime-core command. |
+| Application coordinator | Planned Phase 4 | Node files/path/crypto | Will revalidate live authority and apply only exact approved bytes through a recoverable journal. No application handler or journal implementation is included in the Phase 1-3 core. |
+| Observability/redaction integration | Planned | Pino, optional OpenTelemetry | A future integration may emit bounded redacted logs, traces, and metrics. These dependencies and exporters are not installed. |
 
 Dependency direction is inward toward pure contracts and domain functions.
 Persistence, HTTP, model, compiler, and filesystem adapters cannot be imported by
@@ -177,9 +183,9 @@ root unless a JSON subpath is shown.
 
 | Symbols | Kind | Status | Consumer | Purpose | Approval/security significance |
 | --- | --- | --- | --- | --- | --- |
-| `GraphTemplateManifest` | Type | Current | Catalog capture | Data-only template definition accepted from repository/server catalog data. | Prevents runtime loading of author callbacks or imported catalog code. |
+| `GraphTemplateManifest`, `TemplateTypeParameterDefinition` | Types | Current | Catalog capture | Data-only template definition, including optional named generic parameters and concrete constraints. | Prevents runtime loading of author callbacks or imported catalog code. |
 | `GraphTemplateDefinition` | Type | Current | Catalog adapter | Library-produced normalized/compiled template representation; it is never accepted from a request. | Runtime never accepts caller-constructed executable definitions. |
-| `TemplateSummary`, `InputPortSummary`, `LiteralInputPortSummary`, `FragmentInputPortSummary`, `FragmentCollectionInputPortSummary`, `RawCodeInputPortSummary`, `UnionInputPortSummary`, `OutputPortSummary` | Types | Current | Catalog disclosure/model schema projection | Implementation-free planner contracts. | Only bounded selected summaries are disclosed to models. |
+| `TemplateSummary`, `InputPortSummary`, `LiteralInputPortSummary`, `FragmentInputPortSummary`, `FragmentCollectionInputPortSummary`, `RawCodeInputPortSummary`, `UnionInputPortSummary`, `OutputPortSummary` | Types | Current | Catalog disclosure/model schema projection | Implementation-free planner contracts, including generic declarations and placeholder-bearing type descriptors. | Capture requires the complete disclosure to fit fixed limits; each graph/repair role receives only its authorized producer closure. |
 | `InputPort`, `LiteralInputPort`, `FragmentInputPort`, `FragmentCollectionInputPort`, `RawCodeInputPort`, `UnionInputPort`, `OutputPort`, `RawCodePolicy` | Types | Current | Catalog validation/compiler adapter | Canonical template input/output and raw-source policy contracts. | Raw code is accepted only through explicitly declared raw-code ports. |
 | `TemplateCatalogView`, `TemplateRegistry`, `TemplateRegistrySnapshot` | Types | Current | Catalog capture | Trusted library-created catalog view and immutable snapshot. | Compilation must use the captured snapshot, not mutable caller data. |
 | `GraphTemplateManifestSchema`, `InputPortSchema`, `OutputPortSchema`, `RawCodePolicySchema`, `InputPortSummarySchema`, `OutputPortSummarySchema`, `TemplateSummarySchema`, and the five concrete input-summary schemas | TypeBox schemas | Current | Catalog capture/protocol schemas | Canonical runtime validation of manifest and summary data. | Unknown or malformed catalog data fails before planning. |
@@ -193,11 +199,12 @@ root unless a JSON subpath is shown.
 | `templateCatalogDigest()` | API | Current | Catalog identity | Computes the planner-facing contract digest. | Planning compatibility and stale-action checks. |
 | `templateCatalogManifestDigest()` | API | Current | Catalog identity | Computes the exact catalog manifest digest. | Source-producing identity bound through static acceptance. |
 | `templateManifestDigest()` | API | Current | Provenance/catalog identity | Computes one exact template digest. | Generated ranges retain producing-template identity. |
-| `TEMPLATE_MANIFEST_DIGEST_VERSION`, `TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION` | Constants | Current | Identity/versioning | Version digest algorithms. | Replay cannot silently reinterpret a digest. |
+| `SYNTHESIZE_REGIONS_PACKAGE_VERSION`, catalog/template/manifest/planner/closure version and pattern constants, and digest TypeBox schemas | Constants/schemas | Current | Identity/versioning | Pin package `0.3.0`, `c6_`, `t3_`, `m3_`, planner schema `3`, and capability closure `2`. | Runtime startup and capture reject unsupported linked contracts rather than accepting future prefixes. |
+| `deriveTemplateCapabilityClosure()`, `TemplateCapabilityClosureRoot` | API/type | Current | Graph Planner/Graph Repairer disclosure | Derives stable source-free goal or graph producer closure with exact bound consumers and conservative generic candidates. | Unknown graph templates disclose only the complete already-authorized catalog; no model-controlled expansion occurs. |
 | `templateRegistryToSynthesisGraphJsonSchema()` | API | Current | Graph Planner schema projection | Produces a strict catalog-specific graph JSON Schema. | Constrained model output is still canonically revalidated. |
 | `templateRegistryToPartialSynthesisGraphJsonSchema()` | API | Current | Graph Planner schema projection | Produces a partial graph JSON Schema. | Allows bounded missing inputs without accepting an invalid final graph. |
 | `graphTemplateDefinitionToNodeSchema()`, `graphTemplateDefinitionToJsonSchema()` | APIs | Current | State-specific schema projection | Narrows a selected template/node contract. | Model chooses values only inside the current authorized shape. |
-| `captureTemplateCatalogView()` | API | Current | Catalog capture | Captures the trusted immutable catalog view used by phase compilation. | Runtime compilation remains bound to exact catalog identities. |
+| `captureTemplateCatalogView()` | API | Current | Catalog capture | Captures the trusted immutable catalog view used by phase compilation. | Runtime compilation remains bound to the exact catalog identities. |
 
 `defineTemplate()`, `defineTemplateCatalog()`, `createTemplateRegistry()` from
 executable definitions, `validateTemplateCatalog()`, and
@@ -211,11 +218,11 @@ the manifest-only registry path.
 | Symbols | Kind | Status | Consumer | Purpose | Approval/security significance |
 | --- | --- | --- | --- | --- | --- |
 | `RegionKind`, `TypedSyntaxRegionKind`, `REGION_KIND_VALUES`, `REGION_SYNTAX_ENGINE_VERSION` | Types/constants | Current | Protocol/catalog/target validation | Closed source-fragment kind vocabulary and engine identity. | Target and output kinds must match exactly. |
-| `SynthesisGraph`, `SynthesisNode`, `SynthesisInput`, `NormalizedSynthesisInput`, `GraphNormalizationResult` | Types | Current | Graph planning/compilation | Canonical graph protocol and normalization result. | Graph references remain artifact-scoped and validated before commitment. |
+| `SynthesisGraph`, `SynthesisNode`, `SynthesisInput`, `NormalizedSynthesisInput`, `GraphNormalizationResult` | Types | Current | Graph planning/compilation | Canonical graph protocol and normalization result; generic nodes carry a complete explicit `typeArguments` map. | Graph references and generic bindings remain artifact-scoped and validated before commitment. |
 | `SynthesisGoal` | Type | Current | Set/graph planning | Declares required output kind/type goal. | Model goals cannot override target authorization. |
-| `GraphPatchAction`, `GraphPatchActionKind`, `GraphPatchResult` | Types | Current | Graph Repairer/Input Synthesizer | One scoped immutable graph mutation and result. | Rejected patches preserve accepted state. |
+| `GraphPatchAction`, `GraphPatchActionKind`, `GraphPatchResult` | Types | Current | Graph Repairer/Input Synthesizer | One scoped immutable graph mutation, including exact `setTypeArgument`/`removeTypeArgument`, and result. | Dynamic role schemas bind generic repair to one current node and structured parameter owner; rejected patches preserve accepted state. |
 | `GraphCompilationMode`, `GraphCompilationResult`, `GraphPartialCompilationResult`, `GraphCompileOptions` | Types | Current | Synthesis adapter/router | Strict/partial compilation result and fixed options. | Classification and provenance drive deterministic routing. |
-| `SynthesisDiagnostic`, `SynthesisRepairHint`, `SynthesisFailureClassification` | Types | Current | Diagnostic router | Structured compiler/policy diagnostics and repair classification. | No classifier model guesses ownership. |
+| `SynthesisDiagnostic`, `SynthesisRepairHint`, `SynthesisFailureClassification` | Types | Current | Diagnostic router | Structured compiler/policy diagnostics, including `typeParameterName`, and closed repair classification. | Candidate generic failures are graph-repairable; catalog/type-policy failures remain terminal or template-policy failures without message parsing. |
 | `TypeDescriptor`, `SemanticTargetFileContext`, `GraphSemanticContext` | Types | Current | Compiler/static adapter | Type/schema compatibility and captured project context. | Semantic evidence is tied to the immutable project view. |
 
 ### 6.2 Graph APIs
@@ -237,7 +244,7 @@ not used by the runtime because they do not establish current catalog identity.
 
 | Symbols | Kind | Status | Consumer | Purpose | Approval/security significance |
 | --- | --- | --- | --- | --- | --- |
-| `GeneratedFragment`, `CompleteTemplateArtifact`, `PartialTemplateArtifact`, `TemplateArtifact`, `TemplateArtifactResult` | Types | Current | Compiler/fill/static adapter | Generated source and complete/partial artifact results. | Generated source remains untrusted data. |
+| `GeneratedFragment`, `CompleteTemplateArtifact`, `PartialTemplateArtifact`, `TemplateArtifact`, `TemplateArtifactResult` | Types | Current | Compiler/fill/static adapter | Generated source and complete/partial artifact results; provenance records concrete generic type arguments. | Generated source remains untrusted data and exact bindings participate in artifact/CAS identity. |
 | `TemplateArtifactInput`, `TemplateArtifactInputMap`, `UnresolvedTemplateInput` | Types | Current | Input Synthesizer/fill ledger | Literal, raw, fragment, collection, and unresolved input contracts. | Input IDs and hashes bind fills to exact artifacts. |
 | `GeneratedSourceSpan`, `GeneratedNodeSourceSpan`, `GeneratedInputSourceSpan`, `GeneratedSourceMap`, `GENERATED_SOURCE_MAP_VERSION`, `GENERATED_SOURCE_SPAN_KIND_VALUES` | Types/constants | Current | Diagnostic attribution | Maps generated coordinates to nodes and exact inputs. | Establishes textual ownership without claiming causality. |
 | `GeneratedFragmentSchema`, `CompleteTemplateArtifactSchema`, `PartialTemplateArtifactSchema`, `TemplateArtifactSchema`, `TemplateArtifactResultSchema`, `TemplateArtifactInputSchema`, `TemplateArtifactInputMapSchema`, `GeneratedSourceSpanSchema`, `GeneratedSourceMapSchema` | TypeBox schemas | Current | Persistence/model result validation | Validates generated and persisted artifact/provenance data. | Invalid provenance never enters repair routing or approval. |
@@ -341,24 +348,24 @@ this runtime.
 | `TYPE_DESCRIPTOR_COMPATIBILITY_STATUS_VALUES`, `SCHEMA_COMPATIBILITY_VALUES` | Constants | Current | Exhaustive routing | Keeps compatible, incompatible, and indeterminate outcomes explicit. |
 | `GraphCompileOptions`, `ArtifactSetCompileOptions`, `RawCodePolicy`, `SecurityPolicyOptions` | Types | Current | Static adapter/policy | Server-owned options restrict raw/generated source and semantic work. |
 
-## 10. Required `synthesize-regions` Additions
+## 10. Phase 3 Companion Surfaces
 
-These names are proposed integration contracts. They do not exist as public
-exports today and must not be imported until implemented, schema-backed, and
-package-tested.
+These schema-backed, package-tested contracts are the public boundaries used by
+the runtime's Phase 3 handlers.
 
 ### 10.1 Workspace Constraint surface
 
-| Proposed symbol or artifact | Kind | Status | Required use and boundary |
+| Symbol or artifact | Kind | Status | Required use and boundary |
 | --- | --- | --- | --- |
-| `WorkspaceConstraintSet`, `WorkspaceConstraintRule`, `ConstraintModuleCapture`, `ConstraintSourceMap` | Types | Current (`workspace-constraints`) | Canonical JSON-safe compiled `.wsc` closure and source attribution. |
-| `WorkspaceConstraintIdentity`, `WorkspaceConstraintBudgets` | Types | Current (`workspace-constraints`) | Semantic/source/engine/analysis identity and bounded evaluation. |
+| `ParsedConstraintModule`, `ConstraintRuleCapture`, `ConstraintModuleCapture`, `CompiledWorkspaceConstraintCapture` | Types | Current (`workspace-constraints`) | Canonical JSON-safe capture closure without evaluator or executable callbacks. |
+| `ConstraintCaptureBudgets`, runtime `WorkspaceConstraintIdentity` | Types | Current | Semantic/source/engine/analysis identity and bounded capture. |
 | `WorkspaceConstraintDiagnostic`, `WorkspaceConstraintPhaseResult`, `WorkspaceConstraintSummary` | Types | Current (`workspace-constraints`) | Deterministic phase results, model disclosure, and repair routing. |
 | `WorkspaceConstraintFactSummary`, `WorkspaceConstraintEvaluationInput` | Types | Current (`workspace-constraints`) | Library-owned bounded facts derived from authorized immutable views; no custom fact-provider callback. |
 | `parseWorkspaceConstraintModule()` | API | Current (`workspace-constraints`) | Parses one `.wsc` byte string as data and returns source diagnostics. Performs no filesystem or module execution. |
-| `compileWorkspaceConstraintCapture()` | API | Current (`workspace-constraints`) | Resolves an entry from a caller-supplied immutable module-byte map, validates the closure, and returns canonical IR/source maps. |
+| `compileWorkspaceConstraintCapture()` | API | Current (`workspace-constraints`) | Resolves an entry from a caller-supplied immutable module-byte map, validates containment/cycles/identities/budgets, and returns dual identities and summaries. |
 | `evaluateWorkspaceConstraintPhase()` | API | Current (`workspace-constraints`) | Evaluates exactly one fixed phase against library-owned facts and immutable inputs. |
-| Typed IR, source-map, summary, diagnostic, evaluation-input, and phase-result schemas | TypeBox schemas | Current (`workspace-constraints`) | Canonical wire validation with unknown-field rejection. |
+| Capture input/result, parsed module, rule/module capture, summary, diagnostic, and compiled-capture schemas | TypeBox schemas | Current (`workspace-constraints`) | Canonical capture validation with unknown-field rejection. |
+| `WorkspaceConstraintSet`, `ConstraintSourceMap`, typed expression IR, evaluator diagnostics/results, and phase-result schemas | Types/schemas | Current (`workspace-constraints`) | Phase 3 evaluation contracts with normalized semantic and exact-source identity. |
 | `workspace-constraint-set.schema.json`, `workspace-constraint-summary.schema.json`, `workspace-constraint-diagnostic.schema.json`, `workspace-constraint-evaluation-input.schema.json`, `workspace-constraint-phase-result.schema.json` | JSON-schema subpaths | Current (`workspace-constraints`) | Published interchange contracts. |
 
 The APIs accept source bytes, normalized workspace/artifact views, and fixed
@@ -367,23 +374,21 @@ or caller-registered fact providers.
 
 ### 10.2 Phase-granular artifact-set surface
 
-| Proposed symbol | Kind | Status | Required use and boundary |
+| Symbol | Kind | Status | Required use and boundary |
 | --- | --- | --- | --- |
-| `compileArtifactSetGraphs()` and `ArtifactSetGraphCompilationResult` | API/type | Current | Produce per-artifact complete/partial graph artifacts without target assembly or semantic acceptance. |
-| `ArtifactSetAssemblyResultSchema` | TypeBox schema | Current | Validates syntax-only assembly results crossing worker or persistence boundaries. |
-| `validateArtifactSetSemantics()` and `ArtifactSetSemanticValidationResult` | API/type | Current | Compare baseline and candidate TypeScript programs after syntax assembly. Returns `validation: "semantic"`, never approval eligibility. |
-| `ConstraintBoundStaticAcceptance` | Type | Current | Binds exact constraint identity and required plan/artifact/assembled/semantic phase-result blob hashes. |
-| `finalizeArtifactSetStatic()` | API | Current | Revalidates authoritative plan/ledger and phase-bound evidence before producing `validation: "static"`. |
+| `compileArtifactSetGraphs()` and `ArtifactSetGraphCompilationResult` | API/type | Current | Produce per-artifact complete/partial graph artifacts without target assembly or semantic acceptance, enabling artifact/provenance constraints at the correct phase. |
+| `ArtifactSetAssemblyResultSchema` | TypeBox schema | Current | Validates syntax-only assembly results crossing worker and persistence boundaries. |
+| `validateArtifactSetSemantics()` and `ArtifactSetSemanticValidationResult` | API/type | Current | Compare baseline and candidate TypeScript programs after syntax assembly and assembled constraints. Returns `validation: "semantic"`, never approval eligibility. |
+| `ConstraintBoundStaticAcceptance` | Type | Current | Binds engine-4 evaluator/toolchain identity plus every required phase task hash and result-blob hash into library static acceptance. |
+| `finalizeArtifactSetStatic()` | API | Current | Authoritatively revalidates the plan/ledger and phase-bound evidence before producing constraint-aware library `validation: "static"`. |
 | `ArtifactSetGraphCompilationResultSchema`, `ArtifactSetAssemblyResultSchema`, `ArtifactSetSemanticValidationResultSchema`, `ConstraintBoundStaticAcceptanceSchema` | TypeBox schemas | Current | Worker-result and constraint-acceptance validation for phase boundaries. |
 | `artifact-set-graph-compilation-result.schema.json`, `artifact-set-assembly-result.schema.json`, `artifact-set-semantic-validation-result.schema.json`, `constraint-bound-static-acceptance.schema.json` | JSON-schema subpaths | Current | Published phase-result and acceptance-evidence interchange. |
-| Public `deepestGeneratedSourceSpan()` | API export | Current | Makes deepest-span attribution available to the runtime and constraint evaluator. |
+| Public `deepestGeneratedSourceSpan()` | API export | Current | Supplies deepest generated-source attribution to the runtime and constraint evaluator. |
 | Public `captureTemplateCatalogView()` | API export | Current | Captures an immutable trusted catalog view. |
-| `SYNTHESIS_DIAGNOSTIC_CLASSIFICATION_CATALOG`, `classifySynthesisDiagnosticCode()` | Catalog/API | Current | Supplies exhaustive package-owned failure classifications; unknown codes fail terminally. |
-| `ArtifactSetCompileOptions.unavailableTextPaths` | Option | Current | Binds non-UTF-8 manifest files into an exact partition while keeping the tsconfig and TypeScript/JavaScript inputs in the verified text view. |
 
 `compileArtifactSet()` and `validateArtifactSetStatic()` remain compatibility
 facades over the phase-granular surfaces. Intermediate graph, syntax, and
-semantic results remain non-approval-eligible; only authoritative finalization
+semantic results are non-approval-eligible; only authoritative finalization
 produces `validation: "static"`.
 
 ### 10.3 Hash ownership
@@ -409,20 +414,24 @@ never matches either value by “latest.”
 
 The following are not `synthesize-regions` exports:
 
-| Contract family | Representative contracts | Owner |
-| --- | --- | --- |
-| Request/authorization | `SynthesisRequest`, `WorkspaceConstraintRequest`, authorized target and analysis-root capture | Runtime protocol |
-| Workflow | `WorkflowDefinition`, `WorkflowTransition`, generated `SessionStatus`, transition/observation indexes | Workflow compiler |
-| State protocol | `ProtocolCommand`, `DomainEvent`, `Decision`, `SynthesisSession`, `SynthesisSessionOutcome` | Command/event core |
-| Persistence | `EventEnvelope`, materialized-state record, idempotency record, lease/fencing record, `OutboxWorkItem` | SQLite repository |
-| Model roles | Artifact-set outline, role invocation/result envelopes, rejection history | Role handlers/model gateway |
-| Set repair | `ArtifactSetPatchAction`, `ArtifactOutline`, `AuthorizedArtifactTarget` | Runtime protocol |
-| Constraint orchestration | Phase commands/events, skip reasons, evaluation work item | Runtime protocol/outbox |
-| Approval/application | `ApproveChangeSetRequest`, runtime approval envelope, application journal and recovery result | Staging/application coordinator |
-| HTTP | Endpoint request/response/error schemas | Fastify API adapter |
-| Budgets/observability | `SynthesisBudgets`, counters, fingerprints, metrics and redaction records | Runtime policy |
+| Contract family | Status | Representative contracts | Owner |
+| --- | --- | --- | --- |
+| Request/authorization | Current | `SynthesisRequest`, `WorkspaceConstraintRequest`, authorized target and analysis-root capture | Runtime protocol |
+| Workflow | Current | `WorkflowDefinition`, `WorkflowTransition`, generated `SessionStatus`, transition/observation indexes | Workflow compiler |
+| State protocol | Current | `ProtocolCommand`, `DomainEvent`, `Decision`, `SynthesisSession`, terminal session outcomes | Command/event core |
+| Persistence | Current | `EventEnvelope`, materialized-state record, idempotency record, lease/fencing record, `OutboxWorkItem` | SQLite repository |
+| Model roles | Current | Version-3 artifact-set, graph, graph-repair, input, and set-repair input/output envelopes; prompt set `3`; rejection history | Role handlers/model gateway |
+| Fill preparation | Current | `InputSynthesizerProposal`, `PreparedArtifactFillResult`, `prepareFill` static-worker task and CAS evidence | Role handlers/static worker/protocol |
+| Static workers | Current | Version-4 `RuntimeStaticWorkerTask`, `RuntimeStaticWorkerOutput`, captured synthesis context, per-operation limits | Runtime worker boundary |
+| Set repair | Current | `ArtifactSetPatchAction`, `ArtifactOutline`, `AuthorizedArtifactTarget` | Runtime protocol |
+| Constraint orchestration | Current | Phase commands/events, skip reasons, evaluation work item | Runtime protocol/outbox |
+| Static staging and approval binding | Current | `StagingReceipt`, version-4 `RuntimeApprovalEnvelope`, finalization task/result identities | Static pipeline/protocol core |
+| Filesystem application | Planned Phase 4 | Live-target preflight, application journal, recovery result, and application handler | Future application coordinator |
+| HTTP/authentication | Planned integration | Endpoint request/response/error schemas and caller authentication | Future API adapter |
+| Budgets/progress | Current | `SynthesisBudgets`, counters, rejection history, and progress fingerprints | Runtime policy/domain core |
+| Logs, metrics, and traces | Planned integration | Redaction policy, structured logs, trace spans, and metric records | Future observability adapter |
 
-Runtime schemas may reference public library schemas, but the package never
+Runtime schemas may reference public library schemas, but `synthesize-regions` never
 owns caller authentication, session transitions, database state, approval, or
 filesystem mutation.
 
@@ -434,16 +443,26 @@ filesystem mutation.
 | `defineTemplate()` and executable template definitions supplied by a session | Not used at runtime | Runtime catalogs are manifest data compiled by library-owned code. |
 | `synthesize-regions/builders` | Not used by runtime | Builders are template-author engineering helpers, not model/runtime authority. |
 | Direct `generate()`, replacement maps, marker discovery, or file-template APIs | Not used by runtime | Graph/artifact-set facades are the controlled synthesis boundary. |
-| Direct `ts-morph` imports in the runtime | Not used | AST/compiler objects stay behind `synthesize-regions` and future library-owned fact APIs. |
+| Direct `ts-morph` imports in the runtime | Not used | AST/compiler objects stay behind `synthesize-regions` and library-owned fact APIs. |
 | `node:vm`, dynamic `import()` of repository code, compiler plugins, custom validators | Not used | Generated and repository-authored policy data is never executed. |
 | AI SDK agent/tool loop APIs | Not used | Every model call returns one role-specific structured result. |
 | XState actors/actions as production state | Not used | XState is a generated visualization and test projection only. |
 
 ## 13. Version and Change Policy
 
+The unreleased closeout contract set is workflow `7`, protocol/reducer `6`,
+database schema `9`, captured synthesis context/static tasks `4`, model-role
+contracts `3`, prompt set `3`, approval envelope `4`, and Workspace Constraint evaluator engine
+`4` (compiled evaluation evidence schema `3`, normalized IR/source map `2`, parser/source-language contract `1`).
+The linked synthesis contract is `synthesize-regions` `0.3.0`, catalog contract
+`6`, template/catalog manifests `3`, planner schema `3`, and capability closure
+`2`. Development databases or evidence produced by prior or incomplete
+variants are rejected and recreated rather than migrated or upcast.
+
 - Pin exact dependency versions in the implementation lockfile. This document
-  records architectural majors only where behavior depends on them: Node 24,
-  XState 5, and Fastify 5.
+  records current architectural majors where behavior depends on them: Node 24
+  and XState 5. Fastify 5 remains a planned integration choice and is not part
+  of the current lockfile.
 - Record `synthesize-regions` contract, manifest, syntax, compatibility, schema,
   static-policy, constraint-engine, and workflow versions in their respective
   digests or acceptance identities.
@@ -453,5 +472,26 @@ filesystem mutation.
 - Package upgrades that affect canonicalization, schemas, source production,
   static analysis, workflow topology, or approval identity require explicit
   compatibility tests and version/digest changes.
-- Optional telemetry and authentication packages must remain absent from the
-  critical synthesis decision path when disabled.
+- Planned telemetry and authentication packages must remain outside the
+  critical synthesis decision path if those integrations are added.
+
+## 14. Executable Phase 1–3 Invariants
+
+This table is generated from `invariants/phase-1-3.json` and checked by
+`npm run invariants:check`.
+
+<!-- phase-1-3-invariants:start -->
+| Invariant | Claim | Owner boundary | Contract | Adversarial tests |
+| --- | --- | --- | --- | --- |
+| `RT-OUTBOX-001` | Expired non-idempotent external work is never blindly reissued after its external invocation may have started. | transactional outbox/session claim and recovery | `database-9/protocol-6` | `RT-OUTBOX-001-T1`, `RT-OUTBOX-001-T2` |
+| `RT-OUTBOX-002` | Pre-start failures remain retryable, while every canonical response captured after provider return is retained, locally replayed without reissuing the invocation, and charged by the accepted outcome. | dispatcher invocation marker and claim reconciliation | `database-9/protocol-6` | `RT-OUTBOX-002-T1`, `RT-OUTBOX-002-T2`, `RT-OUTBOX-002-T3` |
+| `RT-OUTBOX-003` | A rejected worker result either terminalizes or abandons stale work without consuming the terminal fallback idempotency identity. | repository claimed-work completion transaction | `database-9/protocol-6` | `RT-OUTBOX-003-T1` |
+| `RT-IDENTITY-001` | Accepted work and approval evidence bind the exact captured policy and static toolchain bytes, not human-readable labels alone. | session capture, work binding, static evidence, and approval envelope | `policy-2/context-4/envelope-4` | `RT-IDENTITY-001-T1`, `RT-IDENTITY-001-T2`, `RT-IDENTITY-001-T3` |
+| `RT-CAPTURE-001` | Production workspace capture consumes a deployment-owned immutable snapshot and never follows filesystem symlinks. | immutable snapshot provider and descriptor-rooted capture | `workspace-manifest-2` | `RT-CAPTURE-001-T1`, `RT-CAPTURE-001-T2`, `RT-CAPTURE-001-T3` |
+| `RT-OUTBOX-004` | Dispatcher lease, heartbeat, timeout, and retry timing options are finite bounded integers captured immutably at construction. | dispatcher option validation and immutable construction snapshot | `database-9/protocol-6` | `RT-OUTBOX-004-T1` |
+| `RT-CONTRACT-001` | Runtime consumes sibling-owned diagnostics and classifications without a hand-maintained approximation. | protocol schema composition and diagnostic routing | `protocol-6` | `RT-CONTRACT-001-T1`, `RT-CONTRACT-001-T2`, `RT-CONTRACT-001-T3` |
+| `RT-RESOURCE-001` | Accepted session evidence cannot exceed cumulative CAS quotas and unreferenced blobs are swept only after leases and grace periods expire. | blob inventory, write scopes, repository reachability, and sweeper | `database-9/policy-2` | `RT-RESOURCE-001-T1`, `RT-RESOURCE-001-T2`, `RT-RESOURCE-001-T3`, `RT-RESOURCE-001-T4` |
+| `RT-WORKER-001` | Production one-shot workers use one captured deployment-wide admission policy and operation limits cannot exceed its heap or transfer ceilings. | captured context loader and static handler composition | `policy-2/static-task-4` | `RT-WORKER-001-T1`, `RT-WORKER-001-T2` |
+| `RT-STATIC-001` | Every accepted static result binds the exact closed worker input: the parent validates the task/output boundary and the pure decider independently rehashes its authority-bearing input. | static pipeline parent and pure command decider | `static-task-4/protocol-6` | `RT-STATIC-001-T1` |
+| `RT-WORKFLOW-001` | The Phase 1-3 workflow terminates at approval-ready staging and exposes no filesystem-application work. | workflow, protocol, decider, and outbox work-kind registry | `workflow-7/protocol-6` | `RT-WORKFLOW-001-T1` |
+<!-- phase-1-3-invariants:end -->

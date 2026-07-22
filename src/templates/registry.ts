@@ -7,6 +7,8 @@ import type {
   TemplateRegistrySnapshot,
   TemplateSummary
 } from "./graphTypes.js";
+import { compareCodeUnits } from "./deterministic.js";
+import { synthesisDiagnosticOriginForCode } from "./diagnosticCatalog.js";
 import type { StrictTemplateCatalog } from "./graphStrictTypes.js";
 import { REGION_KIND_VALUES } from "./graphTypes.js";
 import { portIsRequired } from "./compatibility.js";
@@ -76,12 +78,12 @@ function rawCodeSchemaFromPolicy(policy: RawCodePolicy | undefined): Record<stri
     codeSchema.pattern = "^[^\\r\\n]*$";
   }
 
-  for (const forbidden of policy?.forbiddenSubstrings ?? []) {
+  for (const forbidden of [...new Set(policy?.forbiddenSubstrings ?? [])].sort(compareCodeUnits)) {
     if (forbidden.length === 0) continue;
     allOf.push({ not: { pattern: escapeRegExpLiteral(forbidden) } });
   }
 
-  for (const pattern of policy?.forbiddenPatterns ?? []) {
+  for (const pattern of [...new Set(policy?.forbiddenPatterns ?? [])].sort(compareCodeUnits)) {
     // Keep schema generation aligned with compileGraph's raw-code policy check,
     // which treats invalid patterns as invalid policy diagnostics.
     new RegExp(pattern, "u");
@@ -277,6 +279,10 @@ function genericSynthesisNodeSchema(): Record<string, unknown> {
     properties: {
       id: { type: "string" },
       templateId: { type: "string" },
+      typeArguments: {
+        type: "object",
+        additionalProperties: { $ref: "#/$defs/typeDescriptor" }
+      },
       inputs: {
         type: "object",
         additionalProperties: { $ref: "#/$defs/synthesisInput" }
@@ -326,16 +332,29 @@ function graphTemplateDefinitionToNodeSchemaWithResources(
   const requiredInputs = inputEntries
     .filter(([, port]) => portIsRequired(port))
     .map(([key]) => key);
+  const typeParameterNames = Object.keys(template.typeParameters ?? {}).sort();
+  const requiresTypeArguments = typeParameterNames.length > 0;
 
   return {
     title: `${template.modelId} SynthesisNode`,
     ...(template.description ? { description: template.description } : {}),
     type: "object",
     additionalProperties: false,
-    required: ["id", "templateId", "inputs"],
+    required: ["id", "templateId", ...(requiresTypeArguments ? ["typeArguments"] : []), "inputs"],
     properties: {
       id: { type: "string" },
       templateId: { const: template.modelId },
+      ...(requiresTypeArguments ? {
+        typeArguments: {
+          type: "object",
+          additionalProperties: false,
+          required: typeParameterNames,
+          properties: Object.fromEntries(typeParameterNames.map(name => [
+            name,
+            { $ref: "#/$defs/typeDescriptor" }
+          ]))
+        }
+      } : {}),
       inputs: {
         type: "object",
         additionalProperties: false,
@@ -359,7 +378,7 @@ export function graphTemplateDefinitionToJsonSchema(
     $schema: JSON_SCHEMA_URI,
     ...nodeSchema,
     $defs: {
-      ...sharedGraphSchemaDefs(),
+      ...sharedGraphSchemaDefs(nodeSchema),
       plannerSchemas: Object.fromEntries(
         resources.entries()
       )
@@ -470,6 +489,7 @@ function createCatalogState(
 ): CatalogState {
   const forgedDiagnostics = templates.flatMap((template, index) =>
     isLibraryOwnedTemplateDefinition(template) ? [] : [{
+      origin: synthesisDiagnosticOriginForCode("UntrustedTemplateDefinition"),
       stage: "template" as const,
       code: "UntrustedTemplateDefinition",
       severity: "error" as const,
@@ -490,6 +510,7 @@ function createCatalogState(
     const invalidManifestDigests = sortedTemplates.flatMap((template, index) => {
       const expected = templateManifestDigest(template);
       return template.manifestDigest === expected ? [] : [{
+        origin: synthesisDiagnosticOriginForCode("TemplateManifestDigestMismatch"),
         stage: "template" as const,
         code: "TemplateManifestDigestMismatch",
         severity: "error" as const,
@@ -507,6 +528,7 @@ function createCatalogState(
   } catch (error) {
     if (error instanceof TemplateCatalogValidationError) throw error;
     throw new TemplateCatalogValidationError([{
+      origin: synthesisDiagnosticOriginForCode("CatalogContractNotSerializable"),
       stage: "template",
       code: "CatalogContractNotSerializable",
       severity: "error",
@@ -532,6 +554,7 @@ export function createTemplateRegistryFromManifests(
   for (const [index, manifest] of manifests.entries()) {
     if (!checkContract(GraphTemplateManifestSchema, manifest)) {
       diagnostics.push({
+        origin: synthesisDiagnosticOriginForCode('InvalidTemplateManifest'),
         stage: 'template', code: 'InvalidTemplateManifest', severity: 'error',
         message: 'Template manifest does not match the closed declarative manifest contract.',
         path: `manifests[${index}]`, actual: manifest
@@ -542,6 +565,7 @@ export function createTemplateRegistryFromManifests(
       definitions.push(defineTemplate(manifest));
     } catch (error) {
       diagnostics.push({
+        origin: synthesisDiagnosticOriginForCode('InvalidTemplateManifestSource'),
         stage: 'template', code: 'InvalidTemplateManifestSource', severity: 'error',
         message: error instanceof Error ? error.message : String(error),
         templateId: manifest.modelId, path: `manifests[${index}].source`
@@ -605,6 +629,7 @@ export function createTemplateRegistry(
     replace(template) {
       if (!state.templates.has(template.modelId)) {
         throw new TemplateCatalogValidationError([{
+          origin: synthesisDiagnosticOriginForCode("UnknownTemplateReplacement"),
           stage: "template",
           code: "UnknownTemplateReplacement",
           severity: "error",

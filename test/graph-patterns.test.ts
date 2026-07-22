@@ -54,6 +54,7 @@ describe("graph ts-pattern matchers", () => {
       ok: false,
       classification: "graphRepairable",
       diagnostics: [{
+        origin: "candidate",
         stage: "type",
         code: "TypeScriptSemanticError",
         severity: "error",

@@ -116,6 +116,7 @@ const artifactFailureClassificationPattern = P.union(
 
 /** Runtime `ts-pattern` pattern for graph diagnostic objects. */
 export const synthesisDiagnosticPattern: P.Pattern<SynthesisDiagnostic> = {
+	origin: P.union('candidate', 'catalog', 'workspace', 'deployment', 'integrity', 'internal'),
 	stage: P.union('graph', 'template', 'input', 'port', 'region', 'ast', 'type', 'policy'),
 	code: P.string,
 	severity: P.union('error', 'warning'),

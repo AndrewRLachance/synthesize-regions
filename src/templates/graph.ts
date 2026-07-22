@@ -15,6 +15,8 @@ import { graphInputsToReplacementMap } from './converter.js'
 import { canonicalizeJson, createCompilationScope, createUnresolvedInputId } from './artifactIdentity.js'
 import { validateTemplateArtifactIntegrity } from './artifactIntegrity.js'
 import { brandTemplateArtifact, isLibraryOwnedTemplateArtifact } from './artifactTrust.js'
+import { compareCodeUnits } from './deterministic.js'
+import { classifySynthesisDiagnostics, synthesisDiagnosticOriginForCode } from './diagnosticCatalog.js'
 import type {
 	AuthoredGraphInput,
 	CompleteTemplateArtifact,
@@ -65,6 +67,7 @@ import { createTemplateRegistry } from './registry.js'
 import { brandGraphCompiler } from './compilerTrust.js'
 import { defaultFragmentCollectionSeparator, templateModeForRegionKind } from './rendering.js'
 import { instantiateTemplateContracts, type GenericTypeIssue } from './genericTypes.js'
+import { TEMPLATE_MANIFEST_DIGEST_PATTERN } from './contractIdentity.js'
 import { sourcePrologueEnd, validateVirtualSemanticTarget } from './semanticTarget.js'
 import {
 	applySourceMappedTextEdits,
@@ -83,8 +86,14 @@ import {
 } from './sourceSpans.js'
 
 /** Create a graph diagnostic with error severity. */
-function errorDiagnostic(diagnostic: Omit<SynthesisDiagnostic, 'severity'>): SynthesisDiagnostic {
-	return { ...diagnostic, severity: 'error' }
+function errorDiagnostic(
+	diagnostic: Omit<SynthesisDiagnostic, 'severity' | 'origin'> & Partial<Pick<SynthesisDiagnostic, 'origin'>>
+): SynthesisDiagnostic {
+	return {
+		...diagnostic,
+		origin: diagnostic.origin ?? synthesisDiagnosticOriginForCode(diagnostic.code),
+		severity: 'error'
+	}
 }
 
 /** Map compatibility-engine issue names onto stable graph diagnostic codes. */
@@ -130,6 +139,7 @@ function genericTypeDiagnostic(issue: GenericTypeIssue, node: SynthesisNode): Sy
 		message: issue.message,
 		nodeId: node.id,
 		templateId: node.templateId,
+		...(issue.typeParameterName === undefined ? {} : { typeParameterName: issue.typeParameterName }),
 		path: `nodes.${node.id}.${issue.path}`,
 		...(issue.expected === undefined ? {} : { expected: issue.expected }),
 		...(issue.actual === undefined ? {} : { actual: issue.actual })
@@ -184,15 +194,6 @@ function sourceFileMetadataDiagnostics(
 	]
 }
 
-const TERMINAL_GRAPH_DIAGNOSTIC_CODES = new Set([
-	'ArtifactInputIdCollision',
-	'CatalogDigestMismatch',
-	'CatalogManifestDigestMismatch',
-	'CompilationScopeInvalid',
-	'InvalidGeneratedSourceMap',
-	'InvalidSemanticTarget'
-])
-
 /** Compare both captured catalog identities requested by a compilation caller. */
 function catalogIdentityMismatchDiagnostics(
 	options: GraphCompileOptions,
@@ -225,30 +226,12 @@ function catalogIdentityMismatchDiagnostics(
 	return diagnostics
 }
 
-const TEMPLATE_POLICY_DIAGNOSTIC_CODES = new Set([
-	'ArtifactMarkerArityMismatch',
-	'ArtifactMarkerKindMismatch',
-	'CompleteArtifactContainsMarkers',
-	'DuplicateUnresolvedInputId',
-	'InvalidRawCodePolicy',
-	'MalformedArtifactMarkers',
-	'MalformedTemplateArtifact',
-	'MissingArtifactMarker',
-	'PartialArtifactHasNoUnresolvedInputs',
-	'UnknownArtifactMarker'
-])
-
 /** Classify a graph failure by the repair channel available to its caller. */
 function classifyGraphFailure(
 	diagnostics: readonly SynthesisDiagnostic[]
 ): 'graphRepairable' | 'templatePolicyFailure' | 'terminalFailure' {
-	if (diagnostics.some(diagnostic => TERMINAL_GRAPH_DIAGNOSTIC_CODES.has(diagnostic.code))) {
-		return 'terminalFailure'
-	}
-	if (diagnostics.some(diagnostic => TEMPLATE_POLICY_DIAGNOSTIC_CODES.has(diagnostic.code))) {
-		return 'templatePolicyFailure'
-	}
-	return 'graphRepairable'
+	const classification = classifySynthesisDiagnostics('graphCompilation', diagnostics)
+	return classification === 'artifactFillable' ? 'graphRepairable' : classification
 }
 
 /** Convert a zero-based artifact offset into a one-based line and column. */
@@ -347,6 +330,7 @@ function validateArtifactSemantics(
 						Math.min(diagnostic.length ?? 0, artifact.code.length - diagnostic.artifactOffset)
 					)
 				return {
+					origin: synthesisDiagnosticOriginForCode('TypeScriptSemanticError'),
 					stage: 'type',
 					code: 'TypeScriptSemanticError',
 					severity: diagnostic.category === 'error' ? 'error' : 'warning',
@@ -415,6 +399,7 @@ function validateArtifactSemantics(
 			? finalArtifactIdentity(artifact)
 			: semanticDiagnosticIdentity(artifact, artifactOffset, diagnostic.length)
 		return {
+			origin: synthesisDiagnosticOriginForCode('TypeScriptSemanticError'),
 			stage: 'type',
 			code: 'TypeScriptSemanticError',
 			severity: diagnostic.category === 'error' ? 'error' : 'warning',
@@ -468,7 +453,6 @@ const SECURITY_ERASED_ARTIFACT_KINDS = new Set([
 	'type',
 	'typeMember',
 	'typeParameter',
-	'heritageType',
 	'importSpecifier',
 	'exportSpecifier'
 ])
@@ -1210,7 +1194,8 @@ function rawCodeCompatible(
 		})
 	}
 
-	for (const forbidden of policy.forbiddenSubstrings ?? []) {
+	const forbiddenSubstrings = [...new Set(policy.forbiddenSubstrings ?? [])].sort(compareCodeUnits)
+	for (const forbidden of forbiddenSubstrings) {
 		if (forbidden.length > 0 && code.includes(forbidden)) {
 			return errorDiagnostic({
 				stage: 'policy',
@@ -1219,14 +1204,15 @@ function rawCodeCompatible(
 				nodeId: node.id,
 				templateId: node.templateId,
 				inputName,
-				expected: { forbiddenSubstrings: policy.forbiddenSubstrings },
+				expected: { forbiddenSubstrings },
 				actual: forbidden,
 				repairHints: [{ kind: 'removeForbiddenSubstring', message: `Remove ${forbidden} from the raw-code input.` }]
 			})
 		}
 	}
 
-	for (const pattern of policy.forbiddenPatterns ?? []) {
+	const forbiddenPatterns = [...new Set(policy.forbiddenPatterns ?? [])].sort(compareCodeUnits)
+	for (const pattern of forbiddenPatterns) {
 		let regexp: RegExp
 		try {
 			regexp = new RegExp(pattern, 'u')
@@ -1251,7 +1237,7 @@ function rawCodeCompatible(
 				nodeId: node.id,
 				templateId: node.templateId,
 				inputName,
-				expected: { forbiddenPatterns: policy.forbiddenPatterns },
+				expected: { forbiddenPatterns },
 				actual: pattern,
 				repairHints: [{ kind: 'avoidForbiddenPattern', message: `Avoid code matching /${pattern}/u.` }]
 			})
@@ -1621,7 +1607,7 @@ function missingManifestIdentityDiagnostic(
 	path = 'artifact.source.templateManifestDigest'
 ): SynthesisDiagnostic | undefined {
 	return typeof artifact.source.templateManifestDigest === 'string'
-		&& /^t[12]_[a-f0-9]{64}$/u.test(artifact.source.templateManifestDigest)
+		&& new RegExp(TEMPLATE_MANIFEST_DIGEST_PATTERN, 'u').test(artifact.source.templateManifestDigest)
 		? undefined
 		: errorDiagnostic({
 			stage: 'template',
@@ -1630,7 +1616,7 @@ function missingManifestIdentityDiagnostic(
 			...(artifact.id ? { nodeId: artifact.id } : {}),
 			templateId: artifact.source.templateId,
 			path,
-			expected: 't1_<sha256> or t2_<sha256>',
+			expected: 't3_<sha256>',
 			actual: artifact.source.templateManifestDigest
 		})
 }
@@ -1668,10 +1654,7 @@ export function fillTemplateArtifact(
 }
 
 /** Catalog-aware fill options for persisted or externally supplied artifacts. */
-export interface CatalogArtifactFillOptions extends GraphCompileOptions {
-	/** Set only when the base artifact was produced inside the current trusted compilation session. */
-	trustedBaseArtifact?: boolean
-}
+export interface CatalogArtifactFillOptions extends GraphCompileOptions {}
 
 /**
  * Fill an artifact while binding all artifact provenance and persisted ports to
@@ -1713,8 +1696,7 @@ function fillTemplateArtifactInternal(
 ): TemplateArtifactResult {
 	let baseRequiresCatalog = false
 	if (catalog) {
-		const trustedBaseArtifact = options.trustedBaseArtifact === true
-			&& isLibraryOwnedTemplateArtifact(artifact)
+		const trustedBaseArtifact = isLibraryOwnedTemplateArtifact(artifact)
 		const catalogDiagnostics = validateTemplateArtifactAgainstCatalogAtPath(
 			artifact,
 			catalog,

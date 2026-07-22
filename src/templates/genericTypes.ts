@@ -13,6 +13,7 @@ export interface GenericTypeIssue {
 	code: string
 	message: string
 	path: string
+	typeParameterName?: string
 	expected?: unknown
 	actual?: unknown
 }
@@ -38,13 +39,18 @@ function placeholders(type: TypeDescriptor | undefined): string[] {
 	return [...type.ts.matchAll(PLACEHOLDER_PATTERN)].map(match => match[1] ?? '')
 }
 
-function concreteDescriptorIssues(type: TypeDescriptor, path: string): GenericTypeIssue[] {
+function concreteDescriptorIssues(
+	type: TypeDescriptor,
+	path: string,
+	options: { readonly code?: string; readonly typeParameterName?: string } = {}
+): GenericTypeIssue[] {
 	const comparison = compareTypeDescriptors(type, undefined)
 	if (comparison.status !== 'invalid') return []
 	return comparison.issues.map(issue => ({
-		code: issue.code,
+		code: options.code ?? issue.code,
 		message: issue.message,
 		path: `${path}${issue.path === 'actual' ? '' : `.${issue.path.replace(/^actual\.?/u, '')}`}`,
+		...(options.typeParameterName === undefined ? {} : { typeParameterName: options.typeParameterName }),
 		...(issue.expected === undefined ? {} : { expected: issue.expected }),
 		...(issue.actual === undefined ? {} : { actual: issue.actual })
 	}))
@@ -65,6 +71,7 @@ function substituteDescriptor(
 				code: 'MissingTypeScriptTypeArgument',
 				message: `Type argument ${parameterName} must provide a TypeScript type because ${path} references it.`,
 				path,
+				typeParameterName: parameterName,
 				expected: parameterName,
 				actual: argument
 			})
@@ -168,10 +175,16 @@ export function instantiateTemplateContracts(
 	for (const name of Object.keys(declarations)) {
 		const argument = argumentsRecord[name]
 		if (!argument) {
-			issues.push({ code: 'MissingTypeArgument', message: `Missing required type argument ${name}.`, path: `typeArguments.${name}`, expected: name })
+			issues.push({
+				code: 'MissingTypeArgument', message: `Missing required type argument ${name}.`,
+				path: `typeArguments.${name}`, typeParameterName: name, expected: name
+			})
 			continue
 		}
-		issues.push(...concreteDescriptorIssues(argument, `typeArguments.${name}`))
+		issues.push(...concreteDescriptorIssues(argument, `typeArguments.${name}`, {
+			code: 'InvalidTypeArgument',
+			typeParameterName: name
+		}))
 		const constraint = declarations[name]?.constraint
 		if (constraint) {
 			const comparison = compareTypeDescriptors(argument, constraint)
@@ -180,6 +193,7 @@ export function instantiateTemplateContracts(
 					code: 'IncompatibleTypeArgument',
 					message: `Type argument ${name} does not satisfy its constraint.`,
 					path: `typeArguments.${name}`,
+					typeParameterName: name,
 					expected: constraint,
 					actual: argument
 				})
@@ -188,7 +202,10 @@ export function instantiateTemplateContracts(
 	}
 	for (const name of Object.keys(argumentsRecord)) {
 		if (!Object.prototype.hasOwnProperty.call(declarations, name)) {
-			issues.push({ code: 'UnknownTypeArgument', message: `Template does not declare type parameter ${name}.`, path: `typeArguments.${name}`, actual: name })
+			issues.push({
+				code: 'UnknownTypeArgument', message: `Template does not declare type parameter ${name}.`,
+				path: `typeArguments.${name}`, typeParameterName: name, actual: name
+			})
 		}
 	}
 	if (issues.length > 0) return { issues }

@@ -474,6 +474,7 @@ describe('published graph JSON Schemas', () => {
 		const { validate } = compilePublishedSchema('schemas/graph-runner-state.schema.json')
 		const graph = { nodes: [], finalNodeId: 'root' }
 		const diagnostic = {
+			origin: 'candidate',
 			stage: 'graph', code: 'UnknownTemplate', severity: 'error', message: 'Unknown template.'
 		}
 		const partialArtifact = {
@@ -794,6 +795,7 @@ describe('published graph JSON Schemas', () => {
 			ok: false,
 			classification: 'graphRepairable',
 			diagnostics: [{
+				origin: 'candidate',
 				stage: 'type',
 				code: 'TypeScriptSemanticError',
 				severity: 'error',

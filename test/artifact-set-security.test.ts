@@ -23,6 +23,8 @@ const TSCONFIG = JSON.stringify({
 	}
 })
 
+const CAPTURED_TSCONFIG_PATH = 'captured-only.tsconfig.json'
+
 function sha256(value: Uint8Array | string): string {
 	return `sha256:${createHash('sha256').update(value).digest('hex')}`
 }
@@ -36,15 +38,18 @@ function manifestEntry(path: string, value: Uint8Array | string) {
 function fixture() {
 	const source = 'export const existing = 1;\n'
 	const binary = Uint8Array.from([0xff, 0x00, 0x80])
-	const workspaceFiles = { 'src/index.ts': source, 'tsconfig.json': TSCONFIG }
+	const workspaceFiles = { 'src/index.ts': source, [CAPTURED_TSCONFIG_PATH]: TSCONFIG }
 	const manifest: ArtifactSetWorkspaceManifest = {
-		schemaVersion: 1,
+		schemaVersion: 2,
+		providerId: 'test-snapshot-provider',
+		providerSnapshotId: 'snapshot-1',
 		revision: 'revision-1',
-		tsConfigFilePath: 'tsconfig.json',
+		capturePolicyDigest: `cp1_${'0'.repeat(64)}`,
+		tsConfigFilePath: CAPTURED_TSCONFIG_PATH,
 		files: [
 			manifestEntry('assets/logo.bin', binary),
-			manifestEntry('src/index.ts', source),
-			manifestEntry('tsconfig.json', TSCONFIG)
+			manifestEntry(CAPTURED_TSCONFIG_PATH, TSCONFIG),
+			manifestEntry('src/index.ts', source)
 		],
 		symlinks: []
 	}
@@ -66,7 +71,7 @@ function fixture() {
 	}
 	const unavailableTextPaths = ['assets/logo.bin'] as const
 	const workspaceSnapshotId = createArtifactSetWorkspaceSnapshotHash(
-		workspaceFiles, undefined, 'tsconfig.json', manifest, unavailableTextPaths
+		workspaceFiles, undefined, CAPTURED_TSCONFIG_PATH, manifest, unavailableTextPaths
 	)
 	return { manifest, plan, registry, unavailableTextPaths, workspaceFiles, workspaceSnapshotId }
 }
@@ -79,7 +84,7 @@ describe('artifact-set workspace manifest security', () => {
 			unavailableTextPaths: value.unavailableTextPaths,
 			workspaceManifest: value.manifest,
 			workspaceSnapshotId: value.workspaceSnapshotId,
-			tsConfigFilePath: 'tsconfig.json'
+			tsConfigFilePath: CAPTURED_TSCONFIG_PATH
 		})
 		expect(result).toMatchObject({ ok: true, complete: true })
 	})
@@ -99,7 +104,9 @@ describe('artifact-set workspace manifest security', () => {
 		},
 		{
 			name: 'unavailable analysis source',
-			workspace: (value: ReturnType<typeof fixture>) => ({ 'tsconfig.json': value.workspaceFiles['tsconfig.json'] }),
+			workspace: (value: ReturnType<typeof fixture>) => ({
+				[CAPTURED_TSCONFIG_PATH]: value.workspaceFiles[CAPTURED_TSCONFIG_PATH]
+			}),
 			unavailable: () => ['assets/logo.bin', 'src/index.ts'],
 			code: 'WorkspaceAnalysisFileUnavailable'
 		},
@@ -128,7 +135,7 @@ describe('artifact-set workspace manifest security', () => {
 			unavailableTextPaths: unavailable(value),
 			workspaceManifest: value.manifest,
 			workspaceSnapshotId: value.workspaceSnapshotId,
-			tsConfigFilePath: 'tsconfig.json'
+			tsConfigFilePath: CAPTURED_TSCONFIG_PATH
 		})
 		expect(result).toMatchObject({
 			ok: false,

@@ -39,7 +39,7 @@ const fragment = {
 
 describe('canonical graph contracts', () => {
 	it('publishes every exact region syntax context', () => {
-		expect(REGION_SYNTAX_ENGINE_VERSION).toBe(1)
+		expect(REGION_SYNTAX_ENGINE_VERSION).toBe(2)
 		for (const kind of REGION_KIND_VALUES) expect(checkContract(RegionKindSchema, kind)).toBe(true)
 		expect(checkContract(RegionKindSchema, 'methodBody')).toBe(false)
 	})
@@ -125,6 +125,7 @@ describe('canonical graph contracts', () => {
 
 	it('accepts structured TypeScript compiler details on graph diagnostics', () => {
 		const diagnostic = {
+			origin: 'candidate',
 			stage: 'type', code: 'TypeScriptSemanticError', severity: 'error', message: 'Type mismatch.',
 			compilerCode: 2322, compilerCategory: 'error', line: 2, column: 7
 		}
@@ -137,6 +138,7 @@ describe('canonical graph contracts', () => {
 	it('exports unique built-in diagnostic codes without closing custom diagnostics', () => {
 		const builtIn: BuiltInSynthesisDiagnosticCode = 'GraphPatchTargetNotFound'
 		const custom: SynthesisDiagnostic = {
+			origin: 'internal',
 			stage: 'graph',
 			code: 'ProducerDefinedDiagnostic',
 			severity: 'warning',
@@ -188,6 +190,7 @@ describe('canonical graph contracts', () => {
 	it('validates atomic patch results and classified runner states', () => {
 		const graph = { nodes: [], finalNodeId: 'root' }
 		const diagnostic = {
+			origin: 'candidate',
 			stage: 'graph', code: 'GraphPatchTargetNotFound', severity: 'error', message: 'Missing node.'
 		}
 		const partialArtifact = {

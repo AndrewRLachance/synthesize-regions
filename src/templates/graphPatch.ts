@@ -7,6 +7,7 @@ import {
 	type SynthesisNode
 } from './graphCoreTypes.js'
 import { GraphPatchActionSchema, checkContract } from './graphContracts.js'
+import { synthesisDiagnosticOriginForCode } from './diagnosticCatalog.js'
 
 type NodeOccurrence = {
 	node: SynthesisNode
@@ -20,9 +21,9 @@ type NodeOccurrence = {
 function diagnostic(
 	code: string,
 	message: string,
-	details: Pick<SynthesisDiagnostic, 'nodeId' | 'inputName' | 'path' | 'expected' | 'actual'> = {}
+	details: Pick<SynthesisDiagnostic, 'nodeId' | 'inputName' | 'typeParameterName' | 'path' | 'expected' | 'actual'> = {}
 ): SynthesisDiagnostic {
-	return { stage: 'graph', code, severity: 'error', message, ...details }
+	return { origin: synthesisDiagnosticOriginForCode(code), stage: 'graph', code, severity: 'error', message, ...details }
 }
 
 function failed(graph: SynthesisGraph, diagnostics: SynthesisDiagnostic[]): GraphPatchResult {
@@ -294,7 +295,12 @@ export function applyGraphPatch(graph: SynthesisGraph, action: GraphPatchAction)
 				return failed(graph, [diagnostic(
 					'GraphPatchTypeArgumentNotFound',
 					`Type argument ${action.parameterName} does not exist on graph node ${action.nodeId}.`,
-					{ nodeId: action.nodeId, path: 'action.parameterName', actual: action.parameterName }
+					{
+						nodeId: action.nodeId,
+						typeParameterName: action.parameterName,
+						path: 'action.parameterName',
+						actual: action.parameterName
+					}
 				)])
 			}
 			return succeeded(updateTargetNode(graph, target.node, node => {

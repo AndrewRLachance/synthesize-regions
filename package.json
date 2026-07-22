@@ -1,6 +1,6 @@
 {
   "name": "synthesize-regions",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Controlled TypeScript source-template replacement utility using ts-morph.",
   "type": "module",
   "main": "dist/index.js",
@@ -10,6 +10,15 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./contract-identity": {
+      "types": "./dist/templates/contractIdentity.d.ts",
+      "import": "./dist/templates/contractIdentity.js"
+    },
+    "./capability-closure": {
+      "types": "./dist/templates/capabilityClosure.d.ts",
+      "import": "./dist/templates/capabilityClosure.js"
+    },
+    "./contract-manifest.json": "./contract-manifest.json",
     "./schemas/replacement-map.schema.json": "./schemas/replacement-map.schema.json",
     "./schemas/artifact-set-plan.schema.json": "./schemas/artifact-set-plan.schema.json",
 		"./schemas/artifact-set-compilation-result.schema.json": "./schemas/artifact-set-compilation-result.schema.json",
@@ -34,6 +43,8 @@
     "dist",
     "schemas",
     "docs",
+    "invariants",
+    "contract-manifest.json",
     "README.md",
     "GLOSSARY.md"
   ],
@@ -42,19 +53,25 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.typecheck.json --noEmit",
     "schemas:generate": "node --import tsx scripts/generate-schemas.ts",
     "schemas:check": "node --import tsx scripts/generate-schemas.ts --check",
-    "pretest": "npm run schemas:check",
+    "contracts:generate": "npm run build && node --import tsx scripts/generate-contract-snapshot.ts",
+    "contracts:check": "npm run build && node --import tsx scripts/generate-contract-snapshot.ts --check",
+    "contract-manifest:generate": "node --import tsx scripts/generate-contract-manifest.ts",
+    "contract-manifest:check": "node --import tsx scripts/generate-contract-manifest.ts --check",
+    "invariants:check": "node --import tsx scripts/check-invariants.ts",
+    "invariants:generate": "node --import tsx scripts/check-invariants.ts --write",
+    "pretest": "npm run schemas:check && npm run invariants:check",
     "test": "vitest run",
     "test:package": "npm run schemas:check && npm run build && node --import tsx scripts/package-smoke.ts",
-    "prepack": "npm run schemas:check && npm run build",
-    "verify": "npm run typecheck && npm test && npm run test:package"
+    "prepack": "npm run schemas:check && npm run invariants:check && npm run contract-manifest:check && npm run build && node --import tsx scripts/generate-contract-snapshot.ts --check",
+    "verify": "npm run typecheck && npm test && npm run test:package && npm run contracts:check && npm run contract-manifest:check"
   },
   "dependencies": {
-    "@sinclair/typebox": "^0.34.51",
-    "ajv": "^8.20.0",
-    "ts-morph": "^25.0.1",
-    "ts-pattern": "^5.9.0",
-    "type-fest": "^5.8.0",
-    "typescript": "^5.7.2"
+    "@sinclair/typebox": "0.34.51",
+    "ajv": "8.20.0",
+    "ts-morph": "25.0.1",
+    "ts-pattern": "5.9.0",
+    "type-fest": "5.8.0",
+    "typescript": "5.9.3"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

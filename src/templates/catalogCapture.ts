@@ -7,6 +7,7 @@ import type {
 	TemplateRegistrySnapshot
 } from './graphTypes.js'
 import { createTemplateRegistry } from './registry.js'
+import { synthesisDiagnosticOriginForCode } from './diagnosticCatalog.js'
 
 /**
  * Capture one immutable, validated catalog from a trusted registry/snapshot or
@@ -18,6 +19,7 @@ export function captureTemplateCatalogView(
 	if (Array.isArray(catalog)) return createTemplateRegistry(catalog).snapshot()
 	if (!isLibraryOwnedTemplateCatalogView(catalog)) {
 		throw new TemplateCatalogValidationError([{
+			origin: synthesisDiagnosticOriginForCode('UntrustedTemplateCatalogView'),
 			stage: 'template',
 			code: 'UntrustedTemplateCatalogView',
 			severity: 'error',

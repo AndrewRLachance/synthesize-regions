@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 2,
+  "repository": "synthesize-regions",
+  "packageVersion": "0.3.0",
+  "ownedContracts": [
+    {
+      "id": "synthesize-regions-diagnostic-classification",
+      "owner": "synthesize-regions@0.3.0",
+      "path": "src/templates/diagnosticCatalog.ts",
+      "symbols": ["SYNTHESIS_DIAGNOSTIC_CATALOG", "classifySynthesisDiagnostics"]
+    },
+    {
+      "id": "synthesize-regions-diagnostic-schema",
+      "owner": "synthesize-regions@0.3.0",
+      "path": "src/templates/graphContracts.ts",
+      "symbols": ["ArtifactSetDiagnosticSchema"]
+    },
+    {
+      "id": "synthesize-regions-graph-and-phase-results",
+      "owner": "synthesize-regions@0.3.0",
+      "path": "src/templates/graphContracts.ts",
+      "symbols": ["RegionKindSchema", "SynthesisGraphSchema", "ArtifactSetPlanSchema", "ArtifactSetGraphCompilationResultSchema", "ArtifactSetAssemblyResultSchema", "ArtifactSetSemanticValidationResultSchema"]
+    },
+    {
+      "id": "synthesize-regions-constraint-acceptance",
+      "owner": "synthesize-regions@0.3.0",
+      "path": "src/templates/graphContracts.ts",
+      "symbols": ["ConstraintBoundStaticAcceptanceSchema"]
+    },
+    {
+      "id": "synthesize-regions-catalog-identities",
+      "owner": "synthesize-regions@0.3.0",
+      "path": "src/templates/contractIdentity.ts",
+      "symbols": ["TEMPLATE_CATALOG_CONTRACT_DIGEST_VERSION", "TEMPLATE_MANIFEST_DIGEST_VERSION", "TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION", "TemplateCatalogContractDigestSchema", "TemplateCatalogManifestDigestSchema"]
+    },
+    {
+      "id": "synthesize-regions-installed-contract-manifest",
+      "owner": "synthesize-regions@0.3.0",
+      "path": "src/templates/contractManifest.ts",
+      "symbols": ["SYNTHESIZE_REGIONS_CONTRACT_MANIFEST"]
+    }
+  ],
+  "approximatedContracts": [],
+  "documentationBoundaries": [
+    {
+      "path": "docs/synthesis-workflow-product-description.md",
+      "authority": "synthesize-regions-agent-runtime-core",
+      "requiredPhrases": ["Cross-project snapshot", "readyForApproval", "future, separately versioned Phase 4", "not implemented here"]
+    },
+    {
+      "path": "docs/synthesis-workflow-technical-design.md",
+      "authority": "synthesize-regions-agent-runtime-core",
+      "requiredPhrases": ["Cross-project snapshot", "readyForApproval", "future Phase 4 work", "not package exports"]
+    },
+    {
+      "path": "docs/synthesis-workflow-implementation-inventory.md",
+      "authority": "synthesize-regions-agent-runtime-core",
+      "requiredPhrases": ["Cross-project snapshot", "readyForApproval", "planned external work", "not current exports"]
+    },
+    {
+      "path": "docs/workspace-constraints-product-description.md",
+      "authority": "workspace-constraints",
+      "requiredPhrases": ["Cross-project snapshot", "readyForApproval", "future external Phase 4 workflow"]
+    },
+    {
+      "path": "docs/workspace-constraints-technical-design.md",
+      "authority": "workspace-constraints",
+      "requiredPhrases": ["Cross-project snapshot", "immutable staging", "Phase 4 concerns", "not Workspace Constraints features"]
+    }
+  ],
+  "entries": [
+    {
+      "id": "SR-DIAGNOSTIC-AUTHORITY",
+      "claim": "Every package diagnostic has one required origin and every failed public synthesis operation is classified by the fail-closed operation classifier.",
+      "authoritativeOwner": "synthesize-regions@0.3.0",
+      "enforcementBoundary": "src/templates/diagnosticCatalog.ts",
+      "contractVersion": "diagnostic-catalog-1",
+      "ownedSymbols": ["SYNTHESIS_DIAGNOSTIC_CATALOG", "classifySynthesisDiagnostics"],
+      "adversarialTestIds": ["test/closeout-invariants.test.ts#fails closed for diagnostic origin mismatches"],
+      "residualAssumptions": ["Custom warning diagnostics are record-only and never grant repair authority."]
+    },
+    {
+      "id": "SR-HERMETIC-PROJECT",
+      "claim": "Authoritative artifact-set TypeScript validation reads workspace source and tsconfig inheritance only from captured bytes.",
+      "authoritativeOwner": "synthesize-regions@0.3.0",
+      "enforcementBoundary": "src/templates/capturedProject.ts",
+      "contractVersion": "typescript-project-2",
+      "ownedSymbols": ["buildCapturedTypeScriptProject"],
+      "adversarialTestIds": ["test/closeout-invariants.test.ts#never reads a live tsconfig or live imported source"],
+      "residualAssumptions": ["Pinned TypeScript lib*.d.ts files are trusted toolchain inputs and are bound by contract-manifest.json."]
+    },
+    {
+      "id": "SR-ARTIFACT-IMMUTABILITY",
+      "claim": "An in-process artifact fast path requires a deep-frozen object whose complete canonical content still matches its validation fingerprint.",
+      "authoritativeOwner": "synthesize-regions@0.3.0",
+      "enforcementBoundary": "src/templates/artifactTrust.ts",
+      "contractVersion": "artifact-integrity-2",
+      "ownedSymbols": ["brandTemplateArtifact", "isLibraryOwnedTemplateArtifact"],
+      "adversarialTestIds": ["test/closeout-invariants.test.ts#freezes compiled artifacts and rejects mutable persisted artifacts"],
+      "residualAssumptions": ["Artifact values are closed JSON data and contain no accessors or proxies."]
+    },
+    {
+      "id": "SR-HERITAGE-SCREENING",
+      "claim": "heritageType fragments are runtime-capable syntax and receive the same source-surface screening as other runtime fragments.",
+      "authoritativeOwner": "synthesize-regions@0.3.0",
+      "enforcementBoundary": "src/templates/graphCoreTypes.ts",
+      "contractVersion": "region-syntax-2",
+      "ownedSymbols": ["REGION_SYNTAX_ENGINE_VERSION"],
+      "adversarialTestIds": ["test/closeout-invariants.test.ts#screens runtime expressions in heritage fragments"],
+      "residualAssumptions": ["Source screening is a policy control, not an execution sandbox."]
+    },
+    {
+      "id": "SR-CAPABILITY-CLOSURE",
+      "claim": "Capability closure is source-free, validates summaries centrally, seeds existing graph nodes and the final goal, and orders by code unit.",
+      "authoritativeOwner": "synthesize-regions@0.3.0",
+      "enforcementBoundary": "src/templates/capabilityClosure.ts",
+      "contractVersion": "capability-closure-2",
+      "ownedSymbols": ["validateTemplateCapabilityCatalog", "deriveTemplateCapabilityClosure"],
+      "adversarialTestIds": ["test/capability-closure.test.ts#rejects malformed, source-bearing, and duplicate summaries"],
+      "residualAssumptions": ["Unknown templates conservatively authorize the complete captured summary catalog."]
+    },
+    {
+      "id": "SR-CONSTRAINT-EVIDENCE",
+      "claim": "Final constraint evidence binds engine 4, evaluator and toolchain identities, and every phase task/result blob pair.",
+      "authoritativeOwner": "synthesize-regions@0.3.0",
+      "enforcementBoundary": "src/templates/graphContracts.ts",
+      "contractVersion": "constraint-bound-static-acceptance-2",
+      "ownedSymbols": ["ConstraintBoundStaticAcceptanceSchema"],
+      "adversarialTestIds": ["test/artifact-set.test.ts#exposes schema-valid graph, assembly, semantic, and constraint-bound final boundaries"],
+      "residualAssumptions": ["Workspace Constraints owns the evaluator and toolchain identity values."]
+    },
+    {
+      "id": "SR-CONTRACT-IDENTITY",
+      "claim": "Only package 0.3.0 with c6, t3, m3, planner 3, and closure 2 is accepted.",
+      "authoritativeOwner": "synthesize-regions@0.3.0",
+      "enforcementBoundary": "src/templates/contractIdentity.ts",
+      "contractVersion": "package-0.3.0",
+      "ownedSymbols": ["SYNTHESIZE_REGIONS_PACKAGE_VERSION", "TEMPLATE_CATALOG_CONTRACT_DIGEST_VERSION", "TEMPLATE_MANIFEST_DIGEST_VERSION", "TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION", "TEMPLATE_CATALOG_PLANNER_SCHEMA_VERSION", "TEMPLATE_CAPABILITY_CLOSURE_VERSION"],
+      "adversarialTestIds": ["test/contract-identity.test.ts#publishes one exact supported package and engine version matrix"],
+      "residualAssumptions": ["Old artifacts and evidence are intentionally rejected without migration."]
+    },
+    {
+      "id": "SR-INVARIANT-LEDGER",
+      "claim": "Invariant test references resolve to exact executable tests and shared contract owners are proven by exported declarations rather than source-text mentions.",
+      "authoritativeOwner": "synthesize-regions@0.3.0",
+      "enforcementBoundary": "scripts/invariant-checker-core.ts",
+      "contractVersion": "invariant-ledger-2",
+      "ownedSymbols": ["collectExecutableTests", "collectNamedImports", "collectTopLevelDeclarations"],
+      "adversarialTestIds": ["test/invariant-checker.test.ts#counts only exact executable test declarations", "test/invariant-checker.test.ts#distinguishes exported declarations and owner imports from text matches"],
+      "residualAssumptions": []
+    }
+  ]
+}

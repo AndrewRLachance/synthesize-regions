@@ -65,7 +65,31 @@ npm install
 npm test
 npm run typecheck
 npm run build
+npm run contracts:check
 ```
+
+### Contract compatibility
+
+Package `0.3.0` is a hard contract cutover. It exports catalog-contract digest
+version 6 (`c6_`), template-manifest digest version 3 (`t3_`), catalog-manifest
+digest version 3 (`m3_`), catalog planner-schema version 3, and capability
+closure version 2. Planner-schema and closure-engine versions are included in
+the `c6_` payload. Consumers must check this complete matrix rather than accept
+an arbitrary future digest prefix.
+
+There is no migration from package `0.2.x` or earlier identities, including
+persisted `c5_`, `t2_`, or `m2_` evidence. Recreate development snapshots and dependent
+evidence at the cutover. The package-owned workflow contract snapshot is
+generated from built declarations and published schemas:
+
+```bash
+npm run contracts:generate
+npm run contracts:check
+```
+
+See the
+[generated Synthesis Workflow contract snapshot](./docs/synthesis-workflow-synthesize-regions-contracts.md)
+for the exact matrix, declaration hashes, and JSON Schema inventory.
 
 ## Quick Start
 
@@ -407,6 +431,7 @@ import {
   defineTemplateCatalog,
   definePartialGraph,
   defineTemplate,
+  deriveTemplateCapabilityClosure,
   fillTemplateArtifact,
   fillTemplateArtifactWithCatalog,
   finalizeTemplateArtifact,
@@ -622,8 +647,8 @@ the same declarative catalog:
 ```ts
 const snapshot = registry.snapshot();
 const compiler = buildGraphCompiler(registry);
-const contractDigest = snapshot.contractDigest; // c5_<sha256>
-const manifestDigest = snapshot.manifestDigest; // m2_<sha256>
+const contractDigest = snapshot.contractDigest; // c6_<sha256>
+const manifestDigest = snapshot.manifestDigest; // m3_<sha256>
 const runner = createGraphRunner(snapshot, graph, {
   expectedCatalogDigest: contractDigest,
   expectedCatalogManifestDigest: manifestDigest
@@ -650,20 +675,22 @@ transitions to `failed` for the same mismatch. A mismatched
 `expectedCatalogManifestDigest` similarly produces
 `CatalogManifestDigestMismatch`.
 
-The versioned `c5_` digest hashes normalized planner-facing summaries, including
+The versioned `c6_` digest hashes normalized planner-facing summaries, including
 versions, descriptions, inputs, defaulted port settings, policies, allowlists,
 canonical schemas, types, type parameters, and outputs. Its payload also
-identifies the supported JSON Schema profile and the schema and TypeScript
-compatibility-engine versions. It intentionally excludes marked source. Each
-definition's `t2_` digest hashes that template's normalized contract and
-LF-normalized source; the catalog's `m2_` digest aggregates those executable
-identities. New artifacts record the producing `t2_` value as
+identifies the supported JSON Schema profile, schema and TypeScript
+compatibility-engine versions, catalog planner-schema version 3, and
+source-free capability-closure version 2. It intentionally excludes marked source. Each
+definition's `t3_` digest hashes that template's normalized contract and
+LF-normalized source; the catalog's `m3_` digest aggregates those executable
+identities. New artifacts record the producing `t3_` value as
 `source.templateManifestDigest`. Change a template's `version` when its
 behavior changes even if its ports do not.
 
-Legacy artifacts remain structurally readable, but an older manifest identity
-cannot finalize against a nonmatching current catalog. Digest-shaped strings
-alone never establish artifact ownership.
+Closed package contracts reject older manifest identities before fill or
+finalization. There is no identity migration: recapture the catalog and
+reproduce dependent artifacts. Digest-shaped strings alone never establish
+artifact ownership.
 
 Partial compilation preserves required inputs as durable artifact markers. Each
 entry in `unresolvedInputs` has a stable opaque ID; use that ID when filling a
@@ -687,7 +714,7 @@ if (partial.ok && partial.finalArtifact.complete === false) {
 ```
 
 Use the catalog-aware fill and finalize functions at every serialization or
-caller-trust boundary. They bind the artifact's template ID, exact `t2_`
+caller-trust boundary. They bind the artifact's template ID, exact `t3_`
 manifest digest, concrete generic arguments, unresolved port contracts, and
 nested fragment provenance to the captured catalog. Caller-supplied child
 artifacts are recursively checked and security-screened before their code is
@@ -724,6 +751,11 @@ const strictGraphSchema =
   templateRegistryToSynthesisGraphJsonSchema(snapshot);
 const partialGraphSchema =
   templateRegistryToPartialSynthesisGraphJsonSchema(snapshot);
+
+const repairDisclosure = deriveTemplateCapabilityClosure(snapshot.summaries(), {
+  kind: "graph",
+  graph: acceptedGraph
+});
 ```
 
 The partial schema allows omitted required inputs and dangling reference/final
@@ -731,6 +763,14 @@ IDs while still constraining selected template IDs, exact generic argument
 maps, and supplied inputs. Both schemas are structural planner gates;
 `compileGraph()` remains authoritative for topology, producer compatibility,
 cycles, and final goals.
+
+`deriveTemplateCapabilityClosure()` accepts only source-free summaries. It
+instantiates exact bindings already present in a graph, follows compatible
+producer requirements, and returns one stable model-ID-ordered closure. Generic
+placeholders, missing or invalid bindings, and indeterminate type relationships
+are handled conservatively so repair does not lose an authorized producer. An
+unknown graph template falls back to the complete already-authorized summary
+catalog. No template source is returned.
 
 ### Typed graph repair protocol
 
@@ -779,6 +819,13 @@ binding and are revalidated on the next compilation.
 `applyGraphPatch()` exposes the same patch behavior without creating a runner.
 Failed graph-compilation and artifact operations expose the same contextual
 `classification` field as actionable runner states.
+
+Candidate-supplied malformed, unresolved, invalid-schema, or forbidden-`any`
+bindings produce graph-repairable `InvalidTypeArgument` diagnostics with exact
+`nodeId`, `templateId`, `typeParameterName`, and path attribution. Broader
+`InvalidTypeScriptType`, `UnresolvedTypeScriptType`, and `ForbiddenAnyType`
+diagnostics remain terminal because they can identify catalog defects rather
+than candidate-owned bindings.
 
 | Classification | Expected response |
 | --- | --- |

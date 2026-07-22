@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto'
 
 import { canonicalizeJson } from './artifactIdentity.js'
+import { compareCodeUnits } from './deterministic.js'
+import { synthesisDiagnosticOriginForCode } from './diagnosticCatalog.js'
+import { SYNTHESIZE_REGIONS_TOOLCHAIN_IDENTITY } from './contractManifest.js'
 import { canonicalizeSupportedJsonSchema } from './schemaCompatibility.js'
 import {
 	JSON_SCHEMA_COMPATIBILITY_ENGINE_VERSION,
@@ -10,6 +13,13 @@ import {
 } from './schemaTypes.js'
 import { TYPESCRIPT_COMPATIBILITY_ENGINE_VERSION } from './typeScriptCompatibility.js'
 import { REGION_SYNTAX_ENGINE_VERSION } from './graphCoreTypes.js'
+import {
+	TEMPLATE_CAPABILITY_CLOSURE_VERSION,
+	TEMPLATE_CATALOG_CONTRACT_DIGEST_VERSION,
+	TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION,
+	TEMPLATE_CATALOG_PLANNER_SCHEMA_VERSION,
+	TEMPLATE_MANIFEST_DIGEST_VERSION
+} from './contractIdentity.js'
 import { assertTemplateCatalogValid, TemplateCatalogValidationError } from './catalogValidation.js'
 import type {
 	GraphTemplateDefinition,
@@ -19,18 +29,10 @@ import type {
 	TypeDescriptor
 } from './graphTypes.js'
 
-const CATALOG_CONTRACT_DIGEST_VERSION = 5
-
-/** Version of one executable template-manifest digest. */
-export const TEMPLATE_MANIFEST_DIGEST_VERSION = 2 as const
-
-/** Version of the aggregate executable catalog-manifest digest. */
-export const TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION = 2 as const
-
 type TemplateManifestDigestInput = Pick<GraphTemplateDefinition<any, string, any>, 'source' | 'summary'>
 
 function sortedUnique(values: readonly string[] | undefined): string[] {
-	return [...new Set(values ?? [])].sort()
+	return [...new Set(values ?? [])].sort(compareCodeUnits)
 }
 
 function normalizeRawCodePolicy(policy: RawCodePolicy | undefined): Record<string, unknown> {
@@ -135,7 +137,7 @@ export function normalizeTemplateSummaries(
 			...(summary.description === undefined ? {} : { description: summary.description }),
 			...(summary.typeParameters === undefined ? {} : {
 				typeParameters: Object.fromEntries(
-					Object.keys(summary.typeParameters).sort().map(name => {
+					Object.keys(summary.typeParameters).sort(compareCodeUnits).map(name => {
 						const parameter = summary.typeParameters![name]!
 						return [name, {
 							...(parameter.description === undefined ? {} : { description: parameter.description }),
@@ -145,7 +147,7 @@ export function normalizeTemplateSummaries(
 				)
 			}),
 			inputs: Object.fromEntries(
-				Object.keys(summary.inputs).sort().map(inputName => [
+				Object.keys(summary.inputs).sort(compareCodeUnits).map(inputName => [
 					inputName,
 					normalizeInputPortSummary(summary.inputs[inputName]!)
 				])
@@ -164,17 +166,20 @@ export function normalizeTemplateSummaries(
 export function templateSummaryContractDigest(summaries: readonly TemplateSummary[]): string {
 	const payload = canonicalizeJson([
 		'template-catalog-contract',
-		CATALOG_CONTRACT_DIGEST_VERSION,
+		TEMPLATE_CATALOG_CONTRACT_DIGEST_VERSION,
 		{
+			synthesizeRegionsToolchainIdentity: SYNTHESIZE_REGIONS_TOOLCHAIN_IDENTITY,
 			regionSyntaxEngineVersion: REGION_SYNTAX_ENGINE_VERSION,
 			jsonSchemaDialect: JSON_SCHEMA_DIALECT_URI,
 			jsonSchemaProfileVersion: SUPPORTED_JSON_SCHEMA_VERSION,
 			jsonSchemaCompatibilityEngineVersion: JSON_SCHEMA_COMPATIBILITY_ENGINE_VERSION,
-			typeScriptCompatibilityEngineVersion: TYPESCRIPT_COMPATIBILITY_ENGINE_VERSION
+			typeScriptCompatibilityEngineVersion: TYPESCRIPT_COMPATIBILITY_ENGINE_VERSION,
+			templateCatalogPlannerSchemaVersion: TEMPLATE_CATALOG_PLANNER_SCHEMA_VERSION,
+			templateCapabilityClosureVersion: TEMPLATE_CAPABILITY_CLOSURE_VERSION
 		},
 		normalizeTemplateSummaries(summaries)
 	])
-	return `c${CATALOG_CONTRACT_DIGEST_VERSION}_${createHash('sha256').update(payload, 'utf8').digest('hex')}`
+	return `c${TEMPLATE_CATALOG_CONTRACT_DIGEST_VERSION}_${createHash('sha256').update(payload, 'utf8').digest('hex')}`
 }
 
 /** Compute the identity of one exact executable template manifest. */
@@ -185,7 +190,10 @@ export function templateManifestDigest(template: TemplateManifestDigestInput): s
 	const payload = canonicalizeJson([
 		'template-manifest',
 		TEMPLATE_MANIFEST_DIGEST_VERSION,
-		{ regionSyntaxEngineVersion: REGION_SYNTAX_ENGINE_VERSION },
+		{
+			regionSyntaxEngineVersion: REGION_SYNTAX_ENGINE_VERSION,
+			synthesizeRegionsToolchainIdentity: SYNTHESIZE_REGIONS_TOOLCHAIN_IDENTITY
+		},
 		normalizedSummary,
 		normalizedSource
 	])
@@ -217,6 +225,7 @@ export function templateCatalogDigest(
 		return templateSummaryContractDigest(templates.map(template => template.summary()))
 	} catch (error) {
 		throw new TemplateCatalogValidationError([{
+			origin: synthesisDiagnosticOriginForCode('CatalogContractNotSerializable'),
 			stage: 'template',
 			code: 'CatalogContractNotSerializable',
 			severity: 'error',

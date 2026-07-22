@@ -1,5 +1,11 @@
 # Technical Design: Workspace Constraints
 
+> **Cross-project snapshot:** Workspace Constraints owns parsing, normalized
+> policy, facts, diagnostics, and evaluation. Runtime-core owns orchestration
+> and this integration document's authoritative source. Runtime Phase 1–3 ends
+> at immutable staging; approval and filesystem application are Phase 4 concerns,
+> not Workspace Constraints features.
+
 **Status:** Phase 3 implemented
 **Version:** 1.0
 **Primary language:** TypeScript
@@ -11,10 +17,10 @@ This document defines Workspace Constraints, a declarative language and static
 evaluation engine for directory-, file-, TypeScript-, dependency-, and
 synthesis-provenance-wide invariants.
 
-Workspace Constraints complements the controlled code-production model in
-[Graph Template Authoring](./TEMPLATES.md) and
-[Synthesis Graphs](./SYNTHESIS_GRAPHS.md). It extends the fixed acceptance
-pipeline in the
+Workspace Constraints complements the controlled graph-template and
+synthesis-graph model summarized in the
+[runtime's copied `synthesize-regions` contracts](./synthesis-workflow-synthesize-regions-contracts.md).
+It extends the fixed acceptance pipeline in the
 [agent runtime design](./synthesis-workflow-technical-design.md) without adding
 executable validators or project-command execution.
 
@@ -24,8 +30,13 @@ for goals and boundaries.
 
 The v1 parser, normalized typed IR, source maps, evaluator contracts, four-phase
 evaluation API, and published JSON Schemas are implemented by the sibling
-`workspace-constraints` package. The runtime captures their exact source
+`workspace-constraints` package. This runtime captures their exact source
 closure and normalized identities and binds every phase result into staging.
+The source-language/parser contract remains version `1`; normalized IR and
+source-map contracts remain schema version `2`; compiled capture,
+evaluation-input, and phase-result evidence use schema version `3`. The
+corrected sole evaluator uses engine version `4` while semantic digests retain
+the `wc1_` prefix.
 
 ## 2. Goals
 
@@ -68,25 +79,31 @@ The design does not:
 The `.wsc` language is a readable authoring layer. The authoritative contract
 is a schema-validated, normalized `WorkspaceConstraintSet` JSON value.
 
-```text
-entry .wsc + explicit imports
-          |
-parse and source diagnostics
-          |
-resolve immutable import closure
-          |
-name, type, phase, and budget validation
-          |
-normalized WorkspaceConstraintSet
-          |
-canonical JSON + engine identities
-          |
-constraintDigest
+```mermaid
+flowchart TD
+    Workspace["Descriptor-rooted immutable workspace capture"] --> Manifest["Workspace manifest and file CAS blobs"]
+    Manifest --> Closure["Read .wsc entry and explicit import closure"]
+    Closure --> Parse["Parse and source diagnostics"]
+    Parse --> Resolve["Resolve names, imports, bindings, facts, and path patterns"]
+    Resolve --> Validate["Type, phase, join, and budget validation"]
+    Validate --> IR["WorkspaceConstraintSet v2 and ConstraintSourceMap v2"]
+    IR --> Semantic["Canonical JSON plus engine-contract identity"]
+    Semantic --> Digest["wc1_ constraintDigest"]
+    Closure --> SourceHash["constraintSourceSnapshotHash"]
+    Manifest --> AnalysisHash["analysisSnapshotHash for authorized roots"]
+    Digest --> Identity["WorkspaceConstraintIdentity, engine 4"]
+    SourceHash --> Identity
+    AnalysisHash --> Identity
+    IR --> CaptureBlob["Schema-v3 runtime capture CAS object"]
+    Closure --> CaptureBlob
+    CaptureBlob --> Identity
 ```
 
-Runtime evaluation never reparses source strings from persisted session state.
-It evaluates a validated normalized constraint set whose digest matches the
-captured source closure.
+Runtime evaluation never reparses source strings from session fields. At the
+session repository boundary, the schema-v3 capture CAS object, module hashes,
+exact source text, workspace manifest, and captured identity are cross-checked.
+A phase handler later reads that immutable object, checks its normalized digest,
+and submits the schema-validated normalized set to a one-shot static worker.
 
 ### 4.2 Constraint modules are data
 
@@ -112,8 +129,10 @@ The complete imported module closure is captured before planning. Every module
 path and content hash is part of the constraint capture. Active module paths
 are rejected as artifact targets for the entire session.
 
-Changing repository constraint files makes the live workspace stale; it never
-changes an already captured session in place.
+Changing repository constraint files never changes an already captured session
+in place. Comparing a later mutable live target with the approved capture is a
+Phase 4 application-preflight responsibility; Phase 3 evaluates and stages only
+against the immutable capture.
 
 ### 4.5 Required uncertainty fails closed
 
@@ -124,8 +143,10 @@ type ConstraintOutcome = 'passed' | 'failed' | 'indeterminate'
 ```
 
 `indeterminate` is not equivalent to `false`. It represents unavailable or
-incomplete mandatory evidence. An indeterminate error rule fails static
-acceptance. An indeterminate warning is reported but remains non-gating.
+incomplete mandatory evidence. Every indeterminate evaluation fails closed as
+an error before enforcement-mode comparison, even when the authored rule has
+warning severity. Warning severity is non-gating only for determinate failed
+assertions.
 
 ### 4.6 Evaluation is bounded
 
@@ -166,7 +187,7 @@ facts.
 
 ### 6.1 Entry and modules
 
-The default entry file is:
+The conventional entry file is:
 
 ```text
 .synthesize-regions/constraints.wsc
@@ -241,9 +262,9 @@ Path patterns are workspace-relative POSIX patterns:
 - `:name.suffix.ts` captures the prefix of one segment;
 - all other characters are literals subject to path normalization.
 
-Captures cannot contain separators, `.`, `..`, NUL, or an absolute-path
-prefix. Interpolation is permitted only in path-template operands and escapes
-captures as segments.
+Captures cannot contain separators or NUL and cannot equal `.` or `..`.
+Interpolation is permitted only in path-template operands and validates
+captures as complete segments.
 
 The pattern language is not a regular-expression dialect. A future regex fact
 must use a separately versioned, bounded predicate.
@@ -277,7 +298,7 @@ access, and dynamic selector construction are invalid.
 
 ```ts
 interface WorkspaceConstraintSet {
-  schemaVersion: 1;
+  schemaVersion: 2;
   id: string;
   modules: ConstraintModuleReference[];
   rules: WorkspaceConstraintRule[];
@@ -294,11 +315,12 @@ interface ConstraintModuleCapture extends ConstraintModuleReference {
 
 interface WorkspaceConstraintRule {
   id: string;
+  modulePath: string;
   phase: ConstraintPhase;
   mode: ConstraintMode;
   severity: ConstraintSeverity;
   selector: ConstraintSelector;
-  joins: ConstraintJoin[];
+  joins: ConstraintSelector[];
   assertions: ConstraintExpression[];
 }
 
@@ -307,43 +329,37 @@ type ConstraintMode = 'candidate' | 'changed' | 'noNewViolations';
 type ConstraintSeverity = 'error' | 'warning';
 ```
 
-The published schema validates generic wire shape. Canonical compilation also
-performs name resolution, selector typing, expression typing, phase/fact
-availability, baseline comparability, and budget validation.
+The published schema is closed and strict. Canonical compilation also performs
+name resolution, selector typing, expression typing, phase/fact availability,
+baseline comparability, join correlation, and budget validation.
 
 ### 7.2 Selector representation
 
-Selectors use a closed discriminated union. Representative variants are:
+Selectors use one closed normalized shape whose fields are constrained by the
+selector kind:
 
 ```ts
-type ConstraintSelector =
-  | {
-      kind: 'files';
-      binding: string;
-      pathPattern: string;
-    }
-  | {
-      kind: 'directories';
-      binding: string;
-      pathPattern: string;
-    }
-  | {
-      kind: 'artifacts';
-      binding: string;
-      predicate?: ConstraintExpression;
-    }
-  | {
-      kind: 'declarations' | 'imports' | 'exports';
-      binding: string;
-      files: FileSelector;
-      predicate?: ConstraintExpression;
-    }
-  | {
-      kind: 'generatedRanges';
-      binding: string;
-      files: FileSelector;
-      predicate?: ConstraintExpression;
-    };
+interface ConstraintSelector {
+  kind:
+    | 'files'
+    | 'directories'
+    | 'artifacts'
+    | 'declarations'
+    | 'imports'
+    | 'exports'
+    | 'generatedRanges';
+  bindingId: string;
+  subjectType: ConstraintSubjectTypeId;
+  pathPattern?: ConstraintPathPattern;
+  named?: string;
+  predicate?: ConstraintExpression;
+}
+
+interface ConstraintPathPattern {
+  segments: ConstraintPathSegment[];
+  singleton: boolean;
+  correlatedBindingIds: string[];
+}
 ```
 
 Semantic symbols and signatures are reached through typed syntax/export
@@ -352,17 +368,27 @@ path-bounded selector anchor.
 
 ### 7.3 Expression representation
 
-The IR stores expression operators, resolved binding references, and typed fact
-IDs rather than source-language strings:
+The IR stores expression operators, resolved binding references, typed fact
+IDs, navigation behavior, and a resolved `valueType` on every node rather than
+free-form source-language names. Representative nodes are:
 
 ```ts
-type ConstraintExpression =
+type ConstraintExpression = ExpressionBase & (
   | { kind: 'literal'; value: string | number | boolean | null }
+  | { kind: 'pathLiteral'; pattern: ConstraintPathPattern }
   | { kind: 'set'; values: ConstraintExpression[] }
+  | { kind: 'binding'; bindingId: string }
   | {
       kind: 'fact';
-      bindingId: string;
+      subject: ConstraintExpression;
       factId: WorkspaceFactId;
+      navigation: 'value' | 'project' | 'filter';
+    }
+  | { kind: 'capture'; subject: ConstraintExpression; name: string }
+  | {
+      kind: 'helper';
+      helperId: 'file' | 'type' | 'pascal' | 'count' | 'unique' | 'contains';
+      arguments: ConstraintExpression[];
     }
   | {
       kind: 'logical';
@@ -375,9 +401,21 @@ type ConstraintExpression =
     }
   | {
       kind: 'compare';
-      operator: 'equal' | 'lessThan' | 'lessThanOrEqual';
+      operator:
+        | 'equal'
+        | 'notEqual'
+        | 'lessThan'
+        | 'lessThanOrEqual'
+        | 'greaterThan'
+        | 'greaterThanOrEqual';
       left: ConstraintExpression;
       right: ConstraintExpression;
+    }
+  | {
+      kind: 'membership';
+      operator: 'in' | 'notIn';
+      item: ConstraintExpression;
+      collection: ConstraintExpression;
     }
   | {
       kind: 'pathPredicate';
@@ -398,7 +436,12 @@ type ConstraintExpression =
       operator: 'assignableTo' | 'sameSymbol';
       actual: ConstraintExpression;
       expected: ConstraintExpression;
-    };
+    }
+);
+
+interface ExpressionBase {
+  valueType: ConstraintValueType;
+}
 ```
 
 The implementation may use more specialized internal nodes, but persisted IR
@@ -422,17 +465,20 @@ Normalized module paths and module IDs remain in the IR and do affect identity.
 The expression checker recognizes:
 
 ```text
-Boolean, Integer, String, Path, PathSegment
-File, Directory, Artifact, ArtifactTarget
-Declaration, Import, Export, Decorator
-Symbol, Signature, Type
+Boolean, Integer, String, Path, PathSegment, JSON, Null
+opaque Symbol and Type values
+File, Directory, Artifact, ArtifactTarget, ArtifactGoal
+Declaration, Import, Export, Signature, Edit
 GeneratedRange, Provenance, GraphNode, TemplateInput
-Collection<T>, Set<T>, Optional<T>
+Collection<T>
 ```
 
 There is no implicit conversion between `String`, `Path`, and
 `PathSegment`. TypeScript `Type` values are opaque handles owned by the
 semantic fact provider and cannot be serialized as compiler objects.
+Set literals normalize to deterministic `Collection<T>` values. Decorators and
+modifiers are string collections on declaration subjects rather than separate
+subject types.
 
 ### 8.2 Fact families
 
@@ -477,7 +523,11 @@ provenance facts normally use `candidate` or `changed`, not
 
 Semantic evaluation uses the same captured `tsconfig`, normalized workspace
 paths, and baseline/candidate overlay required by artifact-set static
-acceptance.
+acceptance. It parses that exact configuration without a fallback project and
+admits only authorized analysis-root files plus trusted TypeScript libraries.
+Missing or malformed configuration, inaccessible imports, unresolved aliases
+or descriptors, and compiler roots outside that authority are indeterminate
+and fail closed.
 
 The fact provider creates or reuses two programs:
 
@@ -525,7 +575,9 @@ Compilation rejects:
 - type-incompatible expressions;
 - facts unavailable in the selected phase;
 - non-baseline-comparable `noNewViolations` rules;
-- statically unbounded joins or aggregates;
+- joins that are neither provably singleton nor atomically correlated with an
+  earlier binding;
+- statically unbounded aggregates;
 - expressions exceeding configured structural budgets.
 
 No partially valid constraint set may enter a synthesis session.
@@ -553,14 +605,16 @@ versioned `wc1_` prefix:
 ```text
 wc1_ SHA-256(
   canonical JSON {
-    identityVersion,
-    normalized WorkspaceConstraintSet,
-    sourceGrammarVersion,
-    irSchemaVersion,
-    expressionEngineVersion,
-    factCatalogVersion,
-    pathPatternVersion,
-    TypeScriptCompatibilityVersion
+    compilerIdentity: {
+      sourceLanguageVersion: 1,
+      normalizedIrVersion: 2,
+      sourceMapVersion: 2,
+      compiledCaptureSchemaVersion: 3,
+      evaluatorVersion: 4,
+      factProviderVersion: 2,
+      pathPatternVersion: 4
+    },
+    constraintSet: WorkspaceConstraintSet
   }
 )
 ```
@@ -580,8 +634,14 @@ interface WorkspaceConstraintIdentity {
   constraintEntryPath: string;
   constraintDigest: string;
   constraintSourceSnapshotHash: string;
-  constraintEngineVersion: number;
+  constraintEngineVersion: 4;
+  constraintCompilerIdentity: string;
+  constraintEvaluatorIdentity: string;
+  constraintToolchainIdentity: string;
   analysisSnapshotHash: string;
+  analysisRoots: string[];
+  captureBlobHash: string;
+  modulePaths: string[];
 }
 
 interface ArtifactSetCandidate {
@@ -596,7 +656,7 @@ analysis-snapshot change invalidates staged state and approval.
 
 ## 11. Request and Authorization
 
-The synthesis request adds:
+The authoritative captured synthesis request contains:
 
 ```ts
 interface WorkspaceConstraintRequest {
@@ -610,6 +670,14 @@ interface SynthesisRequest {
   constraints?: WorkspaceConstraintRequest;
 }
 ```
+
+Production callers do not assert `expectedConstraintDigest`. Their
+`SessionConstraintCaptureDraft` supplies only `entryPath` and `analysisRoots`.
+`captureSessionInput()` captures and compiles the exact module bytes, derives
+the digest and source-snapshot hash, persists the schema-v3 capture object, and
+then constructs the internal request above with the derived digest. The
+`expectedConstraintDigest` field is therefore a later integrity check, not a
+source of authority.
 
 Omitting `constraints` disables repository-specific constraint evaluation for
 that session, but does not remove states from the canonical workflow. Each fixed
@@ -635,11 +703,11 @@ Information has separate visibility:
 | Parser/compiler | Captured constraint module closure |
 | Fact providers | Captured files below authorized analysis roots |
 | Evaluator | Typed facts and bounded evidence |
-| Models | Rule summaries, selected subject metadata, bounded diagnostics |
-| Approver | Rules/digest, diagnostics, resulting diff, and provenance |
+| Models | Bounded policy/catalog summaries and actionable diagnostics after failure; never rule source or normalized IR |
+| Approval envelope consumer | Constraint identity, phase-evidence hashes, resulting-file summaries, and CAS references |
 
-Raw source excerpts in model diagnostics follow the runtime's existing
-redaction and minimum-disclosure policy.
+Constraint diagnostic projections contain bounded structured evidence and
+provenance, not raw constraint modules or analyzed workspace source.
 
 ### 11.2 Immutable module targets
 
@@ -657,6 +725,13 @@ allowed create root or exact replacement target.
 The baseline is the immutable captured workspace. The candidate is produced by
 assembling the authoritative artifact-set plan and fill ledger over that
 baseline. Neither view reads mutable live files during evaluation.
+
+The captured runtime-context loader verifies every manifest file against its
+CAS bytes and derives an exact partition of UTF-8 `workspaceFiles` and
+`unavailableTextPaths`. Non-UTF-8 files remain identity-bearing workspace data
+but are not exposed as text facts. The captured tsconfig and every
+TypeScript/JavaScript analysis input must be available as verified text;
+otherwise semantic evidence fails closed.
 
 ### 12.2 Changed subjects
 
@@ -684,7 +759,8 @@ not satisfy the rule.
 ### 12.4 No-new-violations mode
 
 `noNewViolations` evaluates the same normalized selector and assertions in
-both views. Each failed or indeterminate assertion produces a violation key:
+both views. Indeterminate candidate or baseline evidence fails closed before
+multiset comparison. Each determinate failed assertion produces a violation key:
 
 ```ts
 interface ConstraintViolationKey {
@@ -704,7 +780,8 @@ violations:
 - an unmatched candidate occurrence is new and gating;
 - increased multiplicity is gating;
 - removed occurrences are recorded as improvements;
-- an indeterminate candidate result cannot consume a failed baseline result.
+- inaccessible or otherwise indeterminate baseline/candidate facts never
+  cancel one another or consume a determinate violation.
 
 If stable correlation cannot be established for a mandatory subject, the rule
 is indeterminate rather than silently treated as legacy.
@@ -714,53 +791,61 @@ is indeterminate rather than silently treated as legacy.
 When configured, constraint evaluation is interleaved with existing artifact
 processing. When absent, the same fixed states commit `notConfigured` skips:
 
-```text
-capture workspace + constraints
-          |
-validate module closure and expected digest
-          |
-artifact-set outline
-          |
-evaluate plan rules
-          |
-compile graphs and replay fills
-          |
-evaluate artifact/provenance rules
-          |
-validate targets and assemble candidate overlay
-          |
-evaluate assembled tree and syntax rules
-          |
-build/reuse baseline and candidate TypeScript programs
-          |
-existing semantic comparison + semantic constraint rules
-          |
-canonical accepted change set bound to constraintDigest
+```mermaid
+flowchart TD
+    Capture["Capture workspace and optional constraint closure"] --> Outline["Artifact-set outline"]
+    Outline --> PlanGate["Plan constraint phase"]
+    PlanGate -- Passed or skipped --> Compile["Per-artifact graph planning,<br/>compilation, and accepted fills"]
+    Compile --> ArtifactGate["Artifact/provenance constraint phase"]
+    ArtifactGate -- Passed or skipped --> Assembly["Target validation and virtual assembly"]
+    Assembly --> AssembledGate["Assembled tree/syntax constraint phase"]
+    AssembledGate -- Passed or skipped --> Semantic["Baseline/candidate TypeScript semantic comparison"]
+    Semantic --> SemanticGate["Semantic constraint phase"]
+    SemanticGate -- Passed or skipped --> Finalize["Authoritative finalization and CAS staging"]
+
+    PlanGate -- Failed --> Route["Closed diagnostic/provenance router<br/>(determinate plan failures are set-scoped)"]
+    ArtifactGate -- Failed --> Route
+    AssembledGate -- Failed --> Route
+    SemanticGate -- Failed --> Route
+    Route --> Input["Exact input owner: Input Synthesizer"]
+    Route --> Graph["Exact node owner: Graph Repairer"]
+    Route --> Set["Set scope: Artifact-Set Repairer"]
+    Route --> Terminal["Unknown, indeterminate, identity,<br/>scope, integrity, or budget failure"]
+    Input --> Compile
+    Graph --> Compile
+    Set --> PlanGate
+
+    classDef runtime fill:#e8f1ff,stroke:#315f9b,color:#10243e;
+    classDef model fill:#fff7d6,stroke:#8a6d1d,color:#2f2500;
+    classDef success fill:#e8f7ec,stroke:#2f7d43,color:#153b20;
+    classDef failure fill:#fdecec,stroke:#a33a3a,color:#4d1717;
+    class Capture,Outline,PlanGate,Compile,ArtifactGate,Assembly,AssembledGate,Semantic,SemanticGate,Route runtime;
+    class Input,Graph,Set model;
+    class Finalize success;
+    class Terminal failure;
 ```
 
 ### 13.1 Incremental reevaluation
 
-Constraint compilation records fact dependencies per rule. A candidate revision
-invalidates:
+The runtime stores phase-granular evidence. A candidate revision invalidates
+evidence from the earliest affected boundary:
 
-- plan rules for any plan patch;
-- artifact rules for changed graph, fill, or compiled artifact identity;
-- assembled rules for affected paths and selector ancestors;
-- semantic rules for affected program files and resolved dependency consumers.
+- an accepted artifact-set patch restarts at plan constraints;
+- an accepted graph or input/fill change retains valid plan evidence and
+  restarts compilation, then artifact constraints;
+- new compilation invalidates assembly, assembled constraints, semantics, and
+  semantic constraints;
+- new assembly invalidates assembled and semantic evidence.
 
-The evaluator may cache immutable baseline facts and unaffected candidate facts.
-Caching cannot change canonical results or diagnostic ordering.
+All applicable rules in an invalidated phase are evaluated again. Immutable
+phase-result blob hashes, rather than an undocumented fact cache, are the
+runtime's durable evidence.
 
 ### 13.2 Deterministic ordering
 
-Results are ordered by:
-
-1. phase;
-2. rule ID;
-3. normalized primary subject path;
-4. primary UTF-16 start;
-5. assertion index;
-6. subject stable ID.
+Within a phase result, diagnostics are ordered by rule ID, assertion index,
+subject stable ID, diagnostic code, and message. Phase ordering comes from the
+fixed workflow and the four separately persisted phase results.
 
 Truncation occurs only after deterministic ordering and emits an explicit
 diagnostic count/truncation record.
@@ -770,25 +855,32 @@ diagnostic count/truncation record.
 ### 14.1 Contract
 
 ```ts
-interface WorkspaceConstraintDiagnostic extends SynthesisDiagnostic {
+interface WorkspaceConstraintDiagnostic {
+  stage: 'policy';
   code:
     | 'WorkspaceConstraintFailed'
     | 'WorkspaceConstraintIndeterminate'
     | 'WorkspaceConstraintInvalid'
     | 'WorkspaceConstraintDigestMismatch'
-    | 'WorkspaceConstraintBudgetExceeded';
+    | 'WorkspaceConstraintBudgetExceeded'
+    | 'WorkspaceConstraintImprovement'
+    | 'WorkspaceConstraintDiagnosticsTruncated';
 
+  severity: 'error' | 'warning';
+  message: string;
   ruleId?: string;
   phase?: ConstraintPhase;
   mode?: ConstraintMode;
-  outcome?: 'failed' | 'indeterminate';
+  outcome?: 'failed' | 'indeterminate' | 'improved';
   assertionIndex?: number;
   subject?: ConstraintSubjectDescriptor;
   artifactId?: string;
   nodeId?: string;
   templateId?: string;
   inputName?: string;
-  repairHints?: SynthesisRepairHint[];
+  expected?: JsonValue;
+  actual?: JsonValue;
+  repairHints?: Array<Record<string, JsonValue>>;
 }
 
 interface ConstraintSubjectDescriptor {
@@ -801,14 +893,16 @@ interface ConstraintSubjectDescriptor {
 }
 ```
 
-Diagnostics use `stage: "policy"`. Expected and actual fields contain
-JSON-safe summarized evidence, never compiler object graphs.
+The runtime admits this closed diagnostic object into its broader diagnostic
+union. Optional expected and actual fields contain JSON-safe summarized
+evidence, never compiler object graphs.
 
 ### 14.2 Attribution
 
-For a syntax or semantic subject inside an assembled edit, the evaluator maps
-candidate file coordinates to the owning artifact edit and calls the existing
-deepest generated-source-span lookup.
+For a generated subject inside an assembled edit, the runtime maps artifact
+source-map spans through their assembled placements and supplies those
+`generatedRanges` to the evaluator. The evaluator chooses the deepest available
+subject/provenance owner for the diagnostic.
 
 Attribution preference is:
 
@@ -826,7 +920,8 @@ primary owner is used for deterministic repair routing.
 - A passed rule emits no acceptance diagnostic; optional metrics record it.
 - A failed error assertion emits a gating diagnostic.
 - A failed warning assertion emits a non-gating warning.
-- An indeterminate error assertion emits a gating indeterminate diagnostic.
+- Any indeterminate assertion emits a gating error diagnostic before
+  enforcement-mode comparison.
 - A baseline violation consumed by `noNewViolations` is context, not a
   candidate failure.
 - A removed baseline violation may be reported as a non-gating improvement.
@@ -876,8 +971,8 @@ type ArtifactSetPatchAction =
     };
 ```
 
-An `ArtifactOutline` contains identity, objective, authorized target, and goal,
-not a model-authored executable template or detached complete graph. Added or
+An `ArtifactOutline` contains an artifact ID, authorized target, and optional
+goal, not a model-authored executable template or detached complete graph. Added or
 goal/target-invalidated outlines return to Graph Planning. Removal and
 invalidation update the fill ledger and staged-state invalidation
 transactionally.
@@ -925,28 +1020,33 @@ states, transitions, effects, guards, or authorization rules.
 
 ### 16.3 Commands, events, and outbox work
 
-Constraint-related event families include:
+Constraint capture occurs before the `CaptureSession` command. The accepted
+`SessionCaptured` event carries the CAS-bound `WorkspaceConstraintIdentity`.
+Capture failures prevent planning and can be recorded as
+`SessionCaptureRejected` through the rejection command. The implemented
+constraint-related lifecycle events are:
 
-- constraint capture started/completed/rejected;
-- constraint phase skipped with `notConfigured` or `noApplicableRules`;
-- constraint module and normalized-set blobs captured;
-- constraint phase evaluation started/completed;
-- constraint diagnostic set recorded;
-- artifact-set patch proposed/accepted/rejected;
-- analysis budget exhausted;
-- constraint identity invalidated;
-- staged change set invalidated by constraint or analysis change.
+- `<Phase>ConstraintsPassed`, `<Phase>ConstraintsFailed`, or
+  `<Phase>ConstraintsSkipped` with `notConfigured` or `noApplicableRules`;
+- `ConstraintRepairRoutedInput`, `ConstraintRepairRoutedGraph`,
+  `ConstraintRepairRoutedSet`, or `ConstraintFailureTerminal`;
+- `ArtifactSetPatchAccepted` or `ArtifactSetPatchRejected`;
+- generic `BudgetExhausted` and terminal work-failure events where those
+  cross-cutting conditions apply.
 
 Events reference content-addressed blobs and participate in existing
 compare-and-swap revision updates.
 
-Evaluations are external work derived from committed events and inserted into
-the transactional outbox. A worker result returns as a revision-, phase-,
-constraint-digest-, source-snapshot-, and analysis-snapshot-bound command. The
-pure command decider authorizes the result and proposes lifecycle/observation
-events; the pure reducer reconstructs the declared target state. XState remains
-a generated visualization and path-analysis projection and performs no
-constraint work.
+Evaluations are deterministic external work derived from committed events and
+inserted into the transactional outbox. The dispatcher claims the work under
+outbox and session leases. A production one-shot worker validates a closed
+static task, its authority identities, and immutable views before calling the
+evaluator. The parent validates the task-hashed result again, persists it in
+CAS, and returns a revision-, phase-, constraint-digest-, source-snapshot-, and
+analysis-snapshot-bound `CompleteConstraintPhase` command. The pure decider
+authorizes the result and proposes lifecycle events; the pure reducer
+reconstructs the target state. XState remains a generated visualization and
+path-analysis projection and performs no constraint work.
 
 ## 17. Static Acceptance and Approval
 
@@ -954,11 +1054,20 @@ A statically accepted constrained result adds:
 
 ```ts
 interface ConstraintBoundStaticAcceptance {
+  schemaVersion: 2;
   constraintEntryPath: string;
   constraintDigest: string;
   constraintSourceSnapshotHash: string;
   analysisSnapshotHash: string;
-  constraintEngineVersion: number;
+  constraintEngineVersion: 4;
+  evaluatorIdentity: string;
+  toolchainIdentity: string;
+  phaseEvidence: {
+    plan: { taskHash: string; resultBlobHash: string };
+    artifact: { taskHash: string; resultBlobHash: string };
+    assembled: { taskHash: string; resultBlobHash: string };
+    semantic: { taskHash: string; resultBlobHash: string };
+  };
 }
 ```
 
@@ -966,19 +1075,24 @@ The canonical change-set hash covers those fields alongside catalog digests,
 workspace snapshot hash, static-policy version, targets, base hashes, exact
 result bytes, and provenance.
 
-Approval continues to supply the exact session revision and change-set hash.
-Any exact constraint module bytes, digest, engine, analysis root, analysis
-snapshot, or candidate change makes the approval stale.
+The runtime approval envelope also binds the complete static-evidence ledger,
+catalog-manifest/disclosure hashes, workspace and policy identities, canonical
+change manifest, and exact staged file blob hashes. A future Phase 4 approval
+protocol must supply the current session revision and envelope hash. Any captured constraint
+bytes, digest, engine, analysis root/snapshot, or candidate change invalidates
+staged evidence before another approval can be accepted.
 
-Application rechecks live target authorization and captured file identities. It
-does not rerun repository commands. If live constraint module bytes differ from
-the approved capture, application rejects as stale rather than applying under
-unknown policy.
+Authenticated approval coordination, live-target and live-constraint
+revalidation, and recoverable filesystem application are Phase 4. They are not
+implemented by the Phase 3 staging handlers. A future application preflight
+must reject live divergence rather than apply under unknown policy.
 
 ## 18. Resource Budgets
 
+Capture compilation uses:
+
 ```ts
-interface WorkspaceConstraintBudgets {
+interface ConstraintCaptureBudgets {
   maxModules: number;
   maxImportDepth: number;
   maxSourceBytes: number;
@@ -986,15 +1100,34 @@ interface WorkspaceConstraintBudgets {
   maxSelectorsPerRule: number;
   maxAssertionsPerRule: number;
   maxExpressionDepth: number;
-  maxSelectedSubjects: number;
-  maxFactRows: number;
-  maxJoinRows: number;
-  maxTypeQueries: number;
-  maxDiagnostics: number;
-  maxEvaluationMs: number;
-  maxEvaluationMemoryBytes: number;
 }
 ```
+
+Each phase evaluation uses:
+
+```ts
+interface ConstraintEvaluationBudgets {
+  maxFiles: number;
+  maxSourceBytes: number;
+  maxSyntaxNodes: number;
+  maxSubjectScans: number;
+  maxSelectedSubjects: number;
+  maxPathSteps: number;
+  maxFactRows: number;
+  maxJoinPairs: number;
+  maxQuantifierIterations: number;
+  maxAggregateRows: number;
+  maxTypeQueries: number;
+  maxViolationRows: number;
+  maxDiagnostics: number;
+  maxExpressionDepth: number;
+}
+```
+
+These counters charge attempted work, including scans and pairs that produce no
+row. The runtime's operation-specific one-shot-worker limits independently
+enforce wall-clock timeout and heap ceilings; neither is evaluator policy
+evidence or a caller-provided evaluator budget field.
 
 Deployment policy supplies hard ceilings. A request may select stricter values
 but cannot raise them.
@@ -1043,13 +1176,14 @@ Import order never selects a winner.
 ### Inaccessible selector
 
 A rule selecting `packages/payments/**` with analysis roots limited to
-`src/**` is indeterminate. An error rule prevents acceptance; it does not
-cause an implicit read.
+`src/**` is indeterminate and prevents acceptance regardless of authored
+severity; it does not cause an implicit read.
 
 ### Stale digest
 
-If normalized capture produces a digest different from
-`expectedConstraintDigest`, session creation or resumption fails as stale.
+If a persisted normalized capture no longer matches the derived
+`expectedConstraintDigest` in the captured request, repository loading or
+evaluation rejects the detached evidence as stale/integrity-invalid.
 
 ### Indeterminate semantic type
 
@@ -1081,21 +1215,22 @@ Planning then supplies its synthesis graph before reevaluation.
 
 ## 21. Schemas and Public Artifacts
 
-The implementation shall publish JSON Schemas for:
+The sibling package publishes TypeBox contracts and JSON Schemas for:
 
 - normalized workspace constraint sets;
-- constraint summaries disclosed to models;
-- constraint diagnostics and phase results;
-- artifact-set repair actions;
-- constraint capture and identity records.
+- compiled captures, normalized summaries, and source maps;
+- evaluation inputs, fact summaries, diagnostics, and phase results.
 
 Source grammar fixtures are not wire protocol. Persisted sessions store the
-normalized set, source-map/capture metadata, exact source blobs by hash, and
-digest.
+constraint identity and one `captureBlobHash`. That CAS object contains the
+schema-v3 compiled capture, normalized set/source-map v2, module hashes, and exact
+module source text. Phase results are separate CAS blobs referenced by the
+session's static-evidence ledger.
 
-Package exports should expose data types, schema paths, parser/compiler entry
-points, pure evaluators, and fact summaries. They must not expose hooks for
-registering arbitrary fact providers in the agent runtime.
+Package exports expose data types, schema subpaths, parser/compiler entry
+points, the pure evaluator, the closed fact and diagnostic catalogs, and fact
+summaries. They expose no hook for registering arbitrary fact providers in the
+agent runtime.
 
 ## 22. Testing Strategy
 
@@ -1125,7 +1260,8 @@ registering arbitrary fact providers in the agent runtime.
 - `noNewViolations` consumes matching baseline violations, detects increased
   multiplicity, and records improvements;
 - indeterminate results remain distinct from false assertions;
-- warnings never gate acceptance.
+- determinate warning failures never gate acceptance, while indeterminate
+  evidence always fails closed.
 
 ### Phase coverage
 
@@ -1169,27 +1305,32 @@ registering arbitrary fact providers in the agent runtime.
 - `candidate`, `changed`, and baseline violation comparison;
 - structured diagnostics and source attribution.
 
-### Phase 3: Semantic constraints
+### Phase 3: Semantic constraints and static staging
 
-- reusable baseline and candidate TypeScript programs;
+- baseline and candidate TypeScript programs built from the exact captured
+  tsconfig and authorized files;
 - module, symbol, signature, type, and assignability facts;
 - bounded cross-file joins and semantic indeterminate handling;
-- incremental invalidation and resource enforcement.
+- phase-granular invalidation and resource enforcement;
+- request/session/outbox integration and one-shot static workers;
+- Artifact-Set Repairer, deterministic routing, and no-progress behavior;
+- content-addressed finalization and approval-envelope staging.
 
-### Phase 4: Runtime repair and approval
+### Phase 4: Approval and application (out of scope)
 
-- request/session/event integration;
-- Artifact-Set Repairer and plan patch protocol;
-- deterministic routing and no-progress behavior;
-- staging, approval, application-staleness, and observability integration.
+- authenticated approval coordination;
+- live-target and live-constraint revalidation;
+- recoverable filesystem journal/application workers;
+- approval UI, HTTP transport, and operational telemetry.
 
 ## 24. Acceptance Criteria
 
 The architecture is satisfied when the system can:
 
-1. When selected, capture `.synthesize-regions/constraints.wsc` and its explicit
-   module closure without executing project code; otherwise record explicit
-   `notConfigured` phase skips.
+1. When selected, capture the configured entry (conventionally
+   `.synthesize-regions/constraints.wsc`) and its explicit module closure
+   without executing project code; otherwise record explicit `notConfigured`
+   phase skips.
 2. Produce a validated canonical IR and reproducible `constraintDigest`.
 3. Reject cycles, duplicate IDs, root escapes, unsupported facts, invalid phase
    use, and unbounded expressions.
@@ -1199,8 +1340,8 @@ The architecture is satisfied when the system can:
 6. Fail closed for inaccessible or indeterminate mandatory analysis.
 7. Attribute violations through existing artifact source maps when possible.
 8. Repair authorized set-shape failures through one scoped patch at a time.
-9. Bind the exact constraint and analysis identities into staged bytes and
-   approval.
+9. Bind the exact constraint and analysis identities into staged bytes and the
+   runtime-owned approval envelope.
 10. Never execute generated code, load custom validators, invoke project
     commands, or broaden filesystem authority.
 
@@ -1209,7 +1350,7 @@ The architecture is satisfied when the system can:
 | Area | Decision |
 | --- | --- |
 | Product name | Workspace Constraints |
-| Default entry | `.synthesize-regions/constraints.wsc` |
+| Conventional entry | `.synthesize-regions/constraints.wsc` |
 | Composition | One entry with explicit relative `.wsc` imports |
 | Authoring | Readable typed DSL |
 | Authority | Canonical schema-validated JSON IR |

@@ -5,6 +5,7 @@ import {
 	type GeneratedSourceMap,
 	type GeneratedSourceSpan
 } from './graphCoreTypes.js'
+import { compareCodeUnits } from './deterministic.js'
 
 /** Text plus source ownership ranges expressed relative to that text. */
 export interface SourceMappedText {
@@ -490,10 +491,10 @@ function comparePersistedSpans(left: GeneratedSourceSpan, right: GeneratedSource
 	return left.start - right.start
 		|| right.end - left.end
 		|| left.nestingDepth - right.nestingDepth
-		|| left.kind.localeCompare(right.kind)
-		|| (left.nodeId ?? '').localeCompare(right.nodeId ?? '')
-		|| left.templateId.localeCompare(right.templateId)
-		|| (left.kind === 'input' ? left.inputName : '').localeCompare(right.kind === 'input' ? right.inputName : '')
+		|| compareCodeUnits(left.kind, right.kind)
+		|| compareCodeUnits(left.nodeId ?? '', right.nodeId ?? '')
+		|| compareCodeUnits(left.templateId, right.templateId)
+		|| compareCodeUnits(left.kind === 'input' ? left.inputName : '', right.kind === 'input' ? right.inputName : '')
 }
 
 function compareDeepestFirst(left: GeneratedSourceSpan, right: GeneratedSourceSpan): number {
@@ -501,9 +502,9 @@ function compareDeepestFirst(left: GeneratedSourceSpan, right: GeneratedSourceSp
 		|| Number(right.kind === 'input') - Number(left.kind === 'input')
 		|| (left.end - left.start) - (right.end - right.start)
 		|| right.start - left.start
-		|| left.templateId.localeCompare(right.templateId)
-		|| (left.nodeId ?? '').localeCompare(right.nodeId ?? '')
-		|| (left.kind === 'input' ? left.inputName : '').localeCompare(right.kind === 'input' ? right.inputName : '')
+		|| compareCodeUnits(left.templateId, right.templateId)
+		|| compareCodeUnits(left.nodeId ?? '', right.nodeId ?? '')
+		|| compareCodeUnits(left.kind === 'input' ? left.inputName : '', right.kind === 'input' ? right.inputName : '')
 }
 
 function normalizeTextEdits<T extends Pick<SourceMappedTextEdit, 'start' | 'end' | 'text'>>(

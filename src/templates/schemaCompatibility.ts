@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { ErrorObject, ValidateFunction } from 'ajv'
 import Ajv2020 from 'ajv/dist/2020.js'
+import { BoundedLruMap, compareCodeUnits } from './deterministic.js'
 import {
 	JSON_SCHEMA_DIALECT_URI,
 	SUPPORTED_JSON_SCHEMA_KEYWORD_VALUES,
@@ -99,8 +100,11 @@ const ajv = new Ajv2020({
 	validateFormats: false,
 	messages: true
 })
-const validatorCache = new Map<string, ValidateFunction<unknown>>()
-const contextualValidatorCache = new Map<string, ValidateFunction<unknown>>()
+/** Maximum compiled validators retained by each JSON Schema cache. */
+export const JSON_SCHEMA_VALIDATOR_CACHE_CAPACITY = 256 as const
+
+const validatorCache = new BoundedLruMap<string, ValidateFunction<unknown>>(JSON_SCHEMA_VALIDATOR_CACHE_CAPACITY)
+const contextualValidatorCache = new BoundedLruMap<string, ValidateFunction<unknown>>(JSON_SCHEMA_VALIDATOR_CACHE_CAPACITY)
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -149,11 +153,11 @@ function canonicalize(value: JsonValue, parentKey?: string): JsonValue {
 		if (parentKey === 'oneOf') {
 			// `oneOf` is order-insensitive, but not multiplicity-insensitive: two
 			// identical matching branches cause validation to fail.
-			return [...items].sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)))
+			return [...items].sort((left, right) => compareCodeUnits(JSON.stringify(left), JSON.stringify(right)))
 		}
 		if (parentKey === 'type' || parentKey === 'required' || parentKey === 'enum' || parentKey === 'allOf' || parentKey === 'anyOf') {
 			const unique = new Map(items.map(item => [JSON.stringify(item), item]))
-			return [...unique.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([, item]) => item)
+			return [...unique.entries()].sort(([left], [right]) => compareCodeUnits(left, right)).map(([, item]) => item)
 		}
 		return items
 	}

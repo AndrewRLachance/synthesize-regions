@@ -74,7 +74,7 @@ function leafArtifact(
 
 describe('catalog-bound artifact validation', () => {
 	it('rejects forged template identity, contracts, and security-banned artifact code', () => {
-		const forgedDigest = leafArtifact('1', `t1_${'0'.repeat(64)}`)
+		const forgedDigest = leafArtifact('1', `t3_${'0'.repeat(64)}`)
 		expect(validateTemplateArtifactAgainstCatalog(forgedDigest, catalog).map(diagnostic => diagnostic.code))
 			.toContain('TemplateManifestDigestMismatch')
 
@@ -160,7 +160,7 @@ describe('catalog-bound artifact validation', () => {
 		const forged = runner.advance({
 			kind: 'fill',
 			inputs: {
-				[inputId]: { kind: 'fragment', fragment: leafArtifact('1', `t1_${'f'.repeat(64)}`) }
+				[inputId]: { kind: 'fragment', fragment: leafArtifact('1', `t3_${'f'.repeat(64)}`) }
 			}
 		})
 		expect(forged.kind).toBe('needsArtifactInputs')
