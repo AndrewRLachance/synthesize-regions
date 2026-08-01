@@ -9,6 +9,7 @@ import {
 	BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES,
 	SYNTHESIS_DIAGNOSTIC_CLASSIFICATION_CATALOG,
 	classifySynthesisDiagnosticCode,
+	compileArtifactSet,
 	compileArtifactSetGraphs,
 	createArtifactSetWorkspaceSnapshotHash,
 	createTemplateRegistry,
@@ -77,6 +78,19 @@ function fixture() {
 }
 
 describe('artifact-set workspace manifest security', () => {
+	it('uses captured tsconfig bytes without resolving the path against the host process', () => {
+		const value = fixture()
+		const result = compileArtifactSet(value.plan, value.registry, {
+			workspaceFiles: value.workspaceFiles,
+			unavailableTextPaths: value.unavailableTextPaths,
+			workspaceManifest: value.manifest,
+			workspaceSnapshotId: value.workspaceSnapshotId,
+			tsConfigFilePath: CAPTURED_TSCONFIG_PATH
+		})
+
+		expect(result).toMatchObject({ ok: true, complete: true, validation: 'static' })
+	})
+
 	it('accepts an exact text/unavailable partition and verifies every text identity', () => {
 		const value = fixture()
 		const result = compileArtifactSetGraphs(value.plan, value.registry, {

@@ -507,7 +507,9 @@ export function assembleArtifactSetTargets(
 		const integrityDiagnostics = validateTemplateArtifactAgainstCatalog(
 			unit.artifact,
 			catalogView,
-			options
+			options.securityPolicy === undefined
+				? {}
+				: { securityPolicy: options.securityPolicy }
 		).map(diagnostic => ({
 			...diagnostic,
 			artifactId: unit.id
