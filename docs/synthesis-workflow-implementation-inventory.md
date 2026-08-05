@@ -159,7 +159,7 @@ These are internal ownership boundaries, not additional npm packages.
 | Blob store | Current | Node crypto/files | Writes and verifies content-addressed blobs before an event may reference them. |
 | Outbox dispatcher | Current | SQLite repository, scheduler seam | Validates and snapshots bounded timing options, transactionally reconciles and claims bound work with its session lease, durably records provider starts and canonical responses, renews fencing, enforces hard timeouts, and dispatches post-commit handlers. |
 | Model gateway | Current | `ai`, OpenAI-compatible provider | Executes one role-specific structured invocation with cancellation and usage accounting. |
-| Catalog capture/disclosure | Current | `synthesize-regions` | Loads manifest data, captures exact `c6_`/`t3_`/`m3_` identities, derives state-specific generic schemas, and reveals complete bounded source-free disclosures or package-owned conservative capability closures. |
+| Catalog capture/disclosure | Current | `synthesize-regions` | Loads manifest data, captures exact `c7_`/`t4_`/`m4_` identities, derives state-specific generic schemas, and reveals complete bounded source-free disclosures or package-owned conservative capability closures. |
 | Role handlers | Current | Model gateway, protocol schemas | Implements Artifact-Set Planner, Graph Planner, Graph Repairer, Input Synthesizer, and Artifact-Set Repairer requests. Graph Repairer receives exact generic parameter authority; Input Synthesizer proposes exact graph inputs or unhashed fill values and infrastructure prepares authoritative fills. |
 | Workspace capture | Current | Node files/crypto, blob store | On Linux, traverses from held directory descriptors through `/proc/self/fd` with no-follow opens and pre/post identity checks; records but never follows symlinks, requires every policy-required path to be a regular file, stores exact bytes, and derives full and analysis-root snapshot identities. Unsupported platforms fail closed. |
 | Synthesis/static workers | Current | `synthesize-regions`, `workspace-constraints`, worker threads | Execute schema-closed compilation, fill preparation, constraint evaluation, assembly, semantic validation, and finalization tasks over reconstructed immutable context. |
@@ -199,7 +199,7 @@ root unless a JSON subpath is shown.
 | `templateCatalogDigest()` | API | Current | Catalog identity | Computes the planner-facing contract digest. | Planning compatibility and stale-action checks. |
 | `templateCatalogManifestDigest()` | API | Current | Catalog identity | Computes the exact catalog manifest digest. | Source-producing identity bound through static acceptance. |
 | `templateManifestDigest()` | API | Current | Provenance/catalog identity | Computes one exact template digest. | Generated ranges retain producing-template identity. |
-| `SYNTHESIZE_REGIONS_PACKAGE_VERSION`, catalog/template/manifest/planner/closure version and pattern constants, and digest TypeBox schemas | Constants/schemas | Current | Identity/versioning | Pin package `0.3.0`, `c6_`, `t3_`, `m3_`, planner schema `3`, and capability closure `2`. | Runtime startup and capture reject unsupported linked contracts rather than accepting future prefixes. |
+| `SYNTHESIZE_REGIONS_PACKAGE_VERSION`, catalog/template/manifest/planner/closure version and pattern constants, and digest TypeBox schemas | Constants/schemas | Current | Identity/versioning | Pin package `0.4.0`, `c7_`, `t4_`, `m4_`, planner schema `4`, and capability closure `3`. | Runtime startup and capture reject unsupported linked contracts rather than accepting future prefixes. |
 | `deriveTemplateCapabilityClosure()`, `TemplateCapabilityClosureRoot` | API/type | Current | Graph Planner/Graph Repairer disclosure | Derives stable source-free goal or graph producer closure with exact bound consumers and conservative generic candidates. | Unknown graph templates disclose only the complete already-authorized catalog; no model-controlled expansion occurs. |
 | `templateRegistryToSynthesisGraphJsonSchema()` | API | Current | Graph Planner schema projection | Produces a strict catalog-specific graph JSON Schema. | Constrained model output is still canonically revalidated. |
 | `templateRegistryToPartialSynthesisGraphJsonSchema()` | API | Current | Graph Planner schema projection | Produces a partial graph JSON Schema. | Allows bounded missing inputs without accepting an invalid final graph. |
@@ -450,13 +450,13 @@ filesystem mutation.
 
 ## 13. Version and Change Policy
 
-The unreleased closeout contract set is workflow `7`, protocol/reducer `6`,
-database schema `9`, captured synthesis context/static tasks `4`, model-role
-contracts `3`, prompt set `3`, approval envelope `4`, and Workspace Constraint evaluator engine
+The unreleased closeout contract set is workflow `8`, protocol/reducer `7`,
+database schema `9`, captured synthesis context/static tasks `5`, model-role
+contracts `4`, prompt set `5`, approval envelope `4`, and Workspace Constraint evaluator engine
 `4` (compiled evaluation evidence schema `3`, normalized IR/source map `2`, parser/source-language contract `1`).
-The linked synthesis contract is `synthesize-regions` `0.3.0`, catalog contract
-`6`, template/catalog manifests `3`, planner schema `3`, and capability closure
-`2`. Development databases or evidence produced by prior or incomplete
+The linked synthesis contract is `synthesize-regions` `0.4.0`, catalog contract
+`7`, template/catalog manifests `4`, planner schema `4`, and capability closure
+`3`. Development databases or evidence produced by prior or incomplete
 variants are rejected and recreated rather than migrated or upcast.
 
 - Pin exact dependency versions in the implementation lockfile. This document

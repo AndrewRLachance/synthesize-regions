@@ -269,8 +269,8 @@ literal or raw-code port.
 ```ts
 interface CapturedCatalog {
   snapshot: TemplateRegistrySnapshot;
-  contractDigest: string; // c6_...
-  manifestDigest: string; // m3_...
+  contractDigest: string; // c7_...
+  manifestDigest: string; // m4_...
   manifests: readonly GraphTemplateManifest[];
   summaries: readonly TemplateSummary[];
 }
@@ -278,10 +278,10 @@ interface CapturedCatalog {
 
 The contract digest excludes implementation source and supports planner
 compatibility. The manifest digest includes exact LF-normalized marked source,
-normalized contracts, per-template `t3_` digests, and engine versions. The
-runtime accepts exactly `synthesize-regions` `0.3.0`, catalog contract version
-`6`, template/catalog-manifest versions `3`, planner-schema version `3`, and
-capability-closure version `2`; it does not accept wildcard future prefixes.
+normalized contracts, per-template `t4_` digests, and engine versions. The
+runtime accepts exactly `synthesize-regions` `0.4.0`, catalog contract version
+`7`, template/catalog-manifest versions `4`, planner-schema version `4`, and
+capability-closure version `3`; it does not accept wildcard future prefixes.
 
 Catalog snapshots deep-copy and freeze normalized manifest data and source-free
 summaries. Compilation and filling require both expected digests. Artifact
@@ -1841,7 +1841,7 @@ those workers exist.
 ### Phase 1: Library contracts — implemented
 
 - manifest-only templates and schemas;
-- `c6_`/`t3_`/`m3_` catalog identity, explicit generic parameters/bindings,
+- `c7_`/`t4_`/`m4_` catalog identity, explicit generic parameters/bindings,
   package-owned source-free capability closure, and concrete provenance;
 - `sourceFile` support;
 - partial catalog graph schema;

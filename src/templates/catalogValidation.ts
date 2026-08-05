@@ -24,6 +24,7 @@ import {
 import { instantiateTemplateContracts } from './genericTypes.js'
 import { compareCodeUnits } from './deterministic.js'
 import { synthesisDiagnosticOriginForCode } from './diagnosticCatalog.js'
+import { validateCallableScope } from './callableScope.js'
 
 /** Template definition shape accepted by catalog validation. */
 export type CatalogTemplate = GraphTemplateDefinition<any, string, any, any>
@@ -551,6 +552,15 @@ export function validateTemplateCatalog(
 	}
 
 	for (const [templateIndex, template] of templates.entries()) {
+		for (const issue of validateCallableScope(template.callableScope, template.inputs)) {
+			context.diagnostics.push(diagnostic(
+				issue.code,
+				issue.message,
+				template,
+				`templates[${templateIndex}].${issue.path}`,
+				{ expected: issue.expected, actual: issue.actual }
+			))
+		}
 		const templateTypeParameters = (template.typeParameters ?? {}) as Record<string, TemplateTypeParameterDefinition>
 		const validationArguments = Object.fromEntries(
 			Object.entries(templateTypeParameters).map(([name, parameter]) => [

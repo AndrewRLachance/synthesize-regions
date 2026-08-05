@@ -1616,7 +1616,7 @@ function missingManifestIdentityDiagnostic(
 			...(artifact.id ? { nodeId: artifact.id } : {}),
 			templateId: artifact.source.templateId,
 			path,
-			expected: 't3_<sha256>',
+			expected: 't4_<sha256>',
 			actual: artifact.source.templateManifestDigest
 		})
 }

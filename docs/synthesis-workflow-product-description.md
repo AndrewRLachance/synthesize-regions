@@ -215,10 +215,10 @@ The normalized definition has a version and digest captured by every session.
 This private `0.1.x` core does not migrate or upcast persisted development data:
 unsupported workflow, protocol, reducer, or database versions fail explicitly
 and require a fresh database.
-The current hard-cutover identities are workflow `7`, protocol/reducer `6`,
-database schema `9`, model-role contract `3`, prompt set `3`, captured
-context/static tasks `4`, and approval envelope `4`. Catalogs use the exact
-`synthesize-regions` `0.3.0` `c6_`/`t3_`/`m3_` identity generations. Earlier
+The current hard-cutover identities are workflow `8`, protocol/reducer `7`,
+database schema `9`, model-role contract `4`, prompt set `5`, captured
+context/static tasks `5`, and approval envelope `4`. Catalogs use the exact
+`synthesize-regions` `0.4.0` `c7_`/`t4_`/`m4_` identity generations. Earlier
 development databases and evidence are recreated; there is no migration.
 The topology contains the four constraint-check phases and set-repair loop even
 when a session has no constraints. Repository `.wsc` files supply policy data

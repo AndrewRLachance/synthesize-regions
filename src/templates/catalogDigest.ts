@@ -146,6 +146,12 @@ export function normalizeTemplateSummaries(
 					})
 				)
 			}),
+			...(summary.callableScope === undefined ? {} : {
+				callableScope: {
+					parametersInput: summary.callableScope.parametersInput,
+					bodyInput: summary.callableScope.bodyInput
+				}
+			}),
 			inputs: Object.fromEntries(
 				Object.keys(summary.inputs).sort(compareCodeUnits).map(inputName => [
 					inputName,

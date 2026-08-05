@@ -51,7 +51,7 @@ describe('declarative graph template manifests', () => {
 		expect(Object.isFrozen(template.inputs)).toBe(true)
 		expect(Object.isFrozen(template.inputs.value)).toBe(true)
 		expect(Object.isFrozen((template.inputs.value.schema as { enum: string[] }).enum)).toBe(true)
-		expect(template.manifestDigest).toMatch(/^t3_[a-f0-9]{64}$/u)
+		expect(template.manifestDigest).toMatch(/^t4_[a-f0-9]{64}$/u)
 		expect(templateManifestDigest(template)).toBe(template.manifestDigest)
 
 		const lf = expressionTemplate('LineEndings', `(\n${expressionMarker('value')}\n)`)
@@ -115,10 +115,10 @@ describe('declarative graph template manifests', () => {
 		const second = expressionTemplate('Identity', expressionMarker('value', 'second'))
 
 		expect(templateCatalogDigest([first])).toBe(templateCatalogDigest([second]))
-		expect(templateCatalogDigest([first])).toMatch(/^c6_[a-f0-9]{64}$/u)
+		expect(templateCatalogDigest([first])).toMatch(/^c7_[a-f0-9]{64}$/u)
 		expect(first.manifestDigest).not.toBe(second.manifestDigest)
 		expect(templateCatalogManifestDigest([first])).not.toBe(templateCatalogManifestDigest([second]))
-		expect(templateCatalogManifestDigest([first])).toMatch(/^m3_[a-f0-9]{64}$/u)
+		expect(templateCatalogManifestDigest([first])).toMatch(/^m4_[a-f0-9]{64}$/u)
 
 		const alpha = expressionTemplate('Alpha')
 		const registry = createTemplateRegistry([first, alpha])

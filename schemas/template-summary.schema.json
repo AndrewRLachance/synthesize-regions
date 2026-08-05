@@ -496,6 +496,24 @@
         }
       }
     },
+    "SummaryCallableScope": {
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "parametersInput",
+        "bodyInput"
+      ],
+      "properties": {
+        "parametersInput": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "bodyInput": {
+          "minLength": 1,
+          "type": "string"
+        }
+      }
+    },
     "FragmentAcceptsSummary": {
       "additionalProperties": false,
       "type": "object",
@@ -736,6 +754,9 @@
               "$ref": "#/$defs/SummaryTemplateTypeParameterDefinition"
             }
           }
+        },
+        "callableScope": {
+          "$ref": "#/$defs/SummaryCallableScope"
         },
         "inputs": {
           "type": "object",

@@ -1,6 +1,6 @@
 {
   "name": "synthesize-regions",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Controlled TypeScript source-template replacement utility using ts-morph.",
   "type": "module",
   "main": "dist/index.js",

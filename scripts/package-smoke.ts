@@ -213,14 +213,14 @@ const packageName = ${JSON.stringify(packageName)}
 const fixtures = JSON.parse(process.env.PACKAGE_SMOKE_SCHEMA_FIXTURES ?? '[]')
 const packageModule = await import(packageName)
 assert.ok(Object.keys(packageModule).length > 0, 'The package root did not expose any runtime exports.')
-assert.equal(packageModule.SYNTHESIZE_REGIONS_PACKAGE_VERSION, '0.3.0')
-assert.equal(packageModule.TEMPLATE_CATALOG_CONTRACT_DIGEST_VERSION, 6)
-assert.equal(packageModule.TEMPLATE_MANIFEST_DIGEST_VERSION, 3)
-assert.equal(packageModule.TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION, 3)
-assert.equal(packageModule.TEMPLATE_CATALOG_PLANNER_SCHEMA_VERSION, 3)
-assert.equal(packageModule.TEMPLATE_CAPABILITY_CLOSURE_VERSION, 2)
+assert.equal(packageModule.SYNTHESIZE_REGIONS_PACKAGE_VERSION, '0.4.0')
+assert.equal(packageModule.TEMPLATE_CATALOG_CONTRACT_DIGEST_VERSION, 7)
+assert.equal(packageModule.TEMPLATE_MANIFEST_DIGEST_VERSION, 4)
+assert.equal(packageModule.TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION, 4)
+assert.equal(packageModule.TEMPLATE_CATALOG_PLANNER_SCHEMA_VERSION, 4)
+assert.equal(packageModule.TEMPLATE_CAPABILITY_CLOSURE_VERSION, 3)
 assert.equal(
-	packageModule.checkContract(packageModule.TemplateCatalogContractDigestSchema, 'c6_' + '1'.repeat(64)),
+	packageModule.checkContract(packageModule.TemplateCatalogContractDigestSchema, 'c7_' + '1'.repeat(64)),
 	true
 )
 assert.equal(
@@ -287,7 +287,7 @@ const artifactSetPlanFixture = fixtures.find(fixture => fixture.specifier.endsWi
 assert.equal(packageModule.checkContract(packageModule.GraphTemplateManifestSchema, manifestFixture), true)
 assert.equal(packageModule.checkContract(packageModule.ArtifactSetPlanSchema, artifactSetPlanFixture), true)
 const manifestRegistry = packageModule.createTemplateRegistryFromManifests([manifestFixture])
-assert.match(manifestRegistry.manifestDigest, /^m3_[a-f0-9]{64}$/u)
+assert.match(manifestRegistry.manifestDigest, /^m4_[a-f0-9]{64}$/u)
 assert.deepEqual(
 	packageModule.deriveTemplateCapabilityClosure(manifestRegistry.summaries(), {
 		kind: 'goal', goal: { outputKind: 'sourceFile' }
@@ -489,15 +489,15 @@ const semanticTarget: SemanticTargetFileContext = {
 const semanticContext: GraphSemanticContext = { targetFile: semanticTarget }
 const sourceMapVersion: 1 = GENERATED_SOURCE_MAP_VERSION
 const regionSyntaxVersion: 2 = REGION_SYNTAX_ENGINE_VERSION
-const packageVersion: '0.3.0' = SYNTHESIZE_REGIONS_PACKAGE_VERSION
-const catalogContractVersion: 6 = TEMPLATE_CATALOG_CONTRACT_DIGEST_VERSION
-const templateManifestVersion: 3 = TEMPLATE_MANIFEST_DIGEST_VERSION
-const catalogManifestVersion: 3 = TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION
-const plannerSchemaVersion: 3 = TEMPLATE_CATALOG_PLANNER_SCHEMA_VERSION
-const capabilityClosureVersion: 2 = TEMPLATE_CAPABILITY_CLOSURE_VERSION
-const catalogContractDigest: TemplateCatalogContractDigest = 'c6_${'1'.repeat(64)}'
-const templateManifestDigest: TemplateManifestDigest = 't3_${'2'.repeat(64)}'
-const catalogManifestDigest: TemplateCatalogManifestDigest = 'm3_${'3'.repeat(64)}'
+const packageVersion: '0.4.0' = SYNTHESIZE_REGIONS_PACKAGE_VERSION
+const catalogContractVersion: 7 = TEMPLATE_CATALOG_CONTRACT_DIGEST_VERSION
+const templateManifestVersion: 4 = TEMPLATE_MANIFEST_DIGEST_VERSION
+const catalogManifestVersion: 4 = TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION
+const plannerSchemaVersion: 4 = TEMPLATE_CATALOG_PLANNER_SCHEMA_VERSION
+const capabilityClosureVersion: 3 = TEMPLATE_CAPABILITY_CLOSURE_VERSION
+const catalogContractDigest: TemplateCatalogContractDigest = 'c7_${'1'.repeat(64)}'
+const templateManifestDigest: TemplateManifestDigest = 't4_${'2'.repeat(64)}'
+const catalogManifestDigest: TemplateCatalogManifestDigest = 'm4_${'3'.repeat(64)}'
 const catalogContractIdentityMatches: boolean = checkContract(TemplateCatalogContractDigestSchema, catalogContractDigest)
 const templateManifestIdentityMatches: boolean = checkContract(TemplateManifestDigestSchema, templateManifestDigest)
 const catalogManifestIdentityMatches: boolean = checkContract(TemplateCatalogManifestDigestSchema, catalogManifestDigest)
@@ -533,8 +533,8 @@ const validatedChangeSet: ValidatedArtifactChangeSet = artifactSetResult.ok && a
 	}
 	: {
 		validation: 'static', changes: [], changeSetHash: 'cs1_unavailable',
-		contractDigest: 'c6_${'0'.repeat(64)}',
-		manifestDigest: 'm3_${'0'.repeat(64)}',
+		contractDigest: 'c7_${'0'.repeat(64)}',
+		manifestDigest: 'm4_${'0'.repeat(64)}',
 		workspaceSnapshotHash: 'ws2_${'0'.repeat(64)}',
 		staticPolicyVersion: 2
 	}
@@ -866,8 +866,8 @@ function artifactSetCompilationResultFixture(): unknown {
 		ok: true,
 		complete: true,
 		validation: 'static',
-		contractDigest: `c6_${'1'.repeat(64)}`,
-		manifestDigest: `m3_${'2'.repeat(64)}`,
+		contractDigest: `c7_${'1'.repeat(64)}`,
+		manifestDigest: `m4_${'2'.repeat(64)}`,
 		workspaceSnapshotHash: `ws2_${'3'.repeat(64)}`,
 		staticPolicyVersion: 2,
 		plan,

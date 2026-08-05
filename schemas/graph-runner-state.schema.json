@@ -1280,7 +1280,7 @@
               "type": "string"
             },
             "templateManifestDigest": {
-              "pattern": "^t3_[a-f0-9]{64}$",
+              "pattern": "^t4_[a-f0-9]{64}$",
               "type": "string"
             }
           }
@@ -1369,7 +1369,7 @@
               "type": "string"
             },
             "templateManifestDigest": {
-              "pattern": "^t3_[a-f0-9]{64}$",
+              "pattern": "^t4_[a-f0-9]{64}$",
               "type": "string"
             }
           }

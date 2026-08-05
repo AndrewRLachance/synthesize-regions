@@ -1590,7 +1590,7 @@
               "type": "string"
             },
             "templateManifestDigest": {
-              "pattern": "^t3_[a-f0-9]{64}$",
+              "pattern": "^t4_[a-f0-9]{64}$",
               "type": "string"
             }
           }
@@ -1679,7 +1679,7 @@
               "type": "string"
             },
             "templateManifestDigest": {
-              "pattern": "^t3_[a-f0-9]{64}$",
+              "pattern": "^t4_[a-f0-9]{64}$",
               "type": "string"
             }
           }
@@ -2053,11 +2053,11 @@
               }
             },
             "contractDigest": {
-              "pattern": "^c6_[a-f0-9]{64}$",
+              "pattern": "^c7_[a-f0-9]{64}$",
               "type": "string"
             },
             "manifestDigest": {
-              "pattern": "^m3_[a-f0-9]{64}$",
+              "pattern": "^m4_[a-f0-9]{64}$",
               "type": "string"
             },
             "workspaceSnapshotHash": {
@@ -2111,11 +2111,11 @@
               }
             },
             "contractDigest": {
-              "pattern": "^c6_[a-f0-9]{64}$",
+              "pattern": "^c7_[a-f0-9]{64}$",
               "type": "string"
             },
             "manifestDigest": {
-              "pattern": "^m3_[a-f0-9]{64}$",
+              "pattern": "^m4_[a-f0-9]{64}$",
               "type": "string"
             },
             "workspaceSnapshotHash": {
@@ -2181,11 +2181,11 @@
               }
             },
             "contractDigest": {
-              "pattern": "^c6_[a-f0-9]{64}$",
+              "pattern": "^c7_[a-f0-9]{64}$",
               "type": "string"
             },
             "manifestDigest": {
-              "pattern": "^m3_[a-f0-9]{64}$",
+              "pattern": "^m4_[a-f0-9]{64}$",
               "type": "string"
             },
             "workspaceSnapshotHash": {

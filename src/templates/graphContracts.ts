@@ -49,6 +49,11 @@ const RawCodePolicyDefinition = Type.Object({
 	forbiddenPatterns: Type.Optional(Type.Array(Type.String()))
 }, { additionalProperties: false })
 
+const CallableScopeDefinition = Type.Object({
+	parametersInput: Type.String({ minLength: 1 }),
+	bodyInput: Type.String({ minLength: 1 })
+}, { additionalProperties: false })
+
 const FragmentAcceptsDefinition = Type.Object({
 	outputKind: Type.Optional(Type.Ref('CompilationRegionKind')),
 	type: Type.Optional(Type.Ref('CompilationTypeDescriptor')),
@@ -155,6 +160,7 @@ const SummaryContractModule = Type.Module({
 		constraint: Type.Optional(Type.Ref('SummaryTypeDescriptor'))
 	}, { additionalProperties: false }),
 	SummaryRawCodePolicy: RawCodePolicyDefinition,
+	SummaryCallableScope: CallableScopeDefinition,
 	FragmentAcceptsSummary: Type.Object({
 		outputKind: Type.Ref('SummaryRegionKind'),
 		type: Type.Optional(Type.Ref('SummaryTypeDescriptor')),
@@ -201,6 +207,7 @@ const SummaryContractModule = Type.Module({
 		version: Type.Optional(Type.String()),
 		description: Type.Optional(Type.String()),
 		typeParameters: Type.Optional(Type.Record(Type.String(), Type.Ref('SummaryTemplateTypeParameterDefinition'))),
+		callableScope: Type.Optional(Type.Ref('SummaryCallableScope')),
 		inputs: Type.Record(Type.String(), Type.Ref('InputPortSummary')),
 		output: Type.Ref('OutputPortSummary')
 	}, { additionalProperties: false })
@@ -215,6 +222,7 @@ const CompilationContractModule = Type.Module({
 		constraint: Type.Optional(Type.Ref('CompilationTypeDescriptor'))
 	}, { additionalProperties: false }),
 	CompilationRawCodePolicy: RawCodePolicyDefinition,
+	CompilationCallableScope: CallableScopeDefinition,
 	SynthesisFailureClassification: Type.Union([
 		Type.Literal('graphRepairable'),
 		Type.Literal('artifactFillable'),
@@ -300,6 +308,7 @@ const CompilationContractModule = Type.Module({
 		version: Type.Optional(Type.String()),
 		description: Type.Optional(Type.String()),
 		typeParameters: Type.Optional(Type.Record(Type.String(), Type.Ref('CompilationTemplateTypeParameterDefinition'))),
+		callableScope: Type.Optional(Type.Ref('CompilationCallableScope')),
 		inputs: Type.Record(Type.String(), Type.Ref('InputPort')),
 		output: Type.Ref('OutputPort'),
 		source: Type.String()

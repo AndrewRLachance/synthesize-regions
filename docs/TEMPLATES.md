@@ -425,22 +425,22 @@ schemas, TypeScript descriptors, generic declarations, and placeholder use.
 It contains model IDs, descriptions, generic parameter declarations, defaulted
 port contracts, and outputs. Catalogs expose two identities:
 
-- `contractDigest` (`c6_…`) identifies the normalized planner vocabulary and
+- `contractDigest` (`c7_…`) identifies the normalized planner vocabulary and
   excludes marked source;
-- `manifestDigest` (`m3_…`) identifies the exact executable catalog;
-- each definition has a `manifestDigest` (`t3_…`) recorded on artifacts as
+- `manifestDigest` (`m4_…`) identifies the exact executable catalog;
+- each definition has a `manifestDigest` (`t4_…`) recorded on artifacts as
   `source.templateManifestDigest`.
 
 Compilers and runners capture both identities with an immutable snapshot.
 Supply `expectedCatalogDigest` and `expectedCatalogManifestDigest` when
 resuming work planned and compiled against an earlier snapshot. Source-only
-changes keep `c6_` stable but change `t3_` and `m3_`. Type-parameter
+changes keep `c7_` stable but change `t4_` and `m4_`. Type-parameter
 declarations are part of both planner-facing and executable identities.
 
-Package `0.3.0` publishes catalog-contract version 6, template-manifest version
-3, catalog-manifest version 3, catalog planner-schema version 3, and source-free
-capability-closure version 2. The planner-schema and closure versions are bound
-into `c6_`. This is a hard cutover from `0.2.x`/`c5_`/`t2_`/`m2_`; old evidence
+Package `0.4.0` publishes catalog-contract version 7, template-manifest version
+4, catalog-manifest version 4, catalog planner-schema version 4, and source-free
+capability-closure version 3. The planner-schema and closure versions are bound
+into `c7_`. This is a hard cutover from `0.2.x`/`c5_`/`t2_`/`m2_`; old evidence
 is rejected rather than migrated.
 
 For a bounded planner or graph-repair disclosure, derive the closure from the
@@ -477,6 +477,33 @@ const manifest = {
 
 const definition = defineTemplate(manifest);
 ```
+
+Use optional `callableScope` metadata when a template represents a callable:
+
+```ts
+const callable = defineTemplate({
+  modelId: "CallableWithCustomNames",
+  inputs: {
+    args: collection("parameter", ", ", 1),
+    implementation: rawCodePort({ regionKind: "expression" })
+  },
+  callableScope: {
+    parametersInput: "args",
+    bodyInput: "implementation"
+  },
+  output: { kind: "expression" },
+  source: `(${marker("parameter", "args", "value: unknown")}) => (${marker("expression", "implementation", "undefined")})`
+});
+```
+
+These explicit keys let consumers attribute a parameter diagnostic to its
+owning callable body without input-name heuristics. The keys must be distinct
+existing inputs. The parameter port must be a homogeneous fragment or
+collection family accepting `parameter` or `constructorParameter`; the body
+must be a required structured or raw-code `statement` or `expression` port.
+Literal bodies and mixed structured/raw unions fail with
+`InvalidCallableScope`. Valid metadata is frozen, included in
+`TemplateSummary`, and bound into catalog and manifest digests.
 
 Load an untrusted or persisted JSON array through the closed manifest contract
 instead of casting it to executable definitions:

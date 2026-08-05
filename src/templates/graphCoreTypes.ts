@@ -96,6 +96,7 @@ export const BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES = [
 	'InvalidCollectionBounds',
 	'InvalidCollectionMaximum',
 	'InvalidCollectionMinimum',
+	'InvalidCallableScope',
 	'InvalidGraphRunnerAction',
 	'InvalidGeneratedSourceMap',
 	'InvalidActualSchema',
@@ -286,6 +287,7 @@ const TEMPLATE_POLICY_DIAGNOSTIC_CODE_VALUES = new Set<BuiltInSynthesisDiagnosti
 	'GenericTypeParameterConstraint',
 	'InvalidTemplateManifest',
 	'InvalidTemplateManifestSource',
+	'InvalidCallableScope',
 	'InvalidTypeParameterName',
 	'UndeclaredTypeParameter',
 	'UnusedTypeParameter',
@@ -831,6 +833,14 @@ export type AuthoredGraphInput = {
 	readonly goal?: SynthesisGoal
 }
 
+/** Explicit input ownership metadata for one callable template scope. */
+export interface CallableScope<InputName extends string = string> {
+	/** Input that contains the callable's declared parameters. */
+	readonly parametersInput: InputName
+	/** Input that contains the callable's implementation body. */
+	readonly bodyInput: InputName
+}
+
 /** Public, implementation-free template metadata for planners and UIs. */
 export interface TemplateSummary {
 	/** Template model ID. */
@@ -841,6 +851,8 @@ export interface TemplateSummary {
 	description?: string
 	/** Generic parameters that graph nodes must bind explicitly. */
 	typeParameters?: Record<string, TemplateTypeParameterDefinition>
+	/** Explicit parameter-to-body ownership for callable templates. */
+	callableScope?: CallableScope
 	/** Summaries of accepted inputs keyed by input name. */
 	inputs: Record<string, InputPortSummary>
 	/** Summary of the generated output. */
@@ -1002,6 +1014,8 @@ export interface GraphTemplateManifest<
 	readonly description?: string
 	/** Named generic parameters referenced as `{{Name}}` in TypeDescriptor.ts strings. */
 	readonly typeParameters?: P
+	/** Explicit parameter-to-body ownership for callable templates. */
+	readonly callableScope?: CallableScope<Extract<keyof I, string>>
 	/** Named input ports accepted by this template. */
 	readonly inputs: I
 	/** Output fragment contract produced by the template. */

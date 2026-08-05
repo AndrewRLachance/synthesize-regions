@@ -20,7 +20,7 @@ import {
 	type UnresolvedTemplateInput
 } from '../src/index.js'
 
-const TEST_MANIFEST_DIGEST = `t3_${'0'.repeat(64)}`
+const TEST_MANIFEST_DIGEST = `t4_${'0'.repeat(64)}`
 
 function partialOptions(compilationScope?: string): GraphCompileOptions & { mode: 'partial' } {
 	return {

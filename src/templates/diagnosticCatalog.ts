@@ -98,6 +98,7 @@ const CATALOG_CODES = new Set<BuiltInSynthesisDiagnosticCode>([
 	'InvalidCollectionBounds',
 	'InvalidCollectionMaximum',
 	'InvalidCollectionMinimum',
+	'InvalidCallableScope',
 	'InvalidJsonSchema',
 	'InvalidRawCodeMaxLength',
 	'InvalidRawCodePattern',

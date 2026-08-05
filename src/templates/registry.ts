@@ -17,6 +17,7 @@ import { schemaWithResourceId } from './schemaCompatibility.js'
 import { assertTemplateCatalogValid, TemplateCatalogValidationError } from "./catalogValidation.js";
 import { brandTemplateCatalogView } from './catalogTrust.js'
 import { defineTemplate, isLibraryOwnedTemplateDefinition } from './definition.js'
+import { InvalidCallableScopeError } from './callableScope.js'
 import { checkContract, GraphTemplateManifestSchema } from './graphContracts.js'
 import {
   cloneTemplateSummaries,
@@ -564,6 +565,20 @@ export function createTemplateRegistryFromManifests(
     try {
       definitions.push(defineTemplate(manifest));
     } catch (error) {
+      if (error instanceof InvalidCallableScopeError) {
+        diagnostics.push(...error.issues.map(issue => ({
+          origin: synthesisDiagnosticOriginForCode(issue.code),
+          stage: 'template' as const,
+          code: issue.code,
+          severity: 'error' as const,
+          message: issue.message,
+          templateId: manifest.modelId,
+          path: `manifests[${index}].${issue.path}`,
+          ...(issue.expected === undefined ? {} : { expected: issue.expected }),
+          ...(issue.actual === undefined ? {} : { actual: issue.actual })
+        })));
+        continue;
+      }
       diagnostics.push({
         origin: synthesisDiagnosticOriginForCode('InvalidTemplateManifestSource'),
         stage: 'template', code: 'InvalidTemplateManifestSource', severity: 'error',

@@ -21,22 +21,22 @@ import {
 
 describe('public synthesize-regions contract identity', () => {
 	it('publishes one exact supported package and engine version matrix', () => {
-		expect(SYNTHESIZE_REGIONS_PACKAGE_VERSION).toBe('0.3.0')
-		expect(TEMPLATE_CATALOG_CONTRACT_DIGEST_VERSION).toBe(6)
-		expect(TEMPLATE_MANIFEST_DIGEST_VERSION).toBe(3)
-		expect(TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION).toBe(3)
-		expect(TEMPLATE_CATALOG_PLANNER_SCHEMA_VERSION).toBe(3)
-		expect(TEMPLATE_CAPABILITY_CLOSURE_VERSION).toBe(2)
+		expect(SYNTHESIZE_REGIONS_PACKAGE_VERSION).toBe('0.4.0')
+		expect(TEMPLATE_CATALOG_CONTRACT_DIGEST_VERSION).toBe(7)
+		expect(TEMPLATE_MANIFEST_DIGEST_VERSION).toBe(4)
+		expect(TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION).toBe(4)
+		expect(TEMPLATE_CATALOG_PLANNER_SCHEMA_VERSION).toBe(4)
+		expect(TEMPLATE_CAPABILITY_CLOSURE_VERSION).toBe(3)
 	})
 
 	it('exports closed digest patterns and TypeBox contracts', () => {
-		const contractDigest: TemplateCatalogContractDigest = `c6_${'1'.repeat(64)}`
-		const templateDigest: TemplateManifestDigest = `t3_${'2'.repeat(64)}`
-		const manifestDigest: TemplateCatalogManifestDigest = `m3_${'3'.repeat(64)}`
+		const contractDigest: TemplateCatalogContractDigest = `c7_${'1'.repeat(64)}`
+		const templateDigest: TemplateManifestDigest = `t4_${'2'.repeat(64)}`
+		const manifestDigest: TemplateCatalogManifestDigest = `m4_${'3'.repeat(64)}`
 
-		expect(TEMPLATE_CATALOG_CONTRACT_DIGEST_PATTERN).toBe('^c6_[a-f0-9]{64}$')
-		expect(TEMPLATE_MANIFEST_DIGEST_PATTERN).toBe('^t3_[a-f0-9]{64}$')
-		expect(TEMPLATE_CATALOG_MANIFEST_DIGEST_PATTERN).toBe('^m3_[a-f0-9]{64}$')
+		expect(TEMPLATE_CATALOG_CONTRACT_DIGEST_PATTERN).toBe('^c7_[a-f0-9]{64}$')
+		expect(TEMPLATE_MANIFEST_DIGEST_PATTERN).toBe('^t4_[a-f0-9]{64}$')
+		expect(TEMPLATE_CATALOG_MANIFEST_DIGEST_PATTERN).toBe('^m4_[a-f0-9]{64}$')
 		expect(checkContract(TemplateCatalogContractDigestSchema, contractDigest)).toBe(true)
 		expect(checkContract(TemplateManifestDigestSchema, templateDigest)).toBe(true)
 		expect(checkContract(TemplateCatalogManifestDigestSchema, manifestDigest)).toBe(true)
@@ -46,7 +46,7 @@ describe('public synthesize-regions contract identity', () => {
 	})
 
 	it('keeps identity-mismatch failures representable with the verified active catalog identity', () => {
-		const currentContractDigest = `c6_${'1'.repeat(64)}`
+		const currentContractDigest = `c7_${'1'.repeat(64)}`
 		const failure = {
 			kind: 'artifactSetGraphCompilation',
 			mode: 'strict',
@@ -71,7 +71,7 @@ describe('public synthesize-regions contract identity', () => {
 				actual: currentContractDigest
 			}],
 			contractDigest: currentContractDigest,
-			manifestDigest: `m3_${'2'.repeat(64)}`,
+			manifestDigest: `m4_${'2'.repeat(64)}`,
 			workspaceSnapshotHash: `ws2_${'3'.repeat(64)}`
 		}
 

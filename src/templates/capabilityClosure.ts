@@ -4,6 +4,7 @@ import { Value } from '@sinclair/typebox/value'
 import { canonicalizeJson } from './artifactIdentity.js'
 import { compareCodeUnits } from './deterministic.js'
 import { compareTypeDescriptors } from './compatibility.js'
+import { validateCallableScope } from './callableScope.js'
 import { instantiateTemplateContracts, validateTemplateTypeParameters } from './genericTypes.js'
 import {
 	SynthesisGraphSchema,
@@ -95,6 +96,14 @@ export function validateTemplateCapabilityCatalog(
 			throw new TypeError(`Template capability summaries contain duplicate modelId ${JSON.stringify(summary.modelId)}.`)
 		}
 		seen.add(summary.modelId)
+		const callableScopeIssues = validateCallableScope(summary.callableScope, summary.inputs)
+		if (callableScopeIssues.length > 0) {
+			throw new TypeError(
+				`Template capability summary ${JSON.stringify(summary.modelId)} has invalid callable metadata: ${callableScopeIssues
+					.map(issue => `${issue.code} at ${issue.path}`)
+					.join(', ')}.`
+			)
+		}
 		const genericIssues = validateTemplateTypeParameters(
 			summary.typeParameters,
 			summary.inputs,

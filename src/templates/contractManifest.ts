@@ -16,7 +16,7 @@ interface PackageIdentity {
 export interface SynthesizeRegionsContractManifest {
 	readonly schemaVersion: 1
 	readonly packageName: 'synthesize-regions'
-	readonly packageVersion: '0.3.0'
+	readonly packageVersion: '0.4.0'
 	readonly semanticDependencies: Readonly<{
 		typescript: PackageIdentity
 		tsMorph: PackageIdentity
@@ -70,7 +70,7 @@ function trustedLibraries(): readonly Readonly<{ name: string; contentHash: stri
 const payload = Object.freeze({
 	schemaVersion: 1 as const,
 	packageName: 'synthesize-regions' as const,
-	packageVersion: '0.3.0' as const,
+	packageVersion: '0.4.0' as const,
 	semanticDependencies: Object.freeze({
 		typescript: packageIdentity('typescript'),
 		tsMorph: packageIdentity('ts-morph'),
@@ -80,7 +80,7 @@ const payload = Object.freeze({
 	trustedTypeScriptLibraries: trustedLibraries()
 })
 
-/** Exact packed dependency/toolchain identity bound into c6 and t3 digests. */
+/** Exact packed dependency/toolchain identity bound into c7 and t4 digests. */
 export const SYNTHESIZE_REGIONS_CONTRACT_MANIFEST: SynthesizeRegionsContractManifest = Object.freeze({
 	...payload,
 	contractManifestDigest: `scm1_${createHash('sha256').update(canonicalizeJson(payload), 'utf8').digest('hex')}`

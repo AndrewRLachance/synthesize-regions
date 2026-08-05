@@ -151,7 +151,7 @@ describe('artifact-set compilation', () => {
 			sourceText: 'export const first = 1;\nexport const second = 2;\n'
 		})
 		expect(first.changes[0]?.edits.map(edit => edit.artifactId)).toEqual(['second', 'first'])
-		expect(first.units[0]?.artifact?.source.templateManifestDigest).toMatch(/^t3_[a-f0-9]{64}$/u)
+		expect(first.units[0]?.artifact?.source.templateManifestDigest).toMatch(/^t4_[a-f0-9]{64}$/u)
 		expect(second.ok && second.changeSetHash).toBe(first.changeSetHash)
 		expect(normalizeArtifactTargetPath('.\\src/../src/values.ts')).toBe('src/values.ts')
 		expect(() => normalizeArtifactTargetPath('../outside.ts')).toThrow(/workspace/u)

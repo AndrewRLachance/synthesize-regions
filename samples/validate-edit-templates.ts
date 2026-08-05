@@ -237,6 +237,10 @@ const ArrowExpression = defineTemplate({
     parameters: collection("parameter", ", ", 1),
     body: fragment("expression"),
   },
+  callableScope: {
+    parametersInput: "parameters",
+    bodyInput: "body",
+  },
   output: { kind: "expression" },
   source: `(${marker("parameter", "parameters", "value")}) => (${marker("expression", "body", "undefined")})`,
 });
@@ -271,6 +275,10 @@ const OverrideAsyncClassMethod = defineTemplate({
     returnType: fragment("type"),
     body: methodBody(),
   },
+  callableScope: {
+    parametersInput: "parameters",
+    bodyInput: "body",
+  },
   output: { kind: "classMember" },
   source: `override async ${marker("identifier", "name", "method")}(${marker("parameter", "parameters", "value: unknown")}): ${marker("type", "returnType", "Promise<unknown>")} {\n${marker("statement", "body", "throw new Error();")}\n}`,
 });
@@ -284,6 +292,10 @@ const OverrideClassMethod = defineTemplate({
     returnType: fragment("type"),
     body: methodBody(),
   },
+  callableScope: {
+    parametersInput: "parameters",
+    bodyInput: "body",
+  },
   output: { kind: "classMember" },
   source: `override ${marker("identifier", "name", "method")}(${marker("parameter", "parameters", "value: unknown")}): ${marker("type", "returnType", "Promise<unknown>")} {\n${marker("statement", "body", "throw new Error();")}\n}`,
 });
@@ -296,6 +308,10 @@ const ProtectedOverrideClassMethod = defineTemplate({
     parameters: collection("parameter", ", ", 1),
     returnType: fragment("type"),
     body: methodBody(),
+  },
+  callableScope: {
+    parametersInput: "parameters",
+    bodyInput: "body",
   },
   output: { kind: "classMember" },
   source: `protected override ${marker("identifier", "name", "method")}(${marker("parameter", "parameters", "value: unknown")}): ${marker("type", "returnType", "Promise<unknown>")} {\n${marker("statement", "body", "throw new Error();")}\n}`,
@@ -953,6 +969,9 @@ function manifestOf(
     ...(template.typeParameters === undefined
       ? {}
       : { typeParameters: template.typeParameters }),
+    ...(template.callableScope === undefined
+      ? {}
+      : { callableScope: template.callableScope }),
     inputs: template.inputs,
     output: template.output,
     source: template.source,

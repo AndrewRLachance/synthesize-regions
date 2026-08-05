@@ -7,6 +7,7 @@ export * from "./templates/schemaCompatibility.js";
 export * from "./templates/typeScriptCompatibility.js";
 export * from "./templates/compatibility.js";
 export * from "./templates/diagnosticCatalog.js";
+export * from "./templates/callableScope.js";
 export * from "./templates/deterministic.js";
 export * from "./templates/catalogValidation.js";
 export * from "./templates/contractIdentity.js";

@@ -4,6 +4,7 @@ import { buildReplacementEdits } from '../replacements/serialize.js'
 import { discoverReplacementRegions } from '../regions/discovery.js'
 import { portRegionKind, summarizeInputPort, summarizeOutputPort } from './compatibility.js'
 import { templateManifestDigest } from './catalogDigest.js'
+import { InvalidCallableScopeError, validateCallableScope } from './callableScope.js'
 import { instantiateTemplateContracts, validateTemplateTypeParameters } from './genericTypes.js'
 import { defaultFragmentCollectionSeparator, templateModeForRegionKind } from './rendering.js'
 import {
@@ -50,7 +51,7 @@ interface GraphTemplateMarkerContract {
 }
 
 const templateMarkerContracts = new WeakMap<object, Readonly<Record<string, GraphTemplateMarkerContract>>>()
-const manifestPropertyNames = new Set(['modelId', 'version', 'description', 'typeParameters', 'inputs', 'output', 'source'])
+const manifestPropertyNames = new Set(['modelId', 'version', 'description', 'typeParameters', 'callableScope', 'inputs', 'output', 'source'])
 
 /** Internal authenticity check used by registries to reject forged executable definitions. */
 export function isLibraryOwnedTemplateDefinition(value: unknown): value is GraphTemplateDefinition<any, string, any> {
@@ -341,6 +342,9 @@ export function defineTemplate<
 	const inputs = freezeManifestValue(definition.inputs, 'template.inputs') as I
 	const output = freezeManifestValue(definition.output, 'template.output') as O
 	const typeParameters = freezeManifestValue(definition.typeParameters, 'template.typeParameters')
+	const callableScope = freezeManifestValue(definition.callableScope, 'template.callableScope')
+	const callableScopeIssues = validateCallableScope(callableScope, inputs)
+	if (callableScopeIssues.length > 0) throw new InvalidCallableScopeError(callableScopeIssues)
 	const genericIssues = validateTemplateTypeParameters(typeParameters, inputs, output)
 	if (genericIssues[0]) {
 		throw new TypeError(`${genericIssues[0].code} at ${genericIssues[0].path}: ${genericIssues[0].message}`)
@@ -354,6 +358,7 @@ export function defineTemplate<
 		...(version ? { version } : {}),
 		...(description ? { description } : {}),
 		...(typeParameters ? { typeParameters } : {}),
+		...(callableScope ? { callableScope } : {}),
 		inputs: Object.fromEntries(
 			Object.entries(inputs).map(([key, port]) => [key, summarizeInputPort(port)])
 		),
@@ -365,6 +370,7 @@ export function defineTemplate<
 		...(version ? { version } : {}),
 		...(description ? { description } : {}),
 		...(typeParameters ? { typeParameters } : {}),
+		...(callableScope ? { callableScope } : {}),
 		inputs,
 		output,
 		source: templateSource,

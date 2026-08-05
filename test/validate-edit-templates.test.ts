@@ -88,4 +88,20 @@ describe('validate-edit starter graph', () => {
 			expect(result.finalArtifact.code).toContain(`public override readonly ${name}: ${type}`)
 		}
 	})
+
+	it('publishes callable ownership for methods and arrows but not constructors', () => {
+		const manifests = new Map(validateEditTemplateManifests.map(manifest => [manifest.modelId, manifest]))
+		for (const modelId of [
+			'ArrowExpression',
+			'OverrideAsyncClassMethod',
+			'OverrideClassMethod',
+			'ProtectedOverrideClassMethod'
+		]) {
+			expect(manifests.get(modelId)?.callableScope).toEqual({
+				parametersInput: 'parameters',
+				bodyInput: 'body'
+			})
+		}
+		expect(manifests.get('Constructor')?.callableScope).toBeUndefined()
+	})
 })

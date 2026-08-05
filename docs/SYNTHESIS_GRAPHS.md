@@ -315,7 +315,7 @@ Persist or transfer the catalog snapshot identity alongside the artifact, then
 resume with `fillTemplateArtifactWithCatalog()` or
 `finalizeTemplateArtifactWithCatalog()`. These APIs compare provenance and
 unresolved ports with the selected catalog template and recursively validate
-and security-screen supplied child artifacts. The `t3_` prefix and digest shape
+and security-screen supplied child artifacts. The `t4_` prefix and digest shape
 alone are not an identity check.
 
 The shorter `fillTemplateArtifact()` and `finalizeTemplateArtifact()` helpers
@@ -427,7 +427,7 @@ while (state.kind !== "complete" && state.kind !== "failed") {
 A practical LLM loop is:
 
 1. Present template summaries, including type parameters, and the captured
-   `c6_` contract digest.
+   `c7_` contract digest.
 2. Ask for an initial partial graph or one graph patch action.
 3. Validate the action against the published runner-action schema.
 4. Advance the runner.
@@ -498,7 +498,7 @@ filters pre-existing diagnostics, and never writes the target file.
 Artifacts retain:
 
 - the producing template ID and version;
-- the producing template's `t3_` manifest digest;
+- the producing template's `t4_` manifest digest;
 - the concrete generic type arguments used to instantiate the fragment;
 - graph node and input provenance;
 - literal input summaries where applicable;
@@ -519,19 +519,19 @@ generic declarations are template-policy failures.
 
 Compilers and runners capture an immutable catalog snapshot with two identities:
 
-- `contractDigest` (`c6_…`) hashes planner-facing summaries, generic parameter
+- `contractDigest` (`c7_…`) hashes planner-facing summaries, generic parameter
   declarations, and compatibility-engine versions, but not marked source;
-- `manifestDigest` (`m3_…`) hashes the catalog's exact executable manifests,
-  including each template's `t3_…` content digest.
+- `manifestDigest` (`m4_…`) hashes the catalog's exact executable manifests,
+  including each template's `t4_…` content digest.
 
 Pass both `expectedCatalogDigest` and `expectedCatalogManifestDigest` when
 resuming a persisted session. Either mismatch is terminal. The first prevents
 planning against a different vocabulary; the second prevents source-only
 implementation changes from silently changing generated code.
 
-The package `0.3.0` matrix is catalog contract 6 (`c6_`), template manifest 3
-(`t3_`), catalog manifest 3 (`m3_`), planner schema 3, and capability closure 2.
-Planner-schema and closure versions participate in the `c6_` payload. Package
+The package `0.4.0` matrix is catalog contract 7 (`c7_`), template manifest 4
+(`t4_`), catalog manifest 4 (`m4_`), planner schema 4, and capability closure 3.
+Planner-schema and closure versions participate in the `c7_` payload. Package
 `0.2.x` and earlier databases, artifacts, and `c5_`/`t2_`/`m2_` evidence must be recreated;
 there is no migration path.
 
@@ -613,7 +613,7 @@ responsibilities.
 
 ## Design guidance
 
-- Plan against immutable summaries and a captured `c6_` digest; execute against
+- Plan against immutable summaries and a captured `c7_` digest; execute against
   both captured catalog identities.
 - Bind every generic parameter explicitly and persist those bindings with the
   graph; do not treat artifact metadata as type inference.

@@ -112,9 +112,9 @@ function genericGraph(callback = 'callback'): SynthesisGraph {
 describe('generic template type contracts', () => {
 	it('summarizes declared parameters and changes manifest identity', () => {
 		expect(GenericMap.summary().typeParameters).toEqual(GenericMap.typeParameters)
-		expect(GenericMap.manifestDigest).toMatch(/^t3_[a-f0-9]{64}$/u)
-		expect(registry.contractDigest).toMatch(/^c6_[a-f0-9]{64}$/u)
-		expect(registry.manifestDigest).toMatch(/^m3_[a-f0-9]{64}$/u)
+		expect(GenericMap.manifestDigest).toMatch(/^t4_[a-f0-9]{64}$/u)
+		expect(registry.contractDigest).toMatch(/^c7_[a-f0-9]{64}$/u)
+		expect(registry.manifestDigest).toMatch(/^m4_[a-f0-9]{64}$/u)
 	})
 
 	it('round-trips generic declarations and bindings through closed contracts', () => {

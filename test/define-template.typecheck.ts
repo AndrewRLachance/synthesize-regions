@@ -36,6 +36,43 @@ defineTemplate({
 });
 
 defineTemplate({
+  modelId: "CallableScopeUsesDeclaredKeys",
+  inputs: {
+    args: fragmentCollectionPort({
+      regionKind: "parameter",
+      accepts: { outputKind: "parameter" },
+      separator: ", "
+    }),
+    implementation: rawCodePort({ regionKind: "expression" })
+  },
+  callableScope: {
+    parametersInput: "args",
+    bodyInput: "implementation"
+  },
+  output: { kind: "expression" },
+  source: `(${"/** @TYPE parameter id=args **/value: unknown/** @END **/"}) => ${"/** @TYPE expression id=implementation **/undefined/** @END **/"}`
+});
+
+defineTemplate({
+  modelId: "CallableScopeRejectsUnknownKey",
+  inputs: {
+    args: fragmentCollectionPort({
+      regionKind: "parameter",
+      accepts: { outputKind: "parameter" },
+      separator: ", "
+    }),
+    implementation: rawCodePort({ regionKind: "expression" })
+  },
+  callableScope: {
+    parametersInput: "args",
+    // @ts-expect-error callable ownership keys must name declared inputs.
+    bodyInput: "body"
+  },
+  output: { kind: "expression" },
+  source: `(${"/** @TYPE parameter id=args **/value: unknown/** @END **/"}) => ${"/** @TYPE expression id=implementation **/undefined/** @END **/"}`
+});
+
+defineTemplate({
   modelId: "InlineStrictPorts",
   inputs: {
     source: {

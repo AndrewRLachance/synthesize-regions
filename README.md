@@ -70,11 +70,11 @@ npm run contracts:check
 
 ### Contract compatibility
 
-Package `0.3.0` is a hard contract cutover. It exports catalog-contract digest
-version 6 (`c6_`), template-manifest digest version 3 (`t3_`), catalog-manifest
-digest version 3 (`m3_`), catalog planner-schema version 3, and capability
-closure version 2. Planner-schema and closure-engine versions are included in
-the `c6_` payload. Consumers must check this complete matrix rather than accept
+Package `0.4.0` is a hard contract cutover. It exports catalog-contract digest
+version 7 (`c7_`), template-manifest digest version 4 (`t4_`), catalog-manifest
+digest version 4 (`m4_`), catalog planner-schema version 4, and capability
+closure version 3. Planner-schema and closure-engine versions are included in
+the `c7_` payload. Consumers must check this complete matrix rather than accept
 an arbitrary future digest prefix.
 
 There is no migration from package `0.2.x` or earlier identities, including
@@ -542,6 +542,33 @@ const manifest = {
 const IdentityExpression = defineTemplate(manifest);
 ```
 
+Callable templates may declare which input owns their signature parameters and
+which input owns their implementation body. The names are explicit metadata;
+consumers do not infer them from conventions such as `parameters` or `body`.
+
+```ts
+const MappedCallable = defineTemplate({
+  modelId: "MappedCallable",
+  inputs: {
+    args: collection("parameter", ", ", 1),
+    implementation: rawCodePort({ regionKind: "expression" })
+  },
+  callableScope: {
+    parametersInput: "args",
+    bodyInput: "implementation"
+  },
+  output: { kind: "expression" },
+  source: `(${marker("parameter", "args", "value: unknown")}) => (${marker("expression", "implementation", "undefined")})`
+});
+```
+
+The parameter and body keys must be distinct existing inputs. Parameter ports
+must form one structured parameter family, and the required body must be a
+structured or raw-code `statement` or `expression` port. Literal bodies and
+mixed structured/raw body unions are rejected. The optional metadata is copied
+into source-free `TemplateSummary` values and participates in catalog and
+manifest identities.
+
 Templates can declare correlated TypeScript contract parameters. Placeholders
 are allowed only in template-owned `TypeDescriptor.ts` strings:
 
@@ -647,8 +674,8 @@ the same declarative catalog:
 ```ts
 const snapshot = registry.snapshot();
 const compiler = buildGraphCompiler(registry);
-const contractDigest = snapshot.contractDigest; // c6_<sha256>
-const manifestDigest = snapshot.manifestDigest; // m3_<sha256>
+const contractDigest = snapshot.contractDigest; // c7_<sha256>
+const manifestDigest = snapshot.manifestDigest; // m4_<sha256>
 const runner = createGraphRunner(snapshot, graph, {
   expectedCatalogDigest: contractDigest,
   expectedCatalogManifestDigest: manifestDigest
@@ -675,15 +702,15 @@ transitions to `failed` for the same mismatch. A mismatched
 `expectedCatalogManifestDigest` similarly produces
 `CatalogManifestDigestMismatch`.
 
-The versioned `c6_` digest hashes normalized planner-facing summaries, including
+The versioned `c7_` digest hashes normalized planner-facing summaries, including
 versions, descriptions, inputs, defaulted port settings, policies, allowlists,
 canonical schemas, types, type parameters, and outputs. Its payload also
 identifies the supported JSON Schema profile, schema and TypeScript
-compatibility-engine versions, catalog planner-schema version 3, and
-source-free capability-closure version 2. It intentionally excludes marked source. Each
-definition's `t3_` digest hashes that template's normalized contract and
-LF-normalized source; the catalog's `m3_` digest aggregates those executable
-identities. New artifacts record the producing `t3_` value as
+compatibility-engine versions, catalog planner-schema version 4, and
+source-free capability-closure version 3. It intentionally excludes marked source. Each
+definition's `t4_` digest hashes that template's normalized contract and
+LF-normalized source; the catalog's `m4_` digest aggregates those executable
+identities. New artifacts record the producing `t4_` value as
 `source.templateManifestDigest`. Change a template's `version` when its
 behavior changes even if its ports do not.
 
@@ -714,7 +741,7 @@ if (partial.ok && partial.finalArtifact.complete === false) {
 ```
 
 Use the catalog-aware fill and finalize functions at every serialization or
-caller-trust boundary. They bind the artifact's template ID, exact `t3_`
+caller-trust boundary. They bind the artifact's template ID, exact `t4_`
 manifest digest, concrete generic arguments, unresolved port contracts, and
 nested fragment provenance to the captured catalog. Caller-supplied child
 artifacts are recursively checked and security-screened before their code is
