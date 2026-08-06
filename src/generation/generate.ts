@@ -4,7 +4,7 @@ import { buildReplacementEdits, type PlannedReplacementEdit } from "../replaceme
 import { discoverReplacementRegions, discoverSourceTemplates } from "../regions/discovery.js";
 import { wrapTemplateSource } from "../templates/templateMode.js";
 import { validateVirtualSemanticTarget } from "../templates/semanticTarget.js";
-import { createProject, createSourceFile, assertFinalValid, diagnosticMessages } from "../validation/ast.js";
+import { createProject, createSourceFile, assertFinalValid, diagnosticMessages, resetSharedProject } from "../validation/ast.js";
 import type {
   DiscoveredSourceTemplate,
   GenerateDiscoveredSourceTemplateOptions,
@@ -26,6 +26,9 @@ export function generateWithReplacements(
   replacements: ReplacementMap,
   options: GenerateOptions = {}
 ): GenerateResult {
+  // Reset shared project at start of each compilation session to ensure clean state
+  resetSharedProject();
+  
   const filePath = options.filePath ?? "__synthesize_regions__.ts";
   const regions = discoverReplacementRegions(sourceText, {
     ...options,
@@ -72,6 +75,9 @@ export function generateDiscoveredSourceTemplate(
   replacements: ReplacementMap,
   options: GenerateDiscoveredSourceTemplateOptions = {}
 ): GenerateResult {
+  // Reset shared project at start of each compilation session to ensure clean state
+  resetSharedProject();
+  
   const filePath = options.filePath ?? template.filePath;
   const result = generateWithReplacements(template.sourceText, replacements, {
     ...options,

@@ -104,13 +104,13 @@ export const TYPESCRIPT_TYPE_VALIDATION_CACHE_CAPACITY = 512 as const
 /** Maximum retained assignability comparisons. */
 export const TYPESCRIPT_TYPE_COMPARISON_CACHE_CAPACITY = 2_048 as const
 
-const validationCache = new BoundedLruMap<string, CachedTypeValidation>(
+let validationCache = new BoundedLruMap<string, CachedTypeValidation>(
 	TYPESCRIPT_TYPE_VALIDATION_CACHE_CAPACITY,
 	(_key, value) => {
 		if (value.ok) compatibilityProject.removeSourceFile(value.file)
 	}
 )
-const comparisonCache = new BoundedLruMap<string, boolean>(TYPESCRIPT_TYPE_COMPARISON_CACHE_CAPACITY)
+let comparisonCache = new BoundedLruMap<string, boolean>(TYPESCRIPT_TYPE_COMPARISON_CACHE_CAPACITY)
 let sourceSequence = 0
 
 const TYPE_ALIAS_PREFIX = 'export type __SynthesisRegionsType = '
@@ -205,6 +205,22 @@ export function compareTypeScriptTypes(
 			expected: normalizedExpected,
 			actual: normalizedActual
 		}
+}
+
+/**
+ * Reset the TypeScript compatibility caches and shared project state.
+ * This should be called when starting a new compilation session.
+ */
+export function resetTypeScriptCompatibility(): void {
+	// Recreate the caches to clear them
+	validationCache = new BoundedLruMap<string, CachedTypeValidation>(
+		TYPESCRIPT_TYPE_VALIDATION_CACHE_CAPACITY,
+		(_key, value) => {
+			if (value.ok) compatibilityProject.removeSourceFile(value.file)
+		}
+	)
+	comparisonCache = new BoundedLruMap<string, boolean>(TYPESCRIPT_TYPE_COMPARISON_CACHE_CAPACITY)
+	sourceSequence = 0
 }
 
 function getOrCreateValidation(typeExpression: string): CachedTypeValidation {

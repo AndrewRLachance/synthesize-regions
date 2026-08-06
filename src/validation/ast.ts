@@ -8,22 +8,44 @@ import {
 import type { GenerateOptions, MarkerExpectedKind, ReplacementRegion, TemplateMode } from "../core/types.js";
 import { wrapTemplateSource } from "../templates/templateMode.js";
 
+// Shared project instance for reuse across compilation sessions
+let sharedProject: Project | undefined = undefined;
+
 /**
  * Create the ts-morph project used for parsing and diagnostics.
+ * Reuses a shared project when possible to improve performance across compilation sessions.
  */
 export function createProject(options: GenerateOptions = {}): Project {
-  if (options.tsConfigFilePath) {
-    return new Project({ tsConfigFilePath: options.tsConfigFilePath, skipAddingFilesFromTsConfig: true });
+  // If we have a shared project and no custom tsConfig, reuse it
+  if (sharedProject && !options.tsConfigFilePath) {
+    return sharedProject;
   }
+  
+  // Create a new project with the specified options
+  const project = options.tsConfigFilePath 
+    ? new Project({ tsConfigFilePath: options.tsConfigFilePath, skipAddingFilesFromTsConfig: true })
+    : new Project({
+        compilerOptions: {
+          target: ts.ScriptTarget.ES2022,
+          module: ts.ModuleKind.ES2022,
+          strict: true,
+          skipLibCheck: true
+        }
+      });
+  
+  // Cache the project for reuse if it's a default configuration
+  if (!options.tsConfigFilePath) {
+    sharedProject = project;
+  }
+  
+  return project;
+}
 
-  return new Project({
-    compilerOptions: {
-      target: ts.ScriptTarget.ES2022,
-      module: ts.ModuleKind.ES2022,
-      strict: true,
-      skipLibCheck: true
-    }
-  });
+/**
+ * Reset the shared project instance, useful for testing or when switching configurations.
+ */
+export function resetSharedProject(): void {
+  sharedProject = undefined;
 }
 
 /**
