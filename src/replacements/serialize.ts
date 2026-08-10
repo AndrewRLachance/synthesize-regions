@@ -16,8 +16,7 @@ import {
   validateRawExpressionSuffixSyntax,
   validateRawStatementSyntax,
   validateRawTypedSyntax,
-  validateRawTypedSyntaxCollection,
-  resetSharedProject
+  validateRawTypedSyntaxCollection
 } from "../validation/ast.js";
 import {
   expressionReplacementKinds,

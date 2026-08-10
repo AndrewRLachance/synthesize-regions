@@ -1649,6 +1649,35 @@ describe("schema-driven synthesis graph", () => {
     expect(result.diagnostics.some(diagnostic => diagnostic.code === "IncompatibleCollectionSize")).toBe(true);
   });
 
+  it("accepts empty typed fragment collections when their port permits zero items", () => {
+    const optionalMembers = defineTemplate({
+      modelId: "OptionalClassMembers",
+      inputs: {
+        members: fragmentCollectionPort({
+          regionKind: "classMember",
+          accepts: { outputKind: "classMember" },
+          minItems: 0
+        })
+      },
+      output: { kind: "declaration" },
+      source: "class Empty {\n/** @TYPE classMember id=members **/placeholder(): void {}/** @END **/\n}"
+    });
+    const result = compileGraph({
+      nodes: [{
+        id: "empty", templateId: "OptionalClassMembers", inputs: {
+          members: { kind: "fragmentCollection", items: [] }
+        }
+      }],
+      finalNodeId: "empty"
+    }, [optionalMembers]);
+
+    expect(result.ok, JSON.stringify(result.diagnostics, null, 2)).toBe(true);
+    if (result.ok) {
+      expect(result.finalArtifact.code).toContain("class Empty");
+      expect(result.finalArtifact.code).not.toContain("placeholder");
+    }
+  });
+
   it("optionally reports structured TypeScript semantic diagnostics for a complete graph", () => {
     const invalid = defineTemplate({
       modelId: "SemanticMismatch",
@@ -1710,6 +1739,7 @@ describe("schema-driven synthesis graph", () => {
         templateId: incorrectlyAdvertised.modelId
       })
     ]));
+    expect(checked.diagnostics.some(diagnostic => diagnostic.compilerCode === 2451)).toBe(false);
   });
 
   it("semantically enforces an expression-suffix artifact's advertised TypeScript type", () => {
@@ -1736,6 +1766,7 @@ describe("schema-driven synthesis graph", () => {
         templateId: incorrectlyAdvertised.modelId
       })
     ]));
+    expect(checked.diagnostics.some(diagnostic => diagnostic.compilerCode === 2451)).toBe(false);
 
     const explicitlyNarrowed = defineTemplate({
       modelId: "AdvertisedConcreteSuffix",
@@ -1743,10 +1774,12 @@ describe("schema-driven synthesis graph", () => {
       output: { kind: "expressionSuffix", type: { ts: "boolean" } },
       source: " as boolean"
     });
-    expect(compileGraph({
+    const narrowed = compileGraph({
       nodes: [{ id: "suffix", templateId: explicitlyNarrowed.modelId, inputs: {} }],
       finalNodeId: "suffix"
-    }, [explicitlyNarrowed], { checkSemanticDiagnostics: true }).ok).toBe(true);
+    }, [explicitlyNarrowed], { checkSemanticDiagnostics: true });
+    expect(narrowed.ok, JSON.stringify(narrowed.diagnostics, null, 2)).toBe(true);
+    expect(narrowed.diagnostics.some(diagnostic => diagnostic.compilerCode === 2451)).toBe(false);
   });
 
   it("uses a semantic prelude to provide insertion-site bindings", () => {
@@ -1764,12 +1797,43 @@ describe("schema-driven synthesis graph", () => {
     const missing = compileGraph(graph, [external], { checkSemanticDiagnostics: true });
     expect(missing.ok).toBe(false);
     expect(missing.diagnostics.some(diagnostic => diagnostic.compilerCode === 2304)).toBe(true);
+    expect(missing.diagnostics.some(diagnostic => diagnostic.compilerCode === 2451)).toBe(false);
 
     const supplied = compileGraph(graph, [external], {
       checkSemanticDiagnostics: true,
       semanticContext: { prelude: "declare const externalValue: number;" }
     });
-    expect(supplied.ok).toBe(true);
+    expect(supplied.ok, JSON.stringify(supplied.diagnostics, null, 2)).toBe(true);
+    expect(supplied.diagnostics.some(diagnostic => diagnostic.compilerCode === 2451)).toBe(false);
+  });
+
+  it("isolates a valid semantic compilation from a preceding failure", () => {
+    const invalid = defineTemplate({
+      modelId: "IsolatedInvalidExpression",
+      inputs: {},
+      output: { kind: "expression" },
+      source: "missingValue"
+    });
+    const invalidResult = compileGraph({
+      nodes: [{ id: "invalid", templateId: invalid.modelId, inputs: {} }],
+      finalNodeId: "invalid"
+    }, [invalid], { checkSemanticDiagnostics: true });
+    expect(invalidResult.ok).toBe(false);
+    expect(invalidResult.diagnostics.some(diagnostic => diagnostic.compilerCode === 2304)).toBe(true);
+    expect(invalidResult.diagnostics.some(diagnostic => diagnostic.compilerCode === 2451)).toBe(false);
+
+    const valid = defineTemplate({
+      modelId: "IsolatedValidExpression",
+      inputs: {},
+      output: { kind: "expression" },
+      source: "1 + 1"
+    });
+    const validResult = compileGraph({
+      nodes: [{ id: "valid", templateId: valid.modelId, inputs: {} }],
+      finalNodeId: "valid"
+    }, [valid], { checkSemanticDiagnostics: true });
+    expect(validResult.ok, JSON.stringify(validResult.diagnostics, null, 2)).toBe(true);
+    expect(validResult.diagnostics.some(diagnostic => diagnostic.compilerCode === 2451)).toBe(false);
   });
 
   it("defers semantic checks until a partial artifact is filled", () => {
@@ -1804,9 +1868,9 @@ describe("schema-driven synthesis graph", () => {
 
   it("reports artifact-relative semantic locations for supported wrappers", () => {
     const cases = [
-      { modelId: "BadExpression", kind: "expression" as const, code: "missingExpression" },
-      { modelId: "BadStatement", kind: "statement" as const, code: "missingStatement();" },
-      { modelId: "BadProperty", kind: "objectProperty" as const, code: "value: missingProperty" }
+      { modelId: "BadExpression", kind: "expression" as const, code: "missingExpression", column: 1 },
+      { modelId: "BadStatement", kind: "statement" as const, code: "missingStatement();", column: 1 },
+      { modelId: "BadProperty", kind: "objectProperty" as const, code: "value: missingProperty", column: 8 }
     ];
 
     for (const item of cases) {
@@ -1820,10 +1884,13 @@ describe("schema-driven synthesis graph", () => {
         nodes: [{ id: "bad", templateId: item.modelId, inputs: {} }],
         finalNodeId: "bad"
       }, [template], { checkSemanticDiagnostics: true });
-      const diagnostic = result.diagnostics.find(entry => entry.code === "TypeScriptSemanticError");
+      const diagnostic = result.diagnostics.find(entry =>
+        entry.code === "TypeScriptSemanticError" && entry.compilerCode === 2304
+      );
       expect(result.ok).toBe(false);
+      expect(result.diagnostics.some(entry => entry.compilerCode === 2451)).toBe(false);
       expect(diagnostic?.line).toBe(1);
-      expect(diagnostic?.column).toBeGreaterThan(0);
+      expect(diagnostic?.column).toBe(item.column);
     }
   });
 });

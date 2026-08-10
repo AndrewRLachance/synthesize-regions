@@ -49,7 +49,7 @@ conditional-type lines.
 | `dist/templates/schemaTypes.d.ts` | `763fa09c09ccda8edfa90787f9e3fe111cc26b1ecc890882d4795efc29be8f34` |
 | `dist/templates/schemaContract.d.ts` | `8a7ff554a9a572ccd228baed9424b73501ebc06dea1086e1bc37fb6a6f9ef5c5` |
 | `dist/templates/schemaCompatibility.d.ts` | `10bd68ee50b69b7479d30eff64ae97c523123091f73f326806545066d6a08cd0` |
-| `dist/templates/typeScriptCompatibility.d.ts` | `b562d7c8e74645d786afaade5008fcd7efc89da9df0946aac7e2f05a6a449022` |
+| `dist/templates/typeScriptCompatibility.d.ts` | `a93d61d0804b4f53890fc251cc67b13a2475f044b620950d7c85a30af8d23d9c` |
 | `dist/templates/compatibility.d.ts` | `0bd70a7380eea59a477a2df77ec3dd615affd4dac9e9b565a7e5ae610a7c24b5` |
 
 ## TypeBox contract export inventory
@@ -2259,6 +2259,11 @@ export declare function validateTypeScriptType(typeExpression: string, path?: st
  * to the expected consumer type.
  */
 export declare function compareTypeScriptTypes(expected: string | undefined, actual: string | undefined): TypeScriptTypeCompatibilityResult;
+/**
+ * Reset the TypeScript compatibility caches.
+ * This should be called when starting a new compilation session.
+ */
+export declare function resetTypeScriptCompatibility(): void;
 ```
 
 ### `dist/templates/compatibility.d.ts`

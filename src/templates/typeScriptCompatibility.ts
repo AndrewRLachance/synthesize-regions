@@ -208,7 +208,7 @@ export function compareTypeScriptTypes(
 }
 
 /**
- * Reset the TypeScript compatibility caches and shared project state.
+ * Reset the TypeScript compatibility caches.
  * This should be called when starting a new compilation session.
  */
 export function resetTypeScriptCompatibility(): void {
