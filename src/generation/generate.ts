@@ -4,7 +4,9 @@ import { buildReplacementEdits, type PlannedReplacementEdit } from "../replaceme
 import { discoverReplacementRegions, discoverSourceTemplates } from "../regions/discovery.js";
 import { wrapTemplateSource } from "../templates/templateMode.js";
 import { validateVirtualSemanticTarget } from "../templates/semanticTarget.js";
-import { createProject, createSourceFile, assertFinalValid, diagnosticMessages } from "../validation/ast.js";
+import { assertFinalValid, diagnosticMessages } from "../validation/ast.js";
+import { createAnalysisSourceFile, runWithAnalysisContext } from "../validation/analysisContext.js";
+import { prevalidatedRegionsFor } from "./prevalidatedRegions.js";
 import type {
   DiscoveredSourceTemplate,
   GenerateDiscoveredSourceTemplateOptions,
@@ -26,11 +28,20 @@ export function generateWithReplacements(
   replacements: ReplacementMap,
   options: GenerateOptions = {}
 ): GenerateResult {
+  return runWithAnalysisContext(options, boundOptions => generateWithReplacementsInContext(sourceText, replacements, boundOptions));
+}
+
+/** Generate using analysis ownership established by the outer operation. */
+function generateWithReplacementsInContext(
+  sourceText: string,
+  replacements: ReplacementMap,
+  options: GenerateOptions
+): GenerateResult {
   const filePath = options.filePath ?? "__synthesize_regions__.ts";
-  const regions = discoverReplacementRegions(sourceText, {
-    ...options,
-    filePath
-  });
+  const prevalidatedRegions = prevalidatedRegionsFor(options, sourceText);
+  const regions = prevalidatedRegions === undefined
+    ? discoverReplacementRegions(sourceText, { ...options, filePath })
+    : prevalidatedRegions.map(region => ({ ...region }));
 
   const edits = buildReplacementEdits(regions, replacements, options, sourceText);
   let code = applyReplacementEdits(sourceText, edits);
@@ -40,8 +51,7 @@ export function generateWithReplacements(
   }
 
   const finalWrapped = wrapTemplateSource(code, options.templateMode);
-  const finalProject = createProject(options);
-  const finalSourceFile = createSourceFile(finalProject, finalWrapped.wrappedText, filePath);
+  const finalSourceFile = createAnalysisSourceFile(options, finalWrapped.wrappedText, filePath);
   assertFinalValid(finalSourceFile, filePath, options.checkSemanticDiagnostics ?? false);
 
   return {
@@ -160,16 +170,15 @@ function applyReplacementEdits(sourceText: string, edits: PlannedReplacementEdit
 
 function formatGeneratedCode(code: string, options: GenerateOptions, filePath: string): string {
   const mode = options.templateMode ?? { kind: "file" as const };
-  const formattingProject = createProject(options);
 
   if (mode.kind === "file") {
-    const formattingSourceFile = createSourceFile(formattingProject, code, filePath);
+    const formattingSourceFile = createAnalysisSourceFile(options, code, filePath);
     formattingSourceFile.formatText();
     return formattingSourceFile.getFullText();
   }
 
   const wrapped = wrapTemplateSourceForFormatting(code, mode);
-  const formattingSourceFile = createSourceFile(formattingProject, wrapped.wrappedText, filePath);
+  const formattingSourceFile = createAnalysisSourceFile(options, wrapped.wrappedText, filePath);
   formattingSourceFile.formatText();
 
   const formatted = formattingSourceFile.getFullText();

@@ -7,6 +7,7 @@ import {
 } from "../core/errors.js";
 import type { GenerateOptions, MarkerExpectedKind, ReplacementRegion, TemplateMode } from "../core/types.js";
 import { wrapTemplateSource } from "../templates/templateMode.js";
+import { createAnalysisSourceFile, createIndependentAnalysisProject } from "./analysisContext.js";
 
 /**
  * Create the ts-morph project used for parsing and diagnostics.
@@ -14,18 +15,7 @@ import { wrapTemplateSource } from "../templates/templateMode.js";
  * leak declarations or diagnostics into another analysis operation.
  */
 export function createProject(options: GenerateOptions = {}): Project {
-  if (options.tsConfigFilePath) {
-    return new Project({ tsConfigFilePath: options.tsConfigFilePath, skipAddingFilesFromTsConfig: true });
-  }
-
-  return new Project({
-    compilerOptions: {
-      target: ts.ScriptTarget.ES2022,
-      module: ts.ModuleKind.ES2022,
-      strict: true,
-      skipLibCheck: true
-    }
-  });
+  return createIndependentAnalysisProject(options);
 }
 
 /**
@@ -504,8 +494,7 @@ export function isValidIdentifierName(name: string): boolean {
  * Parse raw expression replacement code in an expression context.
  */
 export function validateRawExpressionSyntax(code: string, options: GenerateOptions = {}, metadata: { id?: string } = {}): void {
-  const project = createProject(options);
-  const sourceFile = createSourceFile(project, `const __x = (${code});`, "__replacement_expression__.ts");
+  const sourceFile = createAnalysisSourceFile(options, `const __x = (${code});`, "__replacement_expression__.ts");
   const diagnostics = sourceFile.getProject().getProgram().getSyntacticDiagnostics(sourceFile);
   const variable = sourceFile.getVariableDeclaration("__x");
   if (diagnostics.length > 0 || !variable?.getInitializer()) {
@@ -521,8 +510,7 @@ export function validateRawExpressionSyntax(code: string, options: GenerateOptio
  */
 export function validateRawExpressionSuffixSyntax(code: string, options: GenerateOptions = {}, metadata: { id?: string } = {}): void {
   const trimmed = code.trim();
-  const project = createProject(options);
-  const sourceFile = createSourceFile(project, `const __x = __partialReceiver${code};`, "__replacement_expression_suffix__.ts");
+  const sourceFile = createAnalysisSourceFile(options, `const __x = __partialReceiver${code};`, "__replacement_expression_suffix__.ts");
   const diagnostics = sourceFile.getProject().getProgram().getSyntacticDiagnostics(sourceFile);
   const variable = sourceFile.getVariableDeclaration("__x");
   if ((!trimmed.startsWith(".") && !trimmed.startsWith("?.")) || diagnostics.length > 0 || !variable?.getInitializer()) {
@@ -537,8 +525,7 @@ export function validateRawExpressionSuffixSyntax(code: string, options: Generat
  * Parse raw statement replacement code inside a synthetic function body.
  */
 export function validateRawStatementSyntax(code: string, options: GenerateOptions = {}, metadata: { id?: string } = {}): void {
-  const project = createProject(options);
-  const sourceFile = createSourceFile(project, `function __f() {\n${code}\n}`, "__replacement_statement__.ts");
+  const sourceFile = createAnalysisSourceFile(options, `function __f() {\n${code}\n}`, "__replacement_statement__.ts");
   const diagnostics = sourceFile.getProject().getProgram().getSyntacticDiagnostics(sourceFile);
   const functionDeclaration = sourceFile.getFunctionOrThrow("__f");
   if (diagnostics.length > 0 || functionDeclaration.getStatements().length === 0) {
@@ -663,8 +650,7 @@ export function validateRawTypedSyntax(
   }
   const mode = typedSyntaxMode(kind)!;
   const wrapped = wrapTemplateSource(code, mode);
-  const project = createProject(options);
-  const sourceFile = createSourceFile(project, wrapped.wrappedText, `__replacement_${kind}.ts`);
+  const sourceFile = createAnalysisSourceFile(options, wrapped.wrappedText, `__replacement_${kind}.ts`);
   const diagnostics = sourceFile.getProject().getProgram().getSyntacticDiagnostics(sourceFile);
   if (diagnostics.length > 0) {
     throw new InvalidReplacementSyntaxError(`Invalid raw ${kind} replacement syntax.`, {
@@ -693,8 +679,7 @@ export function validateRawTypedSyntaxCollection(
     });
   }
   const wrapped = wrapTypedSyntaxCollection(kind, code);
-  const project = createProject(options);
-  const sourceFile = createSourceFile(project, wrapped.wrappedText, `__replacement_${kind}_collection.ts`);
+  const sourceFile = createAnalysisSourceFile(options, wrapped.wrappedText, `__replacement_${kind}_collection.ts`);
   const diagnostics = sourceFile.getProject().getProgram().getSyntacticDiagnostics(sourceFile);
   if (diagnostics.length > 0) {
     throw new InvalidReplacementSyntaxError(`Invalid raw ${kind} collection replacement syntax.`, {

@@ -154,6 +154,17 @@ function validateTypeDescriptor(
 	if (descriptor === undefined) return true
 
 	let valid = validateSchema(descriptor.schema, template, inputName, `${path}.schema`, context)
+	if (descriptor.nominal !== undefined &&
+		(typeof descriptor.nominal !== 'string' || descriptor.nominal.trim().length === 0)) {
+		context.diagnostics.push(diagnostic(
+			'InvalidNominalType',
+			'TypeDescriptor.nominal must be a non-empty string.',
+			template,
+			`${path}.nominal`,
+			{ ...(inputName === undefined ? {} : { inputName }), actual: descriptor.nominal }
+		))
+		valid = false
+	}
 	if (descriptor.ts === undefined) return valid
 
 	const result = validateTypeScriptType(descriptor.ts, `${path}.ts`)

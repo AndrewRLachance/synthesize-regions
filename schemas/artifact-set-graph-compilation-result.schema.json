@@ -448,6 +448,10 @@
       "additionalProperties": false,
       "type": "object",
       "properties": {
+        "nominal": {
+          "minLength": 1,
+          "type": "string"
+        },
         "ts": {
           "type": "string"
         },
@@ -775,6 +779,10 @@
       "additionalProperties": false,
       "type": "object",
       "properties": {
+        "nominal": {
+          "minLength": 1,
+          "type": "string"
+        },
         "ts": {
           "type": "string"
         },

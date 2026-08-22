@@ -320,6 +320,13 @@ output: {
 checked exactly at fragment ports and graph goals. `type` is an additional
 semantic contract; it does not change the syntax kind.
 
+`TypeDescriptor.nominal` optionally identifies a catalog-level library family
+such as `effect/Effect`, `effect/Layer`, or `effect/Schema`. When a consumer
+requires a nominal family, a producer must advertise the same family in
+addition to satisfying the structural TypeScript and JSON Schema contracts.
+This distinguishes library values whose public structures are otherwise too
+similar to identify without importing project-local declarations.
+
 Type descriptors are author assertions. Their TypeScript expressions must be
 self-contained and cannot contain `any`. With semantic checking enabled, the
 complete final artifact is checked against its advertised type where the
@@ -519,6 +526,50 @@ context, verifies exact marker-to-port ownership, and then validates the whole
 catalog atomically. The published
 `schemas/template-manifest.schema.json` is suitable for validating the JSON at
 an API boundary before calling the TypeScript API.
+
+## Effect sample catalogs
+
+The `samples` directory includes a composable Effect 3.22 catalog. The original
+`effect-ts.ts` contains the core 40 Effect constructors, combinators, generator
+statements, and runners. The extended application catalog is split by concern:
+
+| Sample module | Models |
+| --- | ---: |
+| `effect-schema-templates.ts` | 7 |
+| `effect-service-layer-templates.ts` | 8 |
+| `effect-application-templates.ts` | 5 |
+| `effect-error-templates.ts` | 8 |
+| `effect-concurrency-templates.ts` | 7 |
+| `effect-schedule-templates.ts` | 7 |
+| `effect-resource-templates.ts` | 4 |
+| `effect-config-templates.ts` | 8 |
+| `effect-coordination-templates.ts` | 14 |
+| `effect-observability-templates.ts` | 7 |
+| `effect-stream-templates.ts` | 8 |
+| `effect-testing-templates.ts` | 5 |
+| `effect-workflow-templates.ts` | 10 |
+
+Each module exports its named definitions and one stable
+`effect…GraphTemplateInputs` array. Combine those arrays with
+`effectGraphTemplateInputs` when constructing a registry. The templates assume
+the matching Effect namespaces are in semantic scope; the application
+source-file template emits the standard imports. The Vitest declaration
+templates additionally assume an `it` binding from `@effect/vitest`.
+
+The workflow module raises the core-plus-family catalog to 138 models. Its
+atomic templates compose schema validation, live/test service Layers,
+configuration, resilience, bounded traversal, scoped resources and workers,
+framework-neutral request handlers, validated ingestion Streams, and a complete
+ManagedRuntime application entry point. `ApplicationMain` accepts zero or more
+top-level declaration statements, one or more closed Layers, and an Effect whose
+requirements are supplied by the merged Layer. It always disposes the managed
+runtime after `runPromise` settles.
+
+Nominal descriptors keep Effect library families distinct at graph boundaries,
+while correlated placeholders propagate success, expected-error, requirement,
+service, stream, schema, and schedule channels. Supplying a Layer removes only
+the services that Layer provides and unions its construction errors and
+remaining requirements into the resulting Effect or Layer.
 
 ## Authoring guidelines
 

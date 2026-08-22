@@ -18,6 +18,10 @@
       "types": "./dist/templates/capabilityClosure.d.ts",
       "import": "./dist/templates/capabilityClosure.js"
     },
+    "./internal/semantic-program-owner": {
+      "types": "./dist/internal/semanticProgramOwner.d.ts",
+      "import": "./dist/internal/semanticProgramOwner.js"
+    },
     "./contract-manifest.json": "./contract-manifest.json",
     "./schemas/replacement-map.schema.json": "./schemas/replacement-map.schema.json",
     "./schemas/artifact-set-plan.schema.json": "./schemas/artifact-set-plan.schema.json",
@@ -55,15 +59,19 @@
     "schemas:check": "node --import tsx scripts/generate-schemas.ts --check",
     "contracts:generate": "npm run build && node --import tsx scripts/generate-contract-snapshot.ts",
     "contracts:check": "npm run build && node --import tsx scripts/generate-contract-snapshot.ts --check",
+    "contracts:check:built": "node --import tsx scripts/generate-contract-snapshot.ts --check",
     "contract-manifest:generate": "node --import tsx scripts/generate-contract-manifest.ts",
     "contract-manifest:check": "node --import tsx scripts/generate-contract-manifest.ts --check",
     "invariants:check": "node --import tsx scripts/check-invariants.ts",
     "invariants:generate": "node --import tsx scripts/check-invariants.ts --write",
     "pretest": "npm run schemas:check && npm run invariants:check",
     "test": "vitest run",
+    "test:fast": "vitest run",
+    "benchmark:compilation": "node --import tsx scripts/benchmark-compilation.ts",
     "test:package": "npm run schemas:check && npm run build && node --import tsx scripts/package-smoke.ts",
+    "test:package:built": "node --import tsx scripts/package-smoke.ts",
     "prepack": "npm run schemas:check && npm run invariants:check && npm run contract-manifest:check && npm run build && node --import tsx scripts/generate-contract-snapshot.ts --check",
-    "verify": "npm run typecheck && npm test && npm run test:package && npm run contracts:check && npm run contract-manifest:check"
+    "verify": "npm run schemas:check && npm run invariants:check && npm run contract-manifest:check && npm run typecheck && npm run test:fast && npm run build && npm run test:package:built && npm run contracts:check:built"
   },
   "dependencies": {
     "@sinclair/typebox": "0.34.51",
@@ -75,6 +83,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
+    "effect": "3.22.1",
     "tsx": "^4.19.2",
     "vitest": "^2.1.8"
   }

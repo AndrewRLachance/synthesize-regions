@@ -35,6 +35,10 @@ boundaries:
 
 - `compileArtifactSetGraphs()` compiles graph/fill results without assembly.
 - `assembleArtifactSetTargets()` performs deterministic syntax-only assembly.
+- `assembleCompiledArtifactSet()` revalidates compilation evidence without
+  compiling unchanged graphs.
+- `validateAssembledArtifactSetSemantics()` verifies accepted assembly bytes
+  and runs semantic analysis without repeating assembly-phase TypeScript work.
 - `validateArtifactSetSemantics()` compares baseline and candidate TypeScript
   programs.
 - `finalizeArtifactSetStatic()` authoritatively revalidates and produces the
@@ -985,6 +989,18 @@ carry `contractDigest`, `manifestDigest`, `workspaceSnapshotHash`,
 those identities. The plan, compilation-result, and static-validation-result
 wire contracts are published as JSON Schemas.
 
+The [`samples/validate-edit-templates.ts`](samples/validate-edit-templates.ts)
+catalog demonstrates a complete `sourceFile` wrapper around
+`AbstractReasoningGraph`. Its seven member-category
+ports are optional collections: omitting a category means zero members, while a
+present collection may reference multiple structurally enforced helper
+templates. The starter graph therefore contains only the class declaration and
+source-file wrapper rather than forcing one invented member of every category.
+The companion task-scoped guidance in
+[`samples/abstract-reasoning-graph-design.md`](samples/abstract-reasoning-graph-design.md)
+is Markdown prompt context for the agent-runtime manual harness; it is not
+parsed or enforced by this package.
+
 ### Type and schema compatibility
 
 Compatibility is directional: a producer's advertised TypeScript type must be
@@ -1573,3 +1589,23 @@ code
 Canonical behavior examples live under `test/fixtures/`, and
 `test/fixture-integration.test.ts` runs every fixture through
 `generateWithReplacements`.
+
+## Development performance checks
+
+Run `npm run benchmark:compilation -- --iterations=5` for a read-only JSON
+report covering single- and multi-node graphs, artifact sets, cold and warm
+captured-workspace baseline analysis, candidate semantic analysis, consecutive
+candidate revisions with and without an explicitly owned incremental program,
+cache hits/misses, retained cache bytes, and peak RSS. The
+command does not write benchmark results into the repository. Timing values are
+local acceptance evidence, not unit-test assertions.
+
+Artifact-set semantic validation caches only successful immutable baseline
+analysis data. Exact captured file hashes, the effective workspace root and
+tsconfig, authorized project references, analysis mode, snapshot identity, and
+TypeScript identity all participate in the key. The baseline cache never retains
+generated candidate source or compiler objects. Runtime-core may separately
+install a private authority-scoped candidate-program owner across input/graph
+repairs; it is not part of the public compilation API. See
+[`docs/synthesis-workflow-technical-design.md`](docs/synthesis-workflow-technical-design.md#241-captured-typescript-baseline-reuse)
+for ownership and incremental-analysis constraints.

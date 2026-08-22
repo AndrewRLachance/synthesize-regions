@@ -665,7 +665,7 @@ interface WorkspaceConstraintRequest {
   analysisRoots: string[];
 }
 
-interface SynthesisRequest {
+interface CapturedSynthesisRequest {
   // Existing objective, workspace, targets, catalog, policy, and budgets.
   constraints?: WorkspaceConstraintRequest;
 }
@@ -675,7 +675,7 @@ Production callers do not assert `expectedConstraintDigest`. Their
 `SessionConstraintCaptureDraft` supplies only `entryPath` and `analysisRoots`.
 `captureSessionInput()` captures and compiles the exact module bytes, derives
 the digest and source-snapshot hash, persists the schema-v3 capture object, and
-then constructs the internal request above with the derived digest. The
+then constructs the captured request above with the derived digest. The
 `expectedConstraintDigest` field is therefore a later integrity check, not a
 source of authority.
 

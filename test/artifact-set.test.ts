@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
 	assembleArtifactSetTargets,
+	assembleCompiledArtifactSet,
 	ArtifactSetAssemblyResultSchema,
 	ArtifactSetGraphCompilationResultSchema,
 	ArtifactSetSemanticValidationResultSchema,
@@ -22,6 +23,8 @@ import {
 	rawCodePort,
 	checkContract,
 	validateArtifactSetSemantics,
+	validateAssembledArtifactSetSemantics,
+	validateCompiledArtifactSetSemantics,
 	validateArtifactSetStatic,
 	type ArtifactFillLedgerEntry,
 	type ArtifactSetPlan,
@@ -354,9 +357,37 @@ describe('artifact-set compilation', () => {
 		})), registry)
 		expect(assembled.ok).toBe(true)
 		expect(checkContract(ArtifactSetAssemblyResultSchema, assembled)).toBe(true)
+		const reusedAssembly = assembleCompiledArtifactSet(graph, registry)
+		expect(reusedAssembly).toEqual(assembled)
 		const semantic = validateArtifactSetSemantics(plan, registry)
 		expect(semantic.ok).toBe(true)
 		expect(checkContract(ArtifactSetSemanticValidationResultSchema, semantic)).toBe(true)
+		const reusedSemantic = validateCompiledArtifactSetSemantics(graph, registry)
+		expect(reusedSemantic).toEqual(semantic)
+		const assemblyFedSemantic = validateAssembledArtifactSetSemantics(graph, reusedAssembly, registry)
+		expect(assemblyFedSemantic).toEqual(semantic)
+		if (reusedAssembly.ok) {
+			const forgedAssembly = {
+				...reusedAssembly,
+				changes: reusedAssembly.changes.map((change, index) => index === 0
+					? { ...change, sourceText: `${change.sourceText}\n// forged` }
+					: change)
+			}
+			expect(validateAssembledArtifactSetSemantics(graph, forgedAssembly, registry)).toMatchObject({
+				ok: false,
+				classification: 'terminalFailure',
+				diagnostics: expect.arrayContaining([expect.objectContaining({ code: 'ArtifactAssemblyHashMismatch' })])
+			})
+		}
+		const forgedCompilation = {
+			...graph,
+			units: graph.units.map((unit, index) => index === 0 ? { ...unit, graphHash: 'g1_forged' } : unit)
+		}
+		expect(assembleCompiledArtifactSet(forgedCompilation, registry)).toMatchObject({
+			ok: false,
+			classification: 'terminalFailure',
+			diagnostics: expect.arrayContaining([expect.objectContaining({ code: 'ArtifactLedgerGraphHashMismatch' })])
+		})
 
 		const hash = `sha256:${'a'.repeat(64)}`
 		const acceptance = {

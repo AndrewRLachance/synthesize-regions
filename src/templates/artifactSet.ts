@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { performance } from 'node:perf_hooks'
 import { posix } from 'node:path'
 
 import { canonicalizeJson, canonicalizeSynthesisGraph } from './artifactIdentity.js'
@@ -8,6 +9,7 @@ import {
 	fillTemplateArtifactWithCatalog,
 	validateTemplateArtifactAgainstCatalog
 } from './graph.js'
+import { runWithAnalysisContext } from '../validation/analysisContext.js'
 import type {
 	CompleteTemplateArtifact,
 	GraphCompileOptions,
@@ -32,8 +34,14 @@ import {
 } from './diagnosticCatalog.js'
 import {
 	buildCapturedTypeScriptProject,
+	buildCapturedTypeScriptProjectWithOwner,
 	type CapturedCompilerIssue
 } from './capturedProject.js'
+import { currentSemanticProgramOwner } from '../internal/semanticProgramOwner.js'
+import {
+	analyzeCapturedTypeScriptBaseline,
+	recordCandidateAnalysis
+} from './baselineAnalysisCache.js'
 
 const ARTIFACT_SET_IDENTITY_VERSION = 1
 const ARTIFACT_SET_WORKSPACE_IDENTITY_VERSION = 2
@@ -827,6 +835,18 @@ export function compileArtifactSetGraphs(
 	catalog: TemplateCatalogView | readonly GraphTemplateDefinition<any, string, any>[],
 	options: ArtifactSetCompileOptions = {}
 ): ArtifactSetGraphCompilationResult {
+	// Graph fragments are intentionally context-free here. Captured tsconfig text
+	// is consumed by later virtual-project validation and must never be resolved
+	// against the live worker filesystem.
+	return runWithAnalysisContext(graphCompileOptions(options), () => compileArtifactSetGraphsInContext(plan, catalog, options))
+}
+
+/** Compile every unit with one shared operation-local analysis context. */
+function compileArtifactSetGraphsInContext(
+	plan: ArtifactSetPlan,
+	catalog: TemplateCatalogView | readonly GraphTemplateDefinition<any, string, any>[],
+	options: ArtifactSetCompileOptions
+): ArtifactSetGraphCompilationResult {
 	const mode = options.mode ?? 'strict'
 	const diagnostics: ArtifactSetDiagnostic[] = []
 	const units: ArtifactSetUnitCompilation[] = []
@@ -934,6 +954,379 @@ function failedGraphCompilation(
 	identity?: Pick<ArtifactSetAcceptanceIdentity, 'contractDigest' | 'manifestDigest' | 'workspaceSnapshotHash'>
 ): ArtifactSetGraphCompilationResult {
 	return { kind: 'artifactSetGraphCompilation', mode, ok: false, complete: false, plan, units, diagnostics, classification, ...(identity ?? {}) }
+}
+
+/**
+ * Revalidate successful graph-compilation evidence and project the complete
+ * artifacts consumed by later static phases. This deliberately validates
+ * identities, graph hashes, targets, artifact hashes, and catalog integrity
+ * without recompiling an unchanged graph.
+ */
+function assemblyUnitsFromCompilation(
+	compilation: ArtifactSetGraphCompilationResult,
+	catalog: TemplateCatalogView | readonly GraphTemplateDefinition<any, string, any>[],
+	options: ArtifactSetAssemblyOptions
+): { readonly ok: true; readonly units: ArtifactSetAssemblyUnit[] } | { readonly ok: false; readonly diagnostics: ArtifactSetDiagnostic[] } {
+	if (!compilation.ok) return { ok: false, diagnostics: compilation.diagnostics }
+	const diagnostics: ArtifactSetDiagnostic[] = []
+	let catalogView: TemplateCatalogView
+	try {
+		catalogView = captureCatalog(catalog)
+	} catch (error) {
+		return { ok: false, diagnostics: catalogErrorDiagnostics(error) }
+	}
+	if (compilation.contractDigest !== catalogView.contractDigest) diagnostics.push(setDiagnostic(
+		'CatalogDigestMismatch', 'Compiled artifact-set evidence uses a different catalog contract.',
+		{ expected: catalogView.contractDigest, actual: compilation.contractDigest }
+	))
+	if (compilation.manifestDigest !== catalogView.manifestDigest) diagnostics.push(setDiagnostic(
+		'CatalogManifestDigestMismatch', 'Compiled artifact-set evidence uses a different catalog manifest.',
+		{ expected: catalogView.manifestDigest, actual: compilation.manifestDigest }
+	))
+	const workspace = normalizeWorkspaceFiles(options.workspaceFiles ?? {})
+	diagnostics.push(...workspace.diagnostics)
+	const capturedWorkspaceHash = workspaceSnapshotHash(
+		workspace.files, options.workspaceSnapshotId, options.tsConfigFilePath, options.workspaceManifest
+	)
+	if (compilation.workspaceSnapshotHash === undefined) diagnostics.push(setDiagnostic(
+		'WorkspaceSnapshotHashMismatch', 'Compiled artifact-set evidence omits its workspace identity.',
+		{ expected: capturedWorkspaceHash, actual: compilation.workspaceSnapshotHash }
+	))
+	else diagnostics.push(...workspaceIdentityDiagnostics(capturedWorkspaceHash, compilation.workspaceSnapshotHash))
+	diagnostics.push(...workspaceManifestDiagnostics(
+		workspace.files, options.workspaceManifest, options.tsConfigFilePath, options.unavailableTextPaths
+	))
+	if (!compilation.complete) diagnostics.push(setDiagnostic(
+		'UnresolvedArtifactSetInputs', 'Compiled artifact-set evidence is incomplete.', { stage: 'input' }
+	))
+	if (compilation.units.length !== compilation.plan.artifacts.length) diagnostics.push(setDiagnostic(
+		'InvalidArtifactSetPlan', 'Compiled artifact-set units are detached from the normalized plan.',
+		{ expected: compilation.plan.artifacts.length, actual: compilation.units.length }
+	))
+	const units: ArtifactSetAssemblyUnit[] = []
+	for (const [index, planned] of compilation.plan.artifacts.entries()) {
+		const unit = compilation.units[index]
+		if (unit === undefined || unit.artifactId !== planned.id
+			|| canonicalizeJson(unit.target) !== canonicalizeJson(planned.target)) {
+			diagnostics.push(setDiagnostic(
+				'InvalidArtifactSetPlan', `Compiled unit ${planned.id} is detached from its normalized plan target.`,
+				{ artifactId: planned.id, path: `artifacts[${index}]` }
+			))
+			continue
+		}
+		const graphHash = createArtifactSetGraphHash(planned.graph)
+		if (unit.graphHash !== graphHash) diagnostics.push(setDiagnostic(
+			'ArtifactLedgerGraphHashMismatch', `Compiled unit ${planned.id} is detached from its graph.`,
+			{ artifactId: planned.id, expected: graphHash, actual: unit.graphHash }
+		))
+		if (unit.artifact?.complete !== true) {
+			diagnostics.push(setDiagnostic(
+				'UnresolvedArtifactSetInputs', `Compiled unit ${planned.id} does not contain a complete artifact.`,
+				{ artifactId: planned.id, stage: 'input' }
+			))
+			continue
+		}
+		const artifactHash = createArtifactSetArtifactHash(unit.artifact)
+		if (unit.artifactHash !== artifactHash) diagnostics.push(setDiagnostic(
+			'ArtifactAssemblyHashMismatch', `Compiled unit ${planned.id} has a detached artifact hash.`,
+			{ artifactId: planned.id, expected: artifactHash, actual: unit.artifactHash }
+		))
+		const integrity = validateTemplateArtifactAgainstCatalog(
+			unit.artifact,
+			catalogView,
+			options.securityPolicy === undefined ? {} : { securityPolicy: options.securityPolicy }
+		).map(diagnostic => ({ ...diagnostic, artifactId: planned.id }))
+		diagnostics.push(...integrity)
+		units.push({ id: planned.id, target: planned.target, artifact: unit.artifact, artifactHash })
+	}
+	return hasErrors(diagnostics) ? { ok: false, diagnostics } : { ok: true, units }
+}
+
+/**
+ * Assemble a previously compiled, complete artifact set without compiling its
+ * unchanged graphs again. The supplied compilation remains untrusted evidence
+ * and is revalidated against the catalog, workspace, plan, and artifact hashes.
+ */
+export function assembleCompiledArtifactSet(
+	compilation: ArtifactSetGraphCompilationResult,
+	catalog: TemplateCatalogView | readonly GraphTemplateDefinition<any, string, any>[],
+	options: ArtifactSetAssemblyOptions = {}
+): ArtifactSetAssemblyResult {
+	const evidence = assemblyUnitsFromCompilation(compilation, catalog, options)
+	if (!evidence.ok) return {
+		ok: false,
+		classification: classifySynthesisDiagnostics('artifactSetAssembly', evidence.diagnostics),
+		changes: [],
+		diagnostics: evidence.diagnostics
+	}
+	return assembleArtifactSetTargets(evidence.units, catalog, options)
+}
+
+/**
+ * Run project semantic validation from successful graph-compilation evidence.
+ * This preserves the authoritative assembly and semantic checks while avoiding
+ * a second graph compilation and fill-ledger replay.
+ */
+export function validateCompiledArtifactSetSemantics(
+	compilation: ArtifactSetGraphCompilationResult,
+	catalog: TemplateCatalogView | readonly GraphTemplateDefinition<any, string, any>[],
+	options: ArtifactSetAssemblyOptions = {}
+): ArtifactSetSemanticValidationResult {
+	const evidence = assemblyUnitsFromCompilation(compilation, catalog, options)
+	if (!evidence.ok) return {
+		ok: false,
+		classification: classifySynthesisDiagnostics('artifactSetSemanticValidation', evidence.diagnostics),
+		changes: [],
+		diagnostics: evidence.diagnostics
+	}
+	const workspace = normalizeWorkspaceFiles(options.workspaceFiles ?? {})
+	const contextDiagnostics = staticAcceptanceContextDiagnostics(evidence.units, workspace.files, options)
+	if (hasErrors([...workspace.diagnostics, ...contextDiagnostics])) return {
+		ok: false,
+		classification: classifySynthesisDiagnostics('artifactSetSemanticValidation', [...workspace.diagnostics, ...contextDiagnostics]),
+		changes: [],
+		diagnostics: [...workspace.diagnostics, ...contextDiagnostics]
+	}
+	const assembled = assembleArtifactSetTargets(evidence.units, catalog, options)
+	if (!assembled.ok) return assembled
+	const prepared = evidence.units.map((unit, authoredIndex) => ({
+		...unit,
+		authoredIndex,
+		artifactHash: unit.artifactHash ?? createArtifactSetArtifactHash(unit.artifact)
+	}))
+	const semanticDiagnostics = validateAssembledSources(assembled.changes, workspace.files, options, prepared, true)
+	const diagnostics = [...assembled.diagnostics, ...semanticDiagnostics]
+	if (hasErrors(semanticDiagnostics)) return {
+		ok: false,
+		classification: classifySynthesisDiagnostics('artifactSetSemanticValidation', diagnostics),
+		changes: [],
+		diagnostics
+	}
+	return {
+		ok: true,
+		validation: 'semantic',
+		changes: assembled.changes,
+		contractDigest: assembled.contractDigest,
+		manifestDigest: assembled.manifestDigest,
+		workspaceSnapshotHash: assembled.workspaceSnapshotHash,
+		diagnostics
+	}
+}
+
+/**
+ * Validate that accepted assembly evidence is the exact target projection of
+ * the supplied graph-compilation evidence without rerunning TypeScript syntax
+ * analysis. This is intentionally a byte-level verifier: later semantic
+ * analysis may trust the changes only after every artifact, edit, and file
+ * hash has been reproduced here.
+ */
+function acceptedAssemblyDiagnostics(
+	assembly: ArtifactSetAssemblyResult,
+	units: readonly ArtifactSetAssemblyUnit[],
+	workspaceFiles: ReadonlyMap<string, string>,
+	contractDigest: string,
+	manifestDigest: string,
+	workspaceSnapshotHashValue: string
+): ArtifactSetDiagnostic[] {
+	if (!assembly.ok) return assembly.diagnostics
+	const diagnostics: ArtifactSetDiagnostic[] = []
+	if (assembly.contractDigest !== contractDigest) diagnostics.push(setDiagnostic(
+		'CatalogDigestMismatch', 'Assembly evidence uses a different catalog contract.',
+		{ expected: contractDigest, actual: assembly.contractDigest }
+	))
+	if (assembly.manifestDigest !== manifestDigest) diagnostics.push(setDiagnostic(
+		'CatalogManifestDigestMismatch', 'Assembly evidence uses a different catalog manifest.',
+		{ expected: manifestDigest, actual: assembly.manifestDigest }
+	))
+	if (assembly.workspaceSnapshotHash !== workspaceSnapshotHashValue) diagnostics.push(setDiagnostic(
+		'WorkspaceSnapshotHashMismatch', 'Assembly evidence uses a different workspace snapshot.',
+		{ expected: workspaceSnapshotHashValue, actual: assembly.workspaceSnapshotHash }
+	))
+	const expectedChangeSetHash = createArtifactSetChangeSetHash(assembly.changes, {
+		contractDigest,
+		manifestDigest,
+		workspaceSnapshotHash: workspaceSnapshotHashValue
+	})
+	if (assembly.changeSetHash !== expectedChangeSetHash) diagnostics.push(setDiagnostic(
+		'ArtifactAssemblyHashMismatch', 'Assembly evidence has a detached change-set hash.',
+		{ expected: expectedChangeSetHash, actual: assembly.changeSetHash }
+	))
+
+	const unitById = new Map(units.map(unit => [unit.id, unit]))
+	const represented = new Set<string>()
+	const seenPaths = new Set<string>()
+	for (const change of assembly.changes) {
+		if (seenPaths.has(change.path)) {
+			diagnostics.push(setDiagnostic(
+				'ArtifactTargetPathCollision', `Assembly evidence repeats target path ${change.path}.`,
+				{ path: change.path }
+			))
+			continue
+		}
+		seenPaths.add(change.path)
+		if (createArtifactSetFileHash(change.sourceText) !== change.resultingFileHash) diagnostics.push(setDiagnostic(
+			'ArtifactAssemblyHashMismatch', `Assembly evidence has a detached resulting file hash for ${change.path}.`,
+			{ path: change.path, expected: createArtifactSetFileHash(change.sourceText), actual: change.resultingFileHash }
+		))
+
+		const baseSource = change.kind === 'createFile' ? '' : workspaceFiles.get(change.path)
+		if (change.kind === 'createFile' && workspaceFiles.has(change.path)) diagnostics.push(setDiagnostic(
+			'ArtifactCreateFileExists', `Create-file assembly evidence targets existing file ${change.path}.`,
+			{ path: change.path }
+		))
+		if (change.kind === 'modifyFile' && baseSource === undefined) diagnostics.push(setDiagnostic(
+			'MissingArtifactBaseFile', `Assembly evidence targets missing file ${change.path}.`,
+			{ path: change.path }
+		))
+		if (change.kind === 'modifyFile' && baseSource !== undefined) {
+			const expectedBaseHash = createArtifactSetFileHash(baseSource)
+			if (change.baseFileHash !== expectedBaseHash) diagnostics.push(setDiagnostic(
+				'ArtifactBaseFileHashMismatch', `Assembly evidence has a detached base file hash for ${change.path}.`,
+				{ path: change.path, expected: expectedBaseHash, actual: change.baseFileHash }
+			))
+		}
+
+		const positioned = [...change.edits].sort((left, right) => left.start - right.start || left.end - right.end)
+		let delta = 0
+		let previousEnd = -1
+		for (const edit of positioned) {
+			const unit = unitById.get(edit.artifactId)
+			if (unit === undefined) {
+				diagnostics.push(setDiagnostic(
+					'InvalidArtifactSetPlan', `Assembly edit references unknown artifact ${edit.artifactId}.`,
+					{ artifactId: edit.artifactId, path: change.path }
+				))
+				continue
+			}
+			if (represented.has(unit.id)) diagnostics.push(setDiagnostic(
+				'InvalidArtifactSetPlan', `Assembly evidence represents artifact ${unit.id} more than once.`,
+				{ artifactId: unit.id, path: change.path }
+			))
+			represented.add(unit.id)
+			const artifactHash = unit.artifactHash ?? createArtifactSetArtifactHash(unit.artifact)
+			if (edit.artifactHash !== artifactHash || edit.replacement !== unit.artifact.code) diagnostics.push(setDiagnostic(
+				'ArtifactAssemblyHashMismatch', `Assembly edit is detached from artifact ${unit.id}.`,
+				{ artifactId: unit.id, path: change.path, expected: artifactHash, actual: edit.artifactHash }
+			))
+			if (unit.target.path !== change.path
+				|| (unit.target.kind === 'createFile' && (change.kind !== 'createFile' || edit.start !== 0 || edit.end !== 0))
+				|| (unit.target.kind === 'replaceRange' && (change.kind !== 'modifyFile' || edit.start !== unit.target.start || edit.end !== unit.target.end))) {
+				diagnostics.push(setDiagnostic(
+					'InvalidArtifactSetPlan', `Assembly edit is detached from target ${unit.id}.`,
+					{ artifactId: unit.id, path: change.path, expected: unit.target, actual: { start: edit.start, end: edit.end } }
+				))
+			}
+			if ((unit.target.kind === 'createFile' && unit.artifact.kind !== 'sourceFile')
+				|| (unit.target.kind === 'replaceRange' && unit.artifact.kind !== unit.target.regionKind)) {
+				diagnostics.push(setDiagnostic(
+					'ArtifactTargetKindMismatch', `Assembly artifact ${unit.id} is incompatible with its target kind.`,
+					{ artifactId: unit.id, path: change.path, expected: unit.target.kind === 'createFile' ? 'sourceFile' : unit.target.regionKind, actual: unit.artifact.kind }
+				))
+			}
+			if (baseSource !== undefined && !validTargetRange(edit.start, edit.end, baseSource.length)) diagnostics.push(setDiagnostic(
+				'InvalidArtifactTargetRange', `Assembly edit range is invalid for ${change.path}.`,
+				{ artifactId: unit.id, path: change.path, expected: { minimum: 0, maximum: baseSource.length }, actual: { start: edit.start, end: edit.end } }
+			))
+			if (edit.start < previousEnd) diagnostics.push(setDiagnostic(
+				'OverlappingArtifactTargets', `Assembly evidence contains overlapping edits in ${change.path}.`,
+				{ artifactId: unit.id, path: change.path }
+			))
+			const expectedResultStart = edit.start + delta
+			const expectedResultEnd = expectedResultStart + edit.replacement.length
+			if (edit.resultStart !== expectedResultStart || edit.resultEnd !== expectedResultEnd) diagnostics.push(setDiagnostic(
+				'ArtifactAssemblyHashMismatch', `Assembly edit coordinates are detached for artifact ${unit.id}.`,
+				{ artifactId: unit.id, path: change.path, expected: { resultStart: expectedResultStart, resultEnd: expectedResultEnd }, actual: { resultStart: edit.resultStart, resultEnd: edit.resultEnd } }
+			))
+			delta += edit.replacement.length - (edit.end - edit.start)
+			previousEnd = Math.max(previousEnd, edit.end)
+		}
+
+		if (baseSource !== undefined) {
+			let reconstructed = baseSource
+			for (const edit of [...positioned].sort((left, right) => right.start - left.start || right.end - left.end)) {
+				reconstructed = `${reconstructed.slice(0, edit.start)}${edit.replacement}${reconstructed.slice(edit.end)}`
+			}
+			if (reconstructed !== change.sourceText) diagnostics.push(setDiagnostic(
+				'ArtifactAssemblyHashMismatch', `Assembly source text is detached for ${change.path}.`,
+				{ path: change.path, expected: createArtifactSetFileHash(reconstructed), actual: change.resultingFileHash }
+			))
+		}
+	}
+	for (const unit of units) {
+		if (!represented.has(unit.id)) diagnostics.push(setDiagnostic(
+			'InvalidArtifactSetPlan', `Assembly evidence omits artifact ${unit.id}.`,
+			{ artifactId: unit.id, path: unit.target.path }
+		))
+	}
+	return diagnostics
+}
+
+/**
+ * Run project semantic validation from authenticated compilation and assembly
+ * evidence. Unlike `validateCompiledArtifactSetSemantics`, this does not
+ * reassemble the candidate or rerun assembly-phase TypeScript syntax checks.
+ */
+export function validateAssembledArtifactSetSemantics(
+	compilation: ArtifactSetGraphCompilationResult,
+	assembly: ArtifactSetAssemblyResult,
+	catalog: TemplateCatalogView | readonly GraphTemplateDefinition<any, string, any>[],
+	options: ArtifactSetAssemblyOptions = {}
+): ArtifactSetSemanticValidationResult {
+	const evidence = assemblyUnitsFromCompilation(compilation, catalog, options)
+	if (!evidence.ok) return {
+		ok: false,
+		classification: classifySynthesisDiagnostics('artifactSetSemanticValidation', evidence.diagnostics),
+		changes: [],
+		diagnostics: evidence.diagnostics
+	}
+	if (!assembly.ok) return {
+		ok: false,
+		classification: classifySynthesisDiagnostics('artifactSetSemanticValidation', assembly.diagnostics),
+		changes: [],
+		diagnostics: assembly.diagnostics
+	}
+	const workspace = normalizeWorkspaceFiles(options.workspaceFiles ?? {})
+	const capturedWorkspaceHash = workspaceSnapshotHash(
+		workspace.files, options.workspaceSnapshotId, options.tsConfigFilePath, options.workspaceManifest
+	)
+	const contextDiagnostics = staticAcceptanceContextDiagnostics(evidence.units, workspace.files, options)
+	const assemblyDiagnostics = acceptedAssemblyDiagnostics(
+		assembly,
+		evidence.units,
+		workspace.files,
+		compilation.contractDigest!,
+		compilation.manifestDigest!,
+		capturedWorkspaceHash
+	)
+	const acceptanceDiagnostics = [...workspace.diagnostics, ...contextDiagnostics, ...assembly.diagnostics, ...assemblyDiagnostics]
+	if (hasErrors(acceptanceDiagnostics)) return {
+		ok: false,
+		classification: classifySynthesisDiagnostics('artifactSetSemanticValidation', acceptanceDiagnostics),
+		changes: [],
+		diagnostics: acceptanceDiagnostics
+	}
+	const prepared = evidence.units.map((unit, authoredIndex) => ({
+		...unit,
+		authoredIndex,
+		artifactHash: unit.artifactHash ?? createArtifactSetArtifactHash(unit.artifact)
+	}))
+	const semanticDiagnostics = validateAssembledSources(assembly.changes, workspace.files, options, prepared, true)
+	const diagnostics = [...assembly.diagnostics, ...semanticDiagnostics]
+	if (hasErrors(semanticDiagnostics)) return {
+		ok: false,
+		classification: classifySynthesisDiagnostics('artifactSetSemanticValidation', diagnostics),
+		changes: [],
+		diagnostics
+	}
+	return {
+		ok: true,
+		validation: 'semantic',
+		changes: assembly.changes,
+		contractDigest: assembly.contractDigest,
+		manifestDigest: assembly.manifestDigest,
+		workspaceSnapshotHash: assembly.workspaceSnapshotHash,
+		diagnostics
+	}
 }
 
 /** Strictly compile every graph and return one validated, in-memory change set. */
@@ -1548,21 +1941,30 @@ function validateAssembledSources(
 	const candidate = new Map(workspaceFiles)
 	for (const change of changes) candidate.set(change.path, change.sourceText)
 
-	const baselineIssues = collectCompilerIssues(
-		baseline,
-		options.workspaceRoot,
-		options.tsConfigFilePath,
+	const baselineIssues = analyzeCapturedTypeScriptBaseline({
+		files: baseline,
+		...(options.workspaceRoot === undefined ? {} : { workspaceRoot: options.workspaceRoot }),
+		...(options.workspaceSnapshotId === undefined ? {} : { workspaceSnapshotId: options.workspaceSnapshotId }),
+		...(options.tsConfigFilePath === undefined ? {} : { tsConfigFilePath: options.tsConfigFilePath }),
 		semantic,
-		options.authorizedProjectReferences
-	)
-	const candidateIssues = collectCompilerIssues(
-		candidate,
-		options.workspaceRoot,
-		options.tsConfigFilePath,
-		semantic,
-		options.authorizedProjectReferences,
-		changes.map(change => change.path)
-	)
+		...(options.authorizedProjectReferences === undefined
+			? {}
+			: { authorizedProjectReferences: options.authorizedProjectReferences })
+	}).issues
+	const candidateStarted = performance.now()
+	let candidateIssues: CompilerIssue[]
+	try {
+		candidateIssues = collectCompilerIssues(
+			candidate,
+			options.workspaceRoot,
+			options.tsConfigFilePath,
+			semantic,
+			options.authorizedProjectReferences,
+			changes.map(change => change.path)
+		)
+	} finally {
+		recordCandidateAnalysis(performance.now() - candidateStarted)
+	}
 	const existing = issueMultiset(baselineIssues, issue => compilerIssueKey(issue, issue.start))
 	const changeByPath = new Map(changes.map(change => [change.path, change]))
 	const unitById = new Map(units.map(unit => [unit.id, unit]))
@@ -1638,13 +2040,17 @@ function collectCompilerIssues(
 	authorizedProjectReferences: readonly string[] | undefined,
 	requiredAnalysisPaths: readonly string[] = []
 ): CompilerIssue[] {
-	const result = buildCapturedTypeScriptProject({
+	const projectOptions = {
 		files,
 		...(workspaceRoot === undefined ? {} : { workspaceRoot }),
 		...(tsConfigFilePath === undefined ? {} : { tsConfigFilePath }),
 		semantic,
 		...(authorizedProjectReferences === undefined ? {} : { authorizedProjectReferences })
-	})
+	}
+	const owner = semantic ? currentSemanticProgramOwner() : undefined
+	const result = owner === undefined
+		? buildCapturedTypeScriptProject(projectOptions)
+		: buildCapturedTypeScriptProjectWithOwner(projectOptions, owner)
 	const analyzed = new Set(result.sourceFilePaths)
 	const outsideProjectIssues: CompilerIssue[] = requiredAnalysisPaths
 		.filter(path => /\.(?:cts|mts|tsx?|d\.ts|cjs|mjs|jsx?|d\.js)$/u.test(path) && !analyzed.has(path))

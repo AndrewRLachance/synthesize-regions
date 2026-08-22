@@ -8,16 +8,13 @@ import {
 import { enforceSecurityPolicy } from "../validation/securityPolicy.js";
 import { isFragmentCollectionReplacement } from "./collection.js";
 import {
-  createProject,
-  createSourceFile,
+  diagnosticMessages,
   isValidIdentifierName,
   validateIdentifierName,
-  validateRawExpressionSyntax,
-  validateRawExpressionSuffixSyntax,
-  validateRawStatementSyntax,
   validateRawTypedSyntax,
   validateRawTypedSyntaxCollection
 } from "../validation/ast.js";
+import { createAnalysisSourceFile } from "../validation/analysisContext.js";
 import {
   expressionReplacementKinds,
   type GenerateOptions,
@@ -229,23 +226,42 @@ function validateReplacementSyntaxAndSecurity(
       validateIdentifierName(replacement.name, { id: region.id });
       return;
     case "expression": {
-      validateRawExpressionSyntax(replacement.code, options, { id: region.id });
-      const project = createProject(options);
-      const sourceFile = createSourceFile(project, `const __x = (${replacement.code});`, "__security_expression__.ts");
+      const sourceFile = createAnalysisSourceFile(options, `const __x = (${replacement.code});`, "__security_expression__.ts");
+      const syntactic = diagnosticMessages(sourceFile).syntactic;
+      if (syntactic.length > 0 || !sourceFile.getVariableDeclaration("__x")?.getInitializer()) {
+        throw new InvalidReplacementSyntaxError("Invalid raw expression replacement syntax.", {
+          id: region.id,
+          bodyText: syntactic.join("\n") || replacement.code
+        });
+      }
       enforceSecurityPolicy(sourceFile, options.securityPolicy, { id: region.id, bodyText: replacement.code });
       return;
     }
     case "expressionSuffix": {
-      validateRawExpressionSuffixSyntax(replacement.code, options, { id: region.id });
-      const project = createProject(options);
-      const sourceFile = createSourceFile(project, `const __x = __partialReceiver${replacement.code};`, "__security_expression_suffix__.ts");
+      const sourceFile = createAnalysisSourceFile(options, `const __x = __partialReceiver${replacement.code};`, "__security_expression_suffix__.ts");
+      const syntactic = diagnosticMessages(sourceFile).syntactic;
+      const trimmed = replacement.code.trim();
+      if ((!trimmed.startsWith(".") && !trimmed.startsWith("?."))
+        || syntactic.length > 0
+        || !sourceFile.getVariableDeclaration("__x")?.getInitializer()) {
+        throw new InvalidReplacementSyntaxError("Invalid raw expressionSuffix replacement syntax.", {
+          id: region.id,
+          bodyText: syntactic.join("\n") || replacement.code
+        });
+      }
       enforceSecurityPolicy(sourceFile, options.securityPolicy, { id: region.id, bodyText: replacement.code });
       return;
     }
     case "statement": {
-      validateRawStatementSyntax(replacement.code, options, { id: region.id });
-      const project = createProject(options);
-      const sourceFile = createSourceFile(project, `function __f() {\n${replacement.code}\n}`, "__security_statement__.ts");
+      const sourceFile = createAnalysisSourceFile(options, `function __f() {\n${replacement.code}\n}`, "__security_statement__.ts");
+      const syntactic = diagnosticMessages(sourceFile).syntactic;
+      const requiresOneStatement = !isFragmentCollectionReplacement(replacement);
+      if (syntactic.length > 0 || (requiresOneStatement && sourceFile.getFunction("__f")?.getStatements().length === 0)) {
+        throw new InvalidReplacementSyntaxError("Invalid raw statement replacement syntax.", {
+          id: region.id,
+          bodyText: syntactic.join("\n") || replacement.code
+        });
+      }
       enforceSecurityPolicy(sourceFile, options.securityPolicy, { id: region.id, bodyText: replacement.code });
       return;
     }
@@ -281,9 +297,14 @@ function validateReplacementSyntaxAndSecurity(
       return;
     case "objectProperty":
       if (replacement.computed) {
-        validateRawExpressionSyntax(replacement.name, options, { id: region.id });
-        const project = createProject(options);
-        const sourceFile = createSourceFile(project, `const __x = (${replacement.name});`, "__security_property_name__.ts");
+        const sourceFile = createAnalysisSourceFile(options, `const __x = (${replacement.name});`, "__security_property_name__.ts");
+        const syntactic = diagnosticMessages(sourceFile).syntactic;
+        if (syntactic.length > 0 || !sourceFile.getVariableDeclaration("__x")?.getInitializer()) {
+          throw new InvalidReplacementSyntaxError("Invalid raw expression replacement syntax.", {
+            id: region.id,
+            bodyText: syntactic.join("\n") || replacement.name
+          });
+        }
         enforceSecurityPolicy(sourceFile, options.securityPolicy, { id: region.id, bodyText: replacement.name });
       }
       validateExpressionReplacement(replacement.value, options, region);

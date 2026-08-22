@@ -1,5 +1,6 @@
 import type { GenerateOptions } from '../core/types.js'
 import { generateWithReplacements } from '../generation/generate.js'
+import { bindPrevalidatedRegions } from '../generation/prevalidatedRegions.js'
 import { buildReplacementEdits } from '../replacements/serialize.js'
 import { discoverReplacementRegions } from '../regions/discovery.js'
 import { portRegionKind, summarizeInputPort, summarizeOutputPort } from './compatibility.js'
@@ -43,6 +44,9 @@ import type {
 	TypeDescriptor,
 	UnresolvedTemplateInput
 } from './graphTypes.js'
+import { createHash } from 'node:crypto'
+import type { ReplacementRegion } from '../core/types.js'
+import { BoundedLruMap } from './deterministic.js'
 
 interface GraphTemplateMarkerContract {
     readonly regionKind: RegionKind
@@ -51,6 +55,9 @@ interface GraphTemplateMarkerContract {
 }
 
 const templateMarkerContracts = new WeakMap<object, Readonly<Record<string, GraphTemplateMarkerContract>>>()
+const templateReplacementRegions = new WeakMap<object, readonly ReplacementRegion[]>()
+const TEMPLATE_DISCOVERY_CACHE_CAPACITY = 256
+const templateDiscoveryCache = new BoundedLruMap<string, readonly ReplacementRegion[]>(TEMPLATE_DISCOVERY_CACHE_CAPACITY)
 const manifestPropertyNames = new Set(['modelId', 'version', 'description', 'typeParameters', 'callableScope', 'inputs', 'output', 'source'])
 
 /** Internal authenticity check used by registries to reject forged executable definitions. */
@@ -109,10 +116,10 @@ function markerContractsFor<I extends Record<string, InputPort>>(
     modelId: string,
     source: string,
     inputs: I,
-    output: OutputPort
+	output: OutputPort,
+	regions: readonly ReplacementRegion[]
 ): Readonly<Record<Extract<keyof I, string>, GraphTemplateMarkerContract>> {
-    const regions = discoverReplacementRegions(source, { templateMode: templateModeForRegionKind(output.kind) })
-    const occurrences = new Map<string, number>()
+	const occurrences = new Map<string, number>()
 
     for (const region of regions) {
         const port = inputs[region.id]
@@ -148,6 +155,20 @@ function markerContractsFor<I extends Record<string, InputPort>>(
         })
     }
     return Object.freeze(contracts) as Readonly<Record<Extract<keyof I, string>, GraphTemplateMarkerContract>>
+}
+
+/** Return immutable, content-addressed discovery data for one authored template. */
+function replacementRegionsForTemplate(source: string, output: OutputPort): readonly ReplacementRegion[] {
+	const mode = templateModeForRegionKind(output.kind)
+	const sourceHash = createHash('sha256').update(source).digest('hex')
+	const key = `template-discovery-v1:default-es2022-strict:${mode.kind}:${sourceHash}`
+	const cached = templateDiscoveryCache.get(key)
+	if (cached !== undefined) return cached
+	const discovered = Object.freeze(
+		discoverReplacementRegions(source, { templateMode: mode }).map(region => Object.freeze({ ...region }))
+	)
+	templateDiscoveryCache.set(key, discovered)
+	return discovered
 }
 
 /** Build the fragment source metadata shared by strict and partial outputs. */
@@ -351,7 +372,8 @@ export function defineTemplate<
 	}
 	if (typeof definition.source !== 'string') throw new TypeError('template.source must be a string.')
 	const templateSource = definition.source.replace(/\r\n?/gu, '\n')
-	const markerContracts = markerContractsFor(modelId, templateSource, inputs, output)
+	const replacementRegions = replacementRegionsForTemplate(templateSource, output)
+	const markerContracts = markerContractsFor(modelId, templateSource, inputs, output, replacementRegions)
 	const templateMode = templateModeForRegionKind(output.kind)
 	const summary = () => ({
 		modelId,
@@ -390,11 +412,11 @@ export function defineTemplate<
                     ...(invocation.options ?? {}),
                     templateMode
                 }
-                const result = generateWithReplacements(
-                    templateSource,
-                    replacements,
-                    generationOptions
-                )
+				const result = generateWithReplacements(
+					templateSource,
+					replacements,
+					bindPrevalidatedRegions(generationOptions, templateSource, replacementRegions)
+				)
 				const sourceEdits = buildReplacementEdits(result.regions, replacements, generationOptions, templateSource)
 				const mapped = applySourceMappedTextEdits(
 					templateSource,
@@ -443,7 +465,7 @@ export function defineTemplate<
                     ...(invocation.options ?? {}),
                     templateMode
                 }
-                const regions = discoverReplacementRegions(templateSource, { templateMode })
+				const regions = replacementRegions
                 const resolvedRegions = regions.filter(region => Object.prototype.hasOwnProperty.call(replacements, region.id))
                 const edits = buildReplacementEdits(
                     resolvedRegions,
@@ -538,5 +560,6 @@ export function defineTemplate<
 
 	const frozen = Object.freeze(executable)
 	templateMarkerContracts.set(frozen, markerContracts)
+	templateReplacementRegions.set(frozen, replacementRegions)
 	return frozen
 }

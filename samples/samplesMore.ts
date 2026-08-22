@@ -10,6 +10,7 @@ import type {
   TypeDescriptor,
   UnionInputPort
 } from '../src/templates/graphTypes.js'
+import { SupportedJsonSchema } from '../src/templates/schemaTypes.js'
 
 export type AnyGraphTemplateDefinitionInput = GraphTemplateDefinitionInput<
   string,
@@ -71,12 +72,12 @@ export const safeRawStatementPolicy: RawCodePolicy = {
 export const identifierNameSchema = {
   type: 'string',
   pattern: '^[$A-Za-z_][$A-Za-z0-9_]*$'
-}
+} satisfies SupportedJsonSchema
 
 export const propertyKeySchema = {
   type: 'string',
   minLength: 1
-}
+} satisfies SupportedJsonSchema
 
 export const expressionFragment = (description?: string, type?: TypeDescriptor): FragmentInputPort =>
   fragmentPort({
@@ -1022,156 +1023,6 @@ export const StringIncludesTemplate = defineTemplate({
 })
 
 // -----------------------------------------------------------------------------
-// Lodash templates. These assume lodash is injected as `_` by the runner.
-// -----------------------------------------------------------------------------
-
-export const LodashGetTemplate = defineTemplate({
-  modelId: 'LodashGet',
-  version: '1.0.0',
-  description: 'Reads a nested property using _.get(object, path, defaultValue).',
-  inputs: {
-    object: expressionFragment('Object expression.'),
-    path: literalPort({
-      regionKind: 'expression',
-      schema: {
-        anyOf: [
-          { type: 'string' },
-          { type: 'array', items: { type: 'string' } }
-        ]
-      },
-      description: 'Lodash path string or string array.'
-    }),
-    defaultValue: unionPort({
-      required: false,
-      description: 'Optional default value expression or literal.',
-      options: [
-        expressionFragment('Default value expression.'),
-        literalExpression('Default literal value.')
-      ]
-    })
-  },
-  output: out('expression', { type: unknownType, schema: true }),
-  source: `_.get(${"/** @TYPE expression id=object **/undefined/** @END **/"}, ${"/** @TYPE expression id=path **/undefined/** @END **/"}, ${"/** @TYPE expression id=defaultValue **/undefined/** @END **/"})`
-})
-
-export const LodashPickTemplate = defineTemplate({
-  modelId: 'LodashPick',
-  version: '1.0.0',
-  description: 'Picks properties from an object with _.pick.',
-  inputs: {
-    object: expressionFragment('Object expression.'),
-    keys: literalPort({
-      regionKind: 'array',
-      schema: { type: 'array', items: { type: 'string' } },
-      description: 'Property keys to pick.'
-    })
-  },
-  output: out('expression', { type: recordType, schema: { type: 'object' } }),
-  source: `_.pick(${"/** @TYPE expression id=object **/undefined/** @END **/"}, ${"/** @TYPE array id=keys **/[]/** @END **/"})`
-})
-
-export const LodashOmitTemplate = defineTemplate({
-  modelId: 'LodashOmit',
-  version: '1.0.0',
-  description: 'Omits properties from an object with _.omit.',
-  inputs: {
-    object: expressionFragment('Object expression.'),
-    keys: literalPort({
-      regionKind: 'array',
-      schema: { type: 'array', items: { type: 'string' } },
-      description: 'Property keys to omit.'
-    })
-  },
-  output: out('expression', { type: recordType, schema: { type: 'object' } }),
-  source: `_.omit(${"/** @TYPE expression id=object **/undefined/** @END **/"}, ${"/** @TYPE array id=keys **/[]/** @END **/"})`
-})
-
-export const LodashGroupByRawTemplate = defineTemplate({
-  modelId: 'LodashGroupByRaw',
-  version: '1.0.0',
-  description: 'Groups an array with _.groupBy and a guarded raw iteratee expression.',
-  inputs: {
-    array: expressionFragment('Array expression.'),
-    iteratee: expressionRaw('Lodash iteratee expression, e.g. x => x.category.')
-  },
-  output: out('expression', { type: { ts: 'Record<string, unknown[]>' }, schema: { type: 'object' } }),
-  source: `_.groupBy(${"/** @TYPE expression id=array **/undefined/** @END **/"}, ${"/** @TYPE expression id=iteratee **/x => x/** @END **/"})`
-})
-
-export const LodashKeyByRawTemplate = defineTemplate({
-  modelId: 'LodashKeyByRaw',
-  version: '1.0.0',
-  description: 'Indexes an array with _.keyBy and a guarded raw iteratee expression.',
-  inputs: {
-    array: expressionFragment('Array expression.'),
-    iteratee: expressionRaw('Lodash iteratee expression, e.g. x => x.id.')
-  },
-  output: out('expression', { type: recordType, schema: { type: 'object' } }),
-  source: `_.keyBy(${"/** @TYPE expression id=array **/undefined/** @END **/"}, ${"/** @TYPE expression id=iteratee **/x => x/** @END **/"})`
-})
-
-export const LodashSortByRawTemplate = defineTemplate({
-  modelId: 'LodashSortByRaw',
-  version: '1.0.0',
-  description: 'Sorts an array with _.sortBy and a guarded raw iteratee expression.',
-  inputs: {
-    array: expressionFragment('Array expression.'),
-    iteratee: expressionRaw('Lodash iteratee expression, e.g. x => x.name.')
-  },
-  output: out('expression', { type: unknownArrayType, schema: { type: 'array' } }),
-  source: `_.sortBy(${"/** @TYPE expression id=array **/undefined/** @END **/"}, ${"/** @TYPE expression id=iteratee **/x => x/** @END **/"})`
-})
-
-export const LodashUniqByRawTemplate = defineTemplate({
-  modelId: 'LodashUniqByRaw',
-  version: '1.0.0',
-  description: 'Deduplicates an array with _.uniqBy and a guarded raw iteratee expression.',
-  inputs: {
-    array: expressionFragment('Array expression.'),
-    iteratee: expressionRaw('Lodash iteratee expression, e.g. x => x.id.')
-  },
-  output: out('expression', { type: unknownArrayType, schema: { type: 'array' } }),
-  source: `_.uniqBy(${"/** @TYPE expression id=array **/undefined/** @END **/"}, ${"/** @TYPE expression id=iteratee **/x => x/** @END **/"})`
-})
-
-// -----------------------------------------------------------------------------
-// ts-pattern style expression suffixes. These are useful when a registry includes
-// a separate ApplyExpressionSuffix template.
-// -----------------------------------------------------------------------------
-
-export const PatternWithRawTemplate = defineTemplate({
-  modelId: 'PatternWithRaw',
-  version: '1.0.0',
-  description: 'Produces a ts-pattern .with(pattern, handler) expression suffix using guarded raw expressions.',
-  inputs: {
-    pattern: expressionRaw('ts-pattern pattern expression.'),
-    handler: expressionRaw('Handler expression, e.g. x => x.value.')
-  },
-  output: out('expressionSuffix'),
-  source: `.with(${"/** @TYPE expression id=pattern **/{}/** @END **/"}, ${"/** @TYPE expression id=handler **/x => x/** @END **/"})`
-})
-
-export const PatternOtherwiseRawTemplate = defineTemplate({
-  modelId: 'PatternOtherwiseRaw',
-  version: '1.0.0',
-  description: 'Produces a ts-pattern .otherwise(handler) expression suffix using a guarded raw handler expression.',
-  inputs: {
-    handler: expressionRaw('Fallback handler expression, e.g. () => null.')
-  },
-  output: out('expressionSuffix'),
-  source: `.otherwise(${"/** @TYPE expression id=handler **/() => undefined/** @END **/"})`
-})
-
-export const PatternExhaustiveSuffixTemplate = defineTemplate({
-  modelId: 'PatternExhaustiveSuffix',
-  version: '1.0.0',
-  description: 'Produces a ts-pattern .exhaustive() expression suffix.',
-  inputs: {},
-  output: out('expressionSuffix'),
-  source: '.exhaustive()'
-})
-
-// -----------------------------------------------------------------------------
 // Statement/finalization templates
 // -----------------------------------------------------------------------------
 
@@ -1220,6 +1071,8 @@ export const StatementList2Template = defineTemplate({
   output: out('statement'),
   source: `${"/** @TYPE statement id=first **/throw new Error(\"placeholder\");/** @END **/"}\n${"/** @TYPE statement id=second **/throw new Error(\"placeholder\");/** @END **/"}`
 })
+
+
 
 // -----------------------------------------------------------------------------
 // Exports grouped for registry construction.
@@ -1297,16 +1150,6 @@ export const coreGraphTemplateInputs = [
   StringToLowerCaseTemplate,
   StringSplitTemplate,
   StringIncludesTemplate,
-  LodashGetTemplate,
-  LodashPickTemplate,
-  LodashOmitTemplate,
-  LodashGroupByRawTemplate,
-  LodashKeyByRawTemplate,
-  LodashSortByRawTemplate,
-  LodashUniqByRawTemplate,
-  PatternWithRawTemplate,
-  PatternOtherwiseRawTemplate,
-  PatternExhaustiveSuffixTemplate,
   ReturnStatementTemplate,
   ConstDeclarationTemplate,
   ExpressionStatementTemplate,

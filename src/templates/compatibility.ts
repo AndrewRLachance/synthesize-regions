@@ -124,6 +124,14 @@ function validateDescriptor(
       actual: descriptor
     }];
   }
+  if (descriptor.nominal !== undefined && (typeof descriptor.nominal !== "string" || descriptor.nominal.trim().length === 0)) {
+    issues.push({
+      code: "InvalidNominalType",
+      message: "TypeDescriptor.nominal must be a non-empty string.",
+      path: `${side}.nominal`,
+      actual: descriptor.nominal
+    });
+  }
   if (descriptor.ts !== undefined) {
     if (typeof descriptor.ts !== "string") {
       issues.push({
@@ -160,6 +168,18 @@ export function compareTypeDescriptors(
 
   const typeScript = compareTypeScriptTypes(expected?.ts, actual?.ts);
   const issues: TypeDescriptorCompatibilityIssue[] = [];
+  const nominalCompatible = expected?.nominal === undefined || actual?.nominal === expected.nominal;
+  if (!nominalCompatible) {
+    issues.push({
+      code: "NominalTypeMismatch",
+      message: actual?.nominal === undefined
+        ? "The producer does not advertise the nominal type required by the consumer."
+        : "The producer nominal type does not match the consumer nominal type.",
+      path: "nominal",
+      expected: expected?.nominal,
+      ...(actual?.nominal === undefined ? {} : { actual: actual.nominal })
+    });
+  }
   if (typeScript.status === "invalid") {
     issues.push(...typeScriptIssues(typeScript.issues, "expected"));
   } else if (typeScript.status === "incompatible") {
@@ -190,7 +210,7 @@ export function compareTypeDescriptors(
   }
 
   if (typeScript.status === "invalid") return { status: "invalid", issues, typeScript, ...(schema ? { schema } : {}) };
-  if (typeScript.status === "incompatible" || (expected?.schema !== undefined && actual?.schema === undefined)
+  if (!nominalCompatible || typeScript.status === "incompatible" || (expected?.schema !== undefined && actual?.schema === undefined)
     || schema?.compatibility === "incompatible") {
     return { status: "incompatible", issues, typeScript, ...(schema ? { schema } : {}) };
   }

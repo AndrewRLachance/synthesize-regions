@@ -18,7 +18,8 @@ import {
   type TemplateMode
 } from "../core/types.js";
 import { offsetRegion, wrapTemplateSource } from "../templates/templateMode.js";
-import { createProject, createSourceFile, inferExpectedKind, validateRegionContext, validateTemplateModeRoot } from "../validation/ast.js";
+import { inferExpectedKind, validateRegionContext, validateTemplateModeRoot } from "../validation/ast.js";
+import { createAnalysisSourceFile, runWithAnalysisContext } from "../validation/analysisContext.js";
 
 /**
  * Discovers replacement regions, infers omitted marker kinds, and validates each
@@ -28,10 +29,14 @@ import { createProject, createSourceFile, inferExpectedKind, validateRegionConte
  * when a partial template mode wraps the fragment for validation.
  */
 export function discoverReplacementRegions(sourceText: string, options: DiscoverOptions = {}): ReplacementRegion[] {
+  return runWithAnalysisContext(options, boundOptions => discoverReplacementRegionsInContext(sourceText, boundOptions));
+}
+
+/** Discover regions using analysis ownership established by the caller. */
+function discoverReplacementRegionsInContext(sourceText: string, options: DiscoverOptions): ReplacementRegion[] {
   const filePath = options.filePath ?? "__synthesize_regions_discovery__.ts";
   const wrapped = wrapTemplateSource(sourceText, options.templateMode);
-  const project = createProject(options);
-  const sourceFile = createSourceFile(project, wrapped.wrappedText, filePath);
+  const sourceFile = createAnalysisSourceFile(options, wrapped.wrappedText, filePath);
   const offset = wrapped.prefix.length;
 
   const pairedRegions = scanReplacementRegions(sourceText);

@@ -30,7 +30,7 @@ conditional-type lines.
 | Built declaration | SHA-256 |
 | --- | --- |
 | `dist/index.d.ts` | `df9d11ad50f2cf2c2c09484c4baf7d3369590327bd281ee477406d11b1f64b90` |
-| `dist/templates.d.ts` | `43b13e71106854faa1fe1c671f8d8cd4c7b7d0cba21fa33423d294c723132f6b` |
+| `dist/templates.d.ts` | `0eada23665796f2d55f06b92e3345144d380b4d2505d059ba379f8f085ef043d` |
 | `dist/templates/contractIdentity.d.ts` | `0dbafc0405d02974aed2c468f9987e12543d0b27db64953a11b1076180599ed6` |
 | `dist/templates/capabilityClosure.d.ts` | `a524d32a37ade5ee49fc84a18fb3b06319ed5e116f25be76f193d14fad38b091` |
 | `dist/templates/definition.d.ts` | `d12d36d3870fae7f7622978e46bcc5e4c25f08e9dc4c4be9cb89f151a8c71263` |
@@ -43,7 +43,7 @@ conditional-type lines.
 | `dist/templates/graphPatterns.d.ts` | `e8d93cfbce3ad5936c77b4187fe12539d705ee2977b1573beec97543e3485c2f` |
 | `dist/templates/graphContracts.d.ts` | `cf66e516ee79786bd1c5a7d0b092194eb65be416c7293a8c3ec379da1ab6180d` |
 | `dist/templates/artifactIntegrity.d.ts` | `8d2869b3893fdb5aa7f984338573aea94f1b6c62e382f20ba9df6454cd2984a4` |
-| `dist/templates/artifactSet.d.ts` | `1a59c31cc02c88909d3c015267ea20708313b446f07c4f709e1c00253d15ef16` |
+| `dist/templates/artifactSet.d.ts` | `4cf901d88f5b8acc8a5132b3b2a479982df992ece1f71d4ab467691cda3d1a32` |
 | `dist/templates/sourceSpans.d.ts` | `5708e648a95c98dfc224af972436e30571912796c06dbffb1cdade7003218568` |
 | `dist/templates/runner.d.ts` | `0fdc73e4f7c3f3032f932b618406536eee354555a80a4a2cb2c2e1d910a9c72b` |
 | `dist/templates/schemaTypes.d.ts` | `763fa09c09ccda8edfa90787f9e3fe111cc26b1ecc890882d4795efc29be8f34` |
@@ -123,7 +123,8 @@ export * from "./templates/catalogValidation.js";
 export * from "./templates/contractIdentity.js";
 export * from "./templates/contractManifest.js";
 export * from "./templates/capabilityClosure.js";
-export * from "./templates/capturedProject.js";
+export { buildCapturedTypeScriptProject } from "./templates/capturedProject.js";
+export type { CapturedCompilerIssue, CapturedCompilerIssueKind, CapturedTypeScriptProjectOptions, CapturedTypeScriptProjectResult } from "./templates/capturedProject.js";
 export { templateCatalogDigest, templateCatalogManifestDigest, templateManifestDigest } from "./templates/catalogDigest.js";
 export * from "./templates/registry.js";
 export * from "./templates/graph.js";
@@ -1778,6 +1779,24 @@ export declare function compileArtifactSetGraphs(plan: ArtifactSetPlan, catalog:
 export declare function compileArtifactSetGraphs(plan: ArtifactSetPlan, catalog: TemplateCatalogView | readonly GraphTemplateDefinition<any, string, any>[], options: Omit<ArtifactSetCompileOptions, 'mode'> & {
     mode: 'partial';
 }): ArtifactSetGraphCompilationResult;
+/**
+ * Assemble a previously compiled, complete artifact set without compiling its
+ * unchanged graphs again. The supplied compilation remains untrusted evidence
+ * and is revalidated against the catalog, workspace, plan, and artifact hashes.
+ */
+export declare function assembleCompiledArtifactSet(compilation: ArtifactSetGraphCompilationResult, catalog: TemplateCatalogView | readonly GraphTemplateDefinition<any, string, any>[], options?: ArtifactSetAssemblyOptions): ArtifactSetAssemblyResult;
+/**
+ * Run project semantic validation from successful graph-compilation evidence.
+ * This preserves the authoritative assembly and semantic checks while avoiding
+ * a second graph compilation and fill-ledger replay.
+ */
+export declare function validateCompiledArtifactSetSemantics(compilation: ArtifactSetGraphCompilationResult, catalog: TemplateCatalogView | readonly GraphTemplateDefinition<any, string, any>[], options?: ArtifactSetAssemblyOptions): ArtifactSetSemanticValidationResult;
+/**
+ * Run project semantic validation from authenticated compilation and assembly
+ * evidence. Unlike `validateCompiledArtifactSetSemantics`, this does not
+ * reassemble the candidate or rerun assembly-phase TypeScript syntax checks.
+ */
+export declare function validateAssembledArtifactSetSemantics(compilation: ArtifactSetGraphCompilationResult, assembly: ArtifactSetAssemblyResult, catalog: TemplateCatalogView | readonly GraphTemplateDefinition<any, string, any>[], options?: ArtifactSetAssemblyOptions): ArtifactSetSemanticValidationResult;
 /** Strictly compile every graph and return one validated, in-memory change set. */
 export declare function compileArtifactSet(plan: ArtifactSetPlan, catalog: TemplateCatalogView | readonly GraphTemplateDefinition<any, string, any>[], options?: Omit<ArtifactSetCompileOptions, 'mode'> & {
     mode?: 'strict';

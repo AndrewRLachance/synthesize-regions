@@ -34,6 +34,60 @@ export interface CapturedTypeScriptProjectResult {
 	readonly issues: readonly CapturedCompilerIssue[]
 }
 
+declare const capturedTypeScriptProgramOwnerBrand: unique symbol
+
+/**
+ * Opaque, explicitly owned incremental compiler state.
+ *
+ * @internal This owner is intentionally absent from the package's primary
+ * export surface. Runtime integrations obtain it through the internal
+ * semantic-program-owner entry point and must dispose it at their authority
+ * boundary.
+ */
+export interface CapturedTypeScriptProgramOwner {
+	readonly [capturedTypeScriptProgramOwnerBrand]: true
+}
+
+interface OwnedSourceFile {
+	readonly sourceText: string
+	readonly sourceFile: ts.SourceFile
+}
+
+interface CapturedTypeScriptProgramOwnerState {
+	configurationIdentity: string | undefined
+	program: ts.Program | undefined
+	sourceFiles: Map<string, OwnedSourceFile>
+}
+
+const capturedTypeScriptProgramOwners = new WeakMap<object, CapturedTypeScriptProgramOwnerState>()
+
+/** Creates one empty incremental compiler owner. @internal */
+export function createCapturedTypeScriptProgramOwner(): CapturedTypeScriptProgramOwner {
+	const owner = Object.freeze({}) as CapturedTypeScriptProgramOwner
+	capturedTypeScriptProgramOwners.set(owner, {
+		configurationIdentity: undefined,
+		program: undefined,
+		sourceFiles: new Map()
+	})
+	return owner
+}
+
+/** Irrevocably releases all compiler state held by one owner. @internal */
+export function discardCapturedTypeScriptProgramOwner(owner: CapturedTypeScriptProgramOwner): void {
+	const state = capturedTypeScriptProgramOwners.get(owner)
+	if (state === undefined) return
+	state.configurationIdentity = undefined
+	state.program = undefined
+	state.sourceFiles.clear()
+	capturedTypeScriptProgramOwners.delete(owner)
+}
+
+function ownerState(owner: CapturedTypeScriptProgramOwner): CapturedTypeScriptProgramOwnerState {
+	const state = capturedTypeScriptProgramOwners.get(owner)
+	if (state === undefined) throw new TypeError('Captured TypeScript program owner has been discarded')
+	return state
+}
+
 const DEFAULT_OPTIONS: ts.CompilerOptions = {
 	target: ts.ScriptTarget.ES2022,
 	module: ts.ModuleKind.ES2022,
@@ -164,6 +218,14 @@ function referencedConfigPath(referencePath: string, captured: ReadonlyMap<strin
 export function buildCapturedTypeScriptProject(
 	options: CapturedTypeScriptProjectOptions
 ): CapturedTypeScriptProjectResult {
+	return buildCapturedTypeScriptProjectWithOwner(options)
+}
+
+/** Builds one captured project with optional lease-owned incremental state. @internal */
+export function buildCapturedTypeScriptProjectWithOwner(
+	options: CapturedTypeScriptProjectOptions,
+	owner?: CapturedTypeScriptProgramOwner
+): CapturedTypeScriptProjectResult {
 	if (options.files.size === 0) {
 		return { compilerOptions: DEFAULT_OPTIONS, rootFilePaths: [], sourceFilePaths: [], projectReferencePaths: [], issues: [] }
 	}
@@ -246,16 +308,35 @@ export function buildCapturedTypeScriptProject(
 		return posix.dirname(normalized) === trustedLibraryDirectory && /^lib(?:\..+)?\.d\.ts$/u.test(posix.basename(normalized))
 	}
 	const readTrustedLibrary = (path: string): string | undefined => isTrustedLibrary(path) ? ts.sys.readFile(path) : undefined
-	const sourceCache = new Map<string, ts.SourceFile>()
+	const state = owner === undefined ? undefined : ownerState(owner)
+	const configurationIdentity = JSON.stringify({
+		typeScriptVersion: ts.version,
+		root,
+		configPath,
+		compilerOptions,
+		rootNames: [...rootNames].sort(compareCodeUnits),
+		projectReferencePaths,
+		authorizedProjectReferences: [...authorizedReferences].sort(compareCodeUnits),
+		semantic: options.semantic
+	})
+	if (state !== undefined && state.configurationIdentity !== configurationIdentity) {
+		state.configurationIdentity = configurationIdentity
+		state.program = undefined
+		state.sourceFiles.clear()
+	}
+	const sourceCache = new Map<string, OwnedSourceFile>()
 	const host: ts.CompilerHost = {
 		getSourceFile: (fileName, languageVersion) => {
 			const normalized = portable(fileName)
-			const existing = sourceCache.get(normalized)
-			if (existing) return existing
 			const sourceText = captured.get(normalized) ?? readTrustedLibrary(normalized)
 			if (sourceText === undefined) return undefined
+			const existing = state?.sourceFiles.get(normalized)
+			if (existing?.sourceText === sourceText) {
+				sourceCache.set(normalized, existing)
+				return existing.sourceFile
+			}
 			const sourceFile = ts.createSourceFile(normalized, sourceText, languageVersion, true)
-			sourceCache.set(normalized, sourceFile)
+			sourceCache.set(normalized, { sourceText, sourceFile })
 			return sourceFile
 		},
 		getDefaultLibFileName: () => defaultLibraryPath,
@@ -287,8 +368,13 @@ export function buildCapturedTypeScriptProject(
 		rootNames,
 		options: compilerOptions,
 		...(projectReferences === undefined ? {} : { projectReferences }),
-		host
+		host,
+		...(state?.program === undefined ? {} : { oldProgram: state.program })
 	})
+	if (state !== undefined) {
+		state.program = program
+		state.sourceFiles = sourceCache
+	}
 	const issues: CapturedCompilerIssue[] = [
 		...configurationDiagnostics.map(diagnostic => compilerIssue('configuration', diagnostic, root, options.tsConfigFilePath)),
 		...referenceIssues,

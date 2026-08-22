@@ -271,6 +271,8 @@ not used by the runtime because they do not establish current catalog identity.
 | --- | --- | --- | --- | --- | --- |
 | `compileArtifactSet()` | API | Current | Compiler adapter | Compiles ordered graphs, replays fill ledger, and returns per-unit results. | Uses authoritative plan/catalog/workspace inputs. |
 | `assembleArtifactSetTargets()` | API | Current | Assembly adapter | Validates targets and assembles complete files in memory. | Returns syntax-only output and never writes files. |
+| `assembleCompiledArtifactSet()` | API | Current | Runtime assembly adapter | Revalidates candidate-bound compilation evidence and assembles it without graph recompilation. | Rejects detached catalog, workspace, graph, target, and artifact identities. |
+| `validateCompiledArtifactSetSemantics()` | API | Current | Runtime semantic adapter | Runs project semantics from the same verified complete compilation evidence. | Preserves baseline/candidate semantic isolation without replaying graph generation. |
 | `validateArtifactSetStatic()` | API | Current | Final static adapter | Recompiles the authoritative plan and requires library static acceptance. | Never accepts detached caller-constructed artifacts. |
 | `normalizeArtifactTargetPath()` | API | Current | Request/plan validation | Normalizes workspace-relative POSIX targets. | Rejects absolute and traversal paths. |
 | `createArtifactSetFileHash()` | API | Current | Workspace capture/preflight | Hashes exact base/result file text. | Binds replacement authority and detects drift. |
@@ -416,7 +418,7 @@ The following are not `synthesize-regions` exports:
 
 | Contract family | Status | Representative contracts | Owner |
 | --- | --- | --- | --- |
-| Request/authorization | Current | `SynthesisRequest`, `WorkspaceConstraintRequest`, authorized target and analysis-root capture | Runtime protocol |
+| Request/authorization | Current | `CaptureSynthesisRequest`, `CapturedSynthesisRequest`, `CaptureSessionInput`, `WorkspaceConstraintRequest`, authorized target and analysis-root capture | Runtime protocol/capture boundary |
 | Workflow | Current | `WorkflowDefinition`, `WorkflowTransition`, generated `SessionStatus`, transition/observation indexes | Workflow compiler |
 | State protocol | Current | `ProtocolCommand`, `DomainEvent`, `Decision`, `SynthesisSession`, terminal session outcomes | Command/event core |
 | Persistence | Current | `EventEnvelope`, materialized-state record, idempotency record, lease/fencing record, `OutboxWorkItem` | SQLite repository |

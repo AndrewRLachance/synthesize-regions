@@ -111,6 +111,7 @@ export const BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES = [
 	'InvalidJsonSchema',
 	'InvalidJsonValue',
 	'InvalidLiteralInput',
+	'InvalidNominalType',
 	'InvalidRawCodeMaxLength',
 	'InvalidRawCodePattern',
 	'InvalidRawCodePolicy',
@@ -133,6 +134,7 @@ export const BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES = [
 	'MissingTypeScriptTypeArgument',
 	'MissingTemplateManifestIdentity',
 	'MissingWorkspaceSnapshotIdentity',
+	'NominalTypeMismatch',
 	'ArtifactCatalogRequired',
 	'TemplateManifestDigestMismatch',
 	'MixedUnionRegionKinds',
@@ -261,6 +263,7 @@ const GRAPH_REPAIRABLE_DIAGNOSTIC_CODES = new Set<BuiltInSynthesisDiagnosticCode
 	'MissingTypeArgument',
 	'MissingTypeScriptTypeArgument',
 	'MissingArtifactBaseFile',
+	'NominalTypeMismatch',
 	'OverlappingArtifactTargets',
 	'RawCodeRejected',
 	'UnknownTypeArgument',
@@ -400,6 +403,8 @@ export interface GeneratedSourceMap {
  * package's supported Draft 2020-12 profile.
  */
 export interface TypeDescriptor {
+	/** Optional catalog-level nominal family used to distinguish structurally similar library values. */
+	nominal?: string
 	/** Self-contained TypeScript type expression enforced through compiler assignability. */
 	ts?: string
 	/** Canonical JSON Schema contract used for value and fragment compatibility. */

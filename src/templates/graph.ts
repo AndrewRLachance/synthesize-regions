@@ -5,12 +5,11 @@ import { discoverReplacementRegions } from '../regions/discovery.js'
 import { wrapTemplateSource } from './templateMode.js'
 import {
 	assertFinalValid,
-	createProject,
-	createSourceFile,
 	structuredSemanticDiagnostics,
 	structuredSyntacticDiagnostics,
-	validateRawTypedSyntax
+	validateTemplateModeRoot
 } from '../validation/ast.js'
+import { createAnalysisSourceFile, runWithAnalysisContext } from '../validation/analysisContext.js'
 import { graphInputsToReplacementMap } from './converter.js'
 import { canonicalizeJson, createCompilationScope, createUnresolvedInputId } from './artifactIdentity.js'
 import { validateTemplateArtifactIntegrity } from './artifactIntegrity.js'
@@ -383,8 +382,7 @@ function validateArtifactSemantics(
 			: undefined
 	}
 	const filePath = options.filePath ?? '__graph_semantic_validation__.ts'
-	const project = createProject(options)
-	const sourceFile = createSourceFile(project, validationSource, filePath)
+	const sourceFile = createAnalysisSourceFile(options, validationSource, filePath)
 	const compilerDiagnostics = [
 		...structuredSyntacticDiagnostics(sourceFile),
 		...structuredSemanticDiagnostics(sourceFile)
@@ -422,15 +420,13 @@ function validateArtifactSyntax(
 		const mode = templateModeForArtifact(artifact)
 		const wrapped = wrapTemplateSource(artifact.code, mode)
 		const filePath = options.filePath ?? '__template_artifact_validation__.ts'
-		const project = createProject(options)
-		const sourceFile = createSourceFile(project, wrapped.wrappedText, filePath)
+		const sourceFile = createAnalysisSourceFile(options, wrapped.wrappedText, filePath)
 		assertFinalValid(sourceFile, filePath, false)
 		if (artifact.complete !== false && TYPED_SYNTAX_REGION_KIND_VALUES.includes(artifact.kind as never)) {
-			validateRawTypedSyntax(
-				artifact.kind,
-				artifact.code,
-				options,
-				artifact.id === undefined ? {} : { id: artifact.id }
+			validateTemplateModeRoot(
+				sourceFile,
+				mode,
+				{ ...(artifact.id === undefined ? {} : { id: artifact.id }), bodyText: artifact.code }
 			)
 		}
 		return []
@@ -468,8 +464,7 @@ function validateArtifactSecurity(
 	try {
 		const mode = templateModeForArtifact(artifact)
 		const wrapped = wrapTemplateSource(artifact.code, mode)
-		const project = createProject(options)
-		const sourceFile = createSourceFile(project, wrapped.wrappedText, '__artifact_security_validation__.ts')
+		const sourceFile = createAnalysisSourceFile(options, wrapped.wrappedText, '__artifact_security_validation__.ts')
 		enforceSecurityPolicy(sourceFile, options.securityPolicy, {
 			...(artifact.id ? { id: artifact.id } : {}),
 			bodyText: artifact.code
@@ -2351,6 +2346,15 @@ export function compileGraph(
 	graph: SynthesisGraph,
 	registryOrTemplates: TemplateCatalogView | readonly GraphTemplateDefinition<any, string>[],
 	options: GraphCompileOptions & { mode?: 'strict' | 'partial' } = {}
+): GraphCompilationResult | GraphPartialCompilationResult {
+	return runWithAnalysisContext(options, boundOptions => compileGraphInContext(graph, registryOrTemplates, boundOptions))
+}
+
+/** Compile with one analysis context shared by all nodes in this graph. */
+function compileGraphInContext(
+	graph: SynthesisGraph,
+	registryOrTemplates: TemplateCatalogView | readonly GraphTemplateDefinition<any, string>[],
+	options: GraphCompileOptions & { mode?: 'strict' | 'partial' }
 ): GraphCompilationResult | GraphPartialCompilationResult {
 	const registry = templateRegistryFromInput(registryOrTemplates)
 	const identityDiagnostics = catalogIdentityMismatchDiagnostics(options, registry)

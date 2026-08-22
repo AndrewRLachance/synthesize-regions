@@ -537,6 +537,29 @@ describe("schema-driven synthesis graph", () => {
     ).status).toBe("indeterminate");
     expect(compareTypeDescriptors({ ts: "any" }, { ts: "unknown" }).status).toBe("invalid");
     expect(compareTypeDescriptors({ ts: 42 } as never, undefined).status).toBe("invalid");
+    expect(compareTypeDescriptors(
+      { nominal: "effect/Effect", ts: "{ pipe(): unknown }" },
+      { nominal: "effect/Effect", ts: "{ pipe(): unknown }" }
+    ).status).toBe("compatible");
+    expect(compareTypeDescriptors(
+      { nominal: "effect/Layer", ts: "{ pipe(): unknown }" },
+      { nominal: "effect/Effect", ts: "{ pipe(): unknown }" }
+    )).toMatchObject({
+      status: "incompatible",
+      issues: [expect.objectContaining({ code: "NominalTypeMismatch", path: "nominal" })]
+    });
+    expect(compareTypeDescriptors(
+      { ts: "{ pipe(): unknown }" },
+      { nominal: "effect/Effect", ts: "{ pipe(): unknown }" }
+    ).status).toBe("incompatible");
+    expect(compareTypeDescriptors(
+      { nominal: "effect/Effect", ts: "{ pipe(): unknown }" },
+      { ts: "{ pipe(): unknown }" }
+    ).status).toBe("compatible");
+    expect(compareTypeDescriptors(
+      { nominal: "", ts: "unknown" },
+      undefined
+    ).status).toBe("invalid");
   });
 
   it("serializes LLM-facing template summaries without template internals", () => {

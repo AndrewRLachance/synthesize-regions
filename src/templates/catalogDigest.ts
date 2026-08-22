@@ -56,6 +56,7 @@ function normalizeTypeDescriptor(
 	if (type === undefined && legacySchema === undefined) return undefined
 	const schema = type?.schema ?? legacySchema
 	return {
+		...(type?.nominal === undefined ? {} : { nominal: type.nominal }),
 		...(type?.ts === undefined ? {} : { ts: type.ts.trim() }),
 		...(schema === undefined ? {} : { schema: normalizeSchema(schema) })
 	}

@@ -9,7 +9,7 @@ import {
 	type SynthesisNode,
 	type TypeDescriptor
 } from '../src/index.js'
-import { basePatternGraphTemplateInputs } from '../samples/samplesBasePatterns.js'
+import { basePatternGraphTemplateInputs } from '../samples/e-samplesBasePatterns.js'
 
 const expectedModelIds = [
 	'PropertyIn', 'ConditionAnd', 'ConditionOr', 'ConditionXor', 'ConditionXand', 'ConditionNot',
@@ -162,16 +162,15 @@ describe('logical conditions', () => {
 			ConditionConverseNonImplication: (a, b) => b && !a
 		}
 		for (const [templateId, formula] of Object.entries(expected)) {
+			const result = compileSubject(templateId, {
+				left: ref('BaseLeft'),
+				right: ref('BaseRight')
+			})
+			expect(result.ok).toBe(true)
+			if (!result.ok) continue
+			const evaluate = Function('left', 'right', `"use strict"; return ${result.finalArtifact.code};`) as (left: boolean, right: boolean) => boolean
 			for (const leftValue of [false, true]) for (const rightValue of [false, true]) {
-				const result = compileSubject(templateId, {
-					left: ref(leftValue ? 'BaseTrue' : 'BaseFalse'),
-					right: ref(rightValue ? 'BaseTrue' : 'BaseFalse')
-				})
-				expect(result.ok).toBe(true)
-				if (result.ok) {
-					const actual = Function(`"use strict"; return ${result.finalArtifact.code};`)() as boolean
-					expect(actual).toBe(formula(leftValue, rightValue))
-				}
+				expect(evaluate(leftValue, rightValue)).toBe(formula(leftValue, rightValue))
 			}
 		}
 	})

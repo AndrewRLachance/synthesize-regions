@@ -37,6 +37,7 @@ const RegionKindDefinition = Type.Union([
 ])
 
 const TypeDescriptorDefinition = Type.Object({
+	nominal: Type.Optional(Type.String({ minLength: 1 })),
 	ts: Type.Optional(Type.String()),
 	schema: Type.Optional(Type.Ref('SupportedJsonSchema'))
 }, { additionalProperties: false })

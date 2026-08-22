@@ -13,7 +13,13 @@ export * from "./templates/catalogValidation.js";
 export * from "./templates/contractIdentity.js";
 export * from "./templates/contractManifest.js";
 export * from "./templates/capabilityClosure.js";
-export * from "./templates/capturedProject.js";
+export { buildCapturedTypeScriptProject } from "./templates/capturedProject.js";
+export type {
+	CapturedCompilerIssue,
+	CapturedCompilerIssueKind,
+	CapturedTypeScriptProjectOptions,
+	CapturedTypeScriptProjectResult
+} from "./templates/capturedProject.js";
 export {
 	templateCatalogDigest,
 	templateCatalogManifestDigest,

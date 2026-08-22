@@ -2,7 +2,7 @@ import { P } from "ts-pattern"
 import { Node, SyntaxKind, ts } from "ts-morph"
 import type { ReplacementMap, Replacement, MarkerExpectedKind, ReplacementExpression, ReplacementExpressionSuffix, ReplacementObjectProperty, ReplacementStatement, ReplacementTypedSyntax, ReplacementValue } from "../core/types.js"
 import { markFragmentCollectionReplacement } from "../replacements/collection.js"
-import { createProject, createSourceFile } from "../validation/ast.js"
+import { createAnalysisSourceFile } from "../validation/analysisContext.js"
 import { validateJsonValueAgainstSchema } from "./schemaCompatibility.js"
 import type { ResolvedGraphInput } from "./graphTypes.js"
 import { defaultFragmentCollectionSeparator } from "./rendering.js"
@@ -83,9 +83,8 @@ function unwrapParentheses(node: Node): Node {
  * when the TypeScript syntax maps directly to the public replacement model.
  */
 function parseExpression(code: string): Node {
-  const project = createProject()
-  const sourceFile = createSourceFile(project, `const __value = (${code});`, '__graph_input_expression__.ts')
-  const syntacticDiagnostics = project.getProgram().getSyntacticDiagnostics(sourceFile)
+  const sourceFile = createAnalysisSourceFile({}, `const __value = (${code});`, '__graph_input_expression__.ts')
+  const syntacticDiagnostics = sourceFile.getProject().getProgram().getSyntacticDiagnostics(sourceFile)
   if (syntacticDiagnostics.length > 0) {
     throw new ReplacementSchemaError('graph input code is not valid expression syntax')
   }
@@ -99,9 +98,8 @@ function parseExpression(code: string): Node {
 }
 
 function parseObjectProperty(code: string): Node {
-  const project = createProject()
-  const sourceFile = createSourceFile(project, `const __value = ({ ${code} });`, '__graph_input_property__.ts')
-  const syntacticDiagnostics = project.getProgram().getSyntacticDiagnostics(sourceFile)
+  const sourceFile = createAnalysisSourceFile({}, `const __value = ({ ${code} });`, '__graph_input_property__.ts')
+  const syntacticDiagnostics = sourceFile.getProject().getProgram().getSyntacticDiagnostics(sourceFile)
   if (syntacticDiagnostics.length > 0) {
     throw new ReplacementSchemaError('graph input code is not valid object property syntax')
   }

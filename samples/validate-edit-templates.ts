@@ -96,9 +96,9 @@ export abstract class AbstractReasoningGraph implements ReasoningGraph {
 
     ${marker("classMember", "staticVariables", "static sVariable: unknown = undefined")}
 
-    ${marker("classMember", "privateMethods", "private placeholder(): void {}")}
-    ${marker("classMember", "protectedMethods", "protected placeholder(): void {}")}
-    ${marker("classMember", "staticMethods", "static placeholder(): void {}")}
+    ${marker("classMember", "privateMethods", "private placeholder() {}")}
+    ${marker("classMember", "protectedMethods", "protected placeholder() {}")}
+    ${marker("classMember", "staticMethods", "static placeholder() {}")}
 
     /** Adds provenance edges to the reasoning graph while preserving graph identity and traversal invariants. */
     abstract addEdges(edges: readonly ReasoningEdge[]): Promise<void>;
@@ -216,7 +216,7 @@ const methodClassMemberTemplate = <const M extends string>(
     body: methodBody("One method-body statement; use a block statement for multiple operations."),
   },
   output: { kind: "classMember" },
-  source: `${modifier} ${marker("identifier", "name", "method")}(): void {\n${marker("statement", "body", "return;")}\n}`,
+  source: `${modifier} ${marker("identifier", "name", "method")}() {\n${marker("statement", "body", "return;")}\n}`,
 });
 
 const PrivateMethod = methodClassMemberTemplate(

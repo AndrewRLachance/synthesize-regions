@@ -19,6 +19,7 @@ import { brandTemplateCatalogView } from './catalogTrust.js'
 import { defineTemplate, isLibraryOwnedTemplateDefinition } from './definition.js'
 import { InvalidCallableScopeError } from './callableScope.js'
 import { checkContract, GraphTemplateManifestSchema } from './graphContracts.js'
+import { runWithAnalysisContext } from '../validation/analysisContext.js'
 import {
   cloneTemplateSummaries,
   templateCatalogManifestDigest,
@@ -548,6 +549,13 @@ function createCatalogState(
 
 /** Compile and validate JSON-safe manifests into one captured template registry. */
 export function createTemplateRegistryFromManifests(
+  manifests: readonly import('./graphTypes.js').GraphTemplateManifest[]
+): TemplateRegistry {
+  return runWithAnalysisContext({}, () => createTemplateRegistryFromManifestsInContext(manifests));
+}
+
+/** Compile all manifests under one operation-local syntax-analysis owner. */
+function createTemplateRegistryFromManifestsInContext(
   manifests: readonly import('./graphTypes.js').GraphTemplateManifest[]
 ): TemplateRegistry {
   const definitions: GraphTemplateDefinition<any, string>[] = [];
