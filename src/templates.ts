@@ -35,3 +35,8 @@ export * from "./templates/runner.js";
 export * from "./templates/artifactSet.js";
 export * from "./templates/sourceSpans.js";
 export * from "./templates/catalogCapture.js";
+export * from "./templates/implementationAuthority.js";
+export * from "./templates/implementationTargets.js";
+export * from "./templates/importRequirements.js";
+export * from "./templates/requiredRoot.js";
+export * from "./templates/unresolvedValues.js";

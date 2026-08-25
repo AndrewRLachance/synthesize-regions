@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.synthesize-regions.dev/implementation-enforcement-result.schema.json",
+  "title": "synthesize-regions ImplementationEnforcementResult",
+  "description": "Common closed result for project implementation authority validation.",
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "ok",
+    "diagnostics"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "severity",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "const": "error",
+                "type": "string"
+              },
+              {
+                "const": "warning",
+                "type": "string"
+              }
+            ]
+          },
+          "message": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "path": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "artifactId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "templateId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "targetId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "symbolId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "start": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "end": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "expected": {},
+          "actual": {}
+        }
+      }
+    }
+  }
+}

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "packageName": "synthesize-regions",
-  "packageVersion": "0.4.0",
+  "packageVersion": "0.5.0",
   "semanticDependencies": {
     "typescript": {
       "version": "5.9.3",
@@ -422,5 +422,5 @@
       "contentHash": "sha256:d6c6331ce67c41b2ad5bfb0c8c022403980b479a377a44da8f16b61120418f66"
     }
   ],
-  "contractManifestDigest": "scm1_cd82d7d96e6b8cdda4de77d5c5370e0ce2631609d160732df7ba96ff72ca4c31"
+  "contractManifestDigest": "scm1_5188b53ca8410a3c1d7aea9968bcb5056a3b42ccd0ad8a3bceda7d9a0035b4a8"
 }

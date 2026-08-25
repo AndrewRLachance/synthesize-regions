@@ -739,6 +739,60 @@
         "callableScope": {
           "$ref": "#/$defs/CompilationCallableScope"
         },
+        "importRequirements": {
+          "type": "array",
+          "items": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "schemaVersion",
+              "moduleSpecifier",
+              "importKind",
+              "typeOnly"
+            ],
+            "properties": {
+              "schemaVersion": {
+                "const": 1,
+                "type": "number"
+              },
+              "moduleSpecifier": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "importKind": {
+                "anyOf": [
+                  {
+                    "const": "named",
+                    "type": "string"
+                  },
+                  {
+                    "const": "default",
+                    "type": "string"
+                  },
+                  {
+                    "const": "namespace",
+                    "type": "string"
+                  },
+                  {
+                    "const": "sideEffect",
+                    "type": "string"
+                  }
+                ]
+              },
+              "importedName": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "localName": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "typeOnly": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
         "inputs": {
           "type": "object",
           "patternProperties": {

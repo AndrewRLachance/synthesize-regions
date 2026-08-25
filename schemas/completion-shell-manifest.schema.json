@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.synthesize-regions.dev/completion-shell-manifest.schema.json",
+  "title": "synthesize-regions CompletionShellManifest",
+  "description": "Authenticated target-specific root template whose only open port is the authorized implementation region.",
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "targetId",
+    "rootTemplateId",
+    "rootTemplateVersion",
+    "outputRegionKind",
+    "implementationRegionKind",
+    "implementationInputName",
+    "source",
+    "sourceHash",
+    "declarationContractHash",
+    "rootTemplateManifestDigest"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "type": "number"
+    },
+    "targetId": {
+      "pattern": "^it1_[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "rootTemplateId": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "rootTemplateVersion": {
+      "const": "1",
+      "type": "string"
+    },
+    "outputRegionKind": {
+      "anyOf": [
+        {
+          "const": "identifier",
+          "type": "string"
+        },
+        {
+          "const": "expression",
+          "type": "string"
+        },
+        {
+          "const": "expressionSuffix",
+          "type": "string"
+        },
+        {
+          "const": "statement",
+          "type": "string"
+        },
+        {
+          "const": "array",
+          "type": "string"
+        },
+        {
+          "const": "object",
+          "type": "string"
+        },
+        {
+          "const": "string",
+          "type": "string"
+        },
+        {
+          "const": "number",
+          "type": "string"
+        },
+        {
+          "const": "boolean",
+          "type": "string"
+        },
+        {
+          "const": "null",
+          "type": "string"
+        },
+        {
+          "const": "objectProperty",
+          "type": "string"
+        },
+        {
+          "const": "type",
+          "type": "string"
+        },
+        {
+          "const": "typeMember",
+          "type": "string"
+        },
+        {
+          "const": "typeParameter",
+          "type": "string"
+        },
+        {
+          "const": "parameter",
+          "type": "string"
+        },
+        {
+          "const": "constructorParameter",
+          "type": "string"
+        },
+        {
+          "const": "heritageType",
+          "type": "string"
+        },
+        {
+          "const": "declaration",
+          "type": "string"
+        },
+        {
+          "const": "classMember",
+          "type": "string"
+        },
+        {
+          "const": "enumMember",
+          "type": "string"
+        },
+        {
+          "const": "importSpecifier",
+          "type": "string"
+        },
+        {
+          "const": "exportSpecifier",
+          "type": "string"
+        },
+        {
+          "const": "sourceFile",
+          "type": "string"
+        }
+      ]
+    },
+    "implementationRegionKind": {
+      "anyOf": [
+        {
+          "const": "identifier",
+          "type": "string"
+        },
+        {
+          "const": "expression",
+          "type": "string"
+        },
+        {
+          "const": "expressionSuffix",
+          "type": "string"
+        },
+        {
+          "const": "statement",
+          "type": "string"
+        },
+        {
+          "const": "array",
+          "type": "string"
+        },
+        {
+          "const": "object",
+          "type": "string"
+        },
+        {
+          "const": "string",
+          "type": "string"
+        },
+        {
+          "const": "number",
+          "type": "string"
+        },
+        {
+          "const": "boolean",
+          "type": "string"
+        },
+        {
+          "const": "null",
+          "type": "string"
+        },
+        {
+          "const": "objectProperty",
+          "type": "string"
+        },
+        {
+          "const": "type",
+          "type": "string"
+        },
+        {
+          "const": "typeMember",
+          "type": "string"
+        },
+        {
+          "const": "typeParameter",
+          "type": "string"
+        },
+        {
+          "const": "parameter",
+          "type": "string"
+        },
+        {
+          "const": "constructorParameter",
+          "type": "string"
+        },
+        {
+          "const": "heritageType",
+          "type": "string"
+        },
+        {
+          "const": "declaration",
+          "type": "string"
+        },
+        {
+          "const": "classMember",
+          "type": "string"
+        },
+        {
+          "const": "enumMember",
+          "type": "string"
+        },
+        {
+          "const": "importSpecifier",
+          "type": "string"
+        },
+        {
+          "const": "exportSpecifier",
+          "type": "string"
+        },
+        {
+          "const": "sourceFile",
+          "type": "string"
+        }
+      ]
+    },
+    "implementationInputName": {
+      "const": "implementation",
+      "type": "string"
+    },
+    "source": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "sourceHash": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "declarationContractHash": {
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "rootTemplateManifestDigest": {
+      "pattern": "^t[0-9]+_[a-f0-9]{64}$",
+      "type": "string"
+    }
+  }
+}

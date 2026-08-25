@@ -1,0 +1,883 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.synthesize-regions.dev/implementation-target-discovery-result.schema.json",
+  "title": "synthesize-regions ImplementationTargetDiscoveryResult",
+  "description": "Closed snapshot-bound implementation target, completion-shell, unresolved-symbol, and discovery-diagnostic result.",
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "ok",
+    "discoveryDigest",
+    "targets",
+    "unresolvedValues",
+    "diagnostics"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "type": "number"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "discoveryDigest": {
+      "pattern": "^disc1_[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "targetKey",
+          "targetId",
+          "path",
+          "start",
+          "end",
+          "baseContentHash",
+          "baseArtifactFileHash",
+          "targetTextHash",
+          "regionKind",
+          "implementationRegionKind",
+          "requiredRootTemplateId",
+          "requiredRootTemplateManifestDigest",
+          "completionShell",
+          "symbol",
+          "discoveryReasons"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": 1,
+            "type": "number"
+          },
+          "targetKey": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "path",
+              "qualifiedName",
+              "targetKind",
+              "regionKind",
+              "symbolSpace"
+            ],
+            "properties": {
+              "path": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "qualifiedName": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "targetKind": {
+                "anyOf": [
+                  {
+                    "const": "declaredCallable",
+                    "type": "string"
+                  },
+                  {
+                    "const": "declaredValue",
+                    "type": "string"
+                  },
+                  {
+                    "const": "bodylessFunction",
+                    "type": "string"
+                  },
+                  {
+                    "const": "bodylessMethod",
+                    "type": "string"
+                  },
+                  {
+                    "const": "placeholderBody",
+                    "type": "string"
+                  },
+                  {
+                    "const": "missingPropertyInitializer",
+                    "type": "string"
+                  },
+                  {
+                    "const": "authorizedRepair",
+                    "type": "string"
+                  }
+                ]
+              },
+              "regionKind": {
+                "anyOf": [
+                  {
+                    "const": "identifier",
+                    "type": "string"
+                  },
+                  {
+                    "const": "expression",
+                    "type": "string"
+                  },
+                  {
+                    "const": "expressionSuffix",
+                    "type": "string"
+                  },
+                  {
+                    "const": "statement",
+                    "type": "string"
+                  },
+                  {
+                    "const": "array",
+                    "type": "string"
+                  },
+                  {
+                    "const": "object",
+                    "type": "string"
+                  },
+                  {
+                    "const": "string",
+                    "type": "string"
+                  },
+                  {
+                    "const": "number",
+                    "type": "string"
+                  },
+                  {
+                    "const": "boolean",
+                    "type": "string"
+                  },
+                  {
+                    "const": "null",
+                    "type": "string"
+                  },
+                  {
+                    "const": "objectProperty",
+                    "type": "string"
+                  },
+                  {
+                    "const": "type",
+                    "type": "string"
+                  },
+                  {
+                    "const": "typeMember",
+                    "type": "string"
+                  },
+                  {
+                    "const": "typeParameter",
+                    "type": "string"
+                  },
+                  {
+                    "const": "parameter",
+                    "type": "string"
+                  },
+                  {
+                    "const": "constructorParameter",
+                    "type": "string"
+                  },
+                  {
+                    "const": "heritageType",
+                    "type": "string"
+                  },
+                  {
+                    "const": "declaration",
+                    "type": "string"
+                  },
+                  {
+                    "const": "classMember",
+                    "type": "string"
+                  },
+                  {
+                    "const": "enumMember",
+                    "type": "string"
+                  },
+                  {
+                    "const": "importSpecifier",
+                    "type": "string"
+                  },
+                  {
+                    "const": "exportSpecifier",
+                    "type": "string"
+                  },
+                  {
+                    "const": "sourceFile",
+                    "type": "string"
+                  }
+                ]
+              },
+              "symbolSpace": {
+                "anyOf": [
+                  {
+                    "const": "value",
+                    "type": "string"
+                  },
+                  {
+                    "const": "type",
+                    "type": "string"
+                  }
+                ]
+              }
+            }
+          },
+          "targetId": {
+            "pattern": "^it1_[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "path": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "start": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "end": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "baseContentHash": {
+            "pattern": "^sha256:[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "baseArtifactFileHash": {
+            "pattern": "^f1_[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "targetTextHash": {
+            "pattern": "^sha256:[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "regionKind": {
+            "anyOf": [
+              {
+                "const": "identifier",
+                "type": "string"
+              },
+              {
+                "const": "expression",
+                "type": "string"
+              },
+              {
+                "const": "expressionSuffix",
+                "type": "string"
+              },
+              {
+                "const": "statement",
+                "type": "string"
+              },
+              {
+                "const": "array",
+                "type": "string"
+              },
+              {
+                "const": "object",
+                "type": "string"
+              },
+              {
+                "const": "string",
+                "type": "string"
+              },
+              {
+                "const": "number",
+                "type": "string"
+              },
+              {
+                "const": "boolean",
+                "type": "string"
+              },
+              {
+                "const": "null",
+                "type": "string"
+              },
+              {
+                "const": "objectProperty",
+                "type": "string"
+              },
+              {
+                "const": "type",
+                "type": "string"
+              },
+              {
+                "const": "typeMember",
+                "type": "string"
+              },
+              {
+                "const": "typeParameter",
+                "type": "string"
+              },
+              {
+                "const": "parameter",
+                "type": "string"
+              },
+              {
+                "const": "constructorParameter",
+                "type": "string"
+              },
+              {
+                "const": "heritageType",
+                "type": "string"
+              },
+              {
+                "const": "declaration",
+                "type": "string"
+              },
+              {
+                "const": "classMember",
+                "type": "string"
+              },
+              {
+                "const": "enumMember",
+                "type": "string"
+              },
+              {
+                "const": "importSpecifier",
+                "type": "string"
+              },
+              {
+                "const": "exportSpecifier",
+                "type": "string"
+              },
+              {
+                "const": "sourceFile",
+                "type": "string"
+              }
+            ]
+          },
+          "implementationRegionKind": {
+            "anyOf": [
+              {
+                "const": "identifier",
+                "type": "string"
+              },
+              {
+                "const": "expression",
+                "type": "string"
+              },
+              {
+                "const": "expressionSuffix",
+                "type": "string"
+              },
+              {
+                "const": "statement",
+                "type": "string"
+              },
+              {
+                "const": "array",
+                "type": "string"
+              },
+              {
+                "const": "object",
+                "type": "string"
+              },
+              {
+                "const": "string",
+                "type": "string"
+              },
+              {
+                "const": "number",
+                "type": "string"
+              },
+              {
+                "const": "boolean",
+                "type": "string"
+              },
+              {
+                "const": "null",
+                "type": "string"
+              },
+              {
+                "const": "objectProperty",
+                "type": "string"
+              },
+              {
+                "const": "type",
+                "type": "string"
+              },
+              {
+                "const": "typeMember",
+                "type": "string"
+              },
+              {
+                "const": "typeParameter",
+                "type": "string"
+              },
+              {
+                "const": "parameter",
+                "type": "string"
+              },
+              {
+                "const": "constructorParameter",
+                "type": "string"
+              },
+              {
+                "const": "heritageType",
+                "type": "string"
+              },
+              {
+                "const": "declaration",
+                "type": "string"
+              },
+              {
+                "const": "classMember",
+                "type": "string"
+              },
+              {
+                "const": "enumMember",
+                "type": "string"
+              },
+              {
+                "const": "importSpecifier",
+                "type": "string"
+              },
+              {
+                "const": "exportSpecifier",
+                "type": "string"
+              },
+              {
+                "const": "sourceFile",
+                "type": "string"
+              }
+            ]
+          },
+          "requiredRootTemplateId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "requiredRootTemplateManifestDigest": {
+            "pattern": "^t[0-9]+_[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "completionShell": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "schemaVersion",
+              "targetId",
+              "rootTemplateId",
+              "rootTemplateVersion",
+              "outputRegionKind",
+              "implementationRegionKind",
+              "implementationInputName",
+              "source",
+              "sourceHash",
+              "declarationContractHash",
+              "rootTemplateManifestDigest"
+            ],
+            "properties": {
+              "schemaVersion": {
+                "const": 1,
+                "type": "number"
+              },
+              "targetId": {
+                "pattern": "^it1_[a-f0-9]{64}$",
+                "type": "string"
+              },
+              "rootTemplateId": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "rootTemplateVersion": {
+                "const": "1",
+                "type": "string"
+              },
+              "outputRegionKind": {
+                "anyOf": [
+                  {
+                    "const": "identifier",
+                    "type": "string"
+                  },
+                  {
+                    "const": "expression",
+                    "type": "string"
+                  },
+                  {
+                    "const": "expressionSuffix",
+                    "type": "string"
+                  },
+                  {
+                    "const": "statement",
+                    "type": "string"
+                  },
+                  {
+                    "const": "array",
+                    "type": "string"
+                  },
+                  {
+                    "const": "object",
+                    "type": "string"
+                  },
+                  {
+                    "const": "string",
+                    "type": "string"
+                  },
+                  {
+                    "const": "number",
+                    "type": "string"
+                  },
+                  {
+                    "const": "boolean",
+                    "type": "string"
+                  },
+                  {
+                    "const": "null",
+                    "type": "string"
+                  },
+                  {
+                    "const": "objectProperty",
+                    "type": "string"
+                  },
+                  {
+                    "const": "type",
+                    "type": "string"
+                  },
+                  {
+                    "const": "typeMember",
+                    "type": "string"
+                  },
+                  {
+                    "const": "typeParameter",
+                    "type": "string"
+                  },
+                  {
+                    "const": "parameter",
+                    "type": "string"
+                  },
+                  {
+                    "const": "constructorParameter",
+                    "type": "string"
+                  },
+                  {
+                    "const": "heritageType",
+                    "type": "string"
+                  },
+                  {
+                    "const": "declaration",
+                    "type": "string"
+                  },
+                  {
+                    "const": "classMember",
+                    "type": "string"
+                  },
+                  {
+                    "const": "enumMember",
+                    "type": "string"
+                  },
+                  {
+                    "const": "importSpecifier",
+                    "type": "string"
+                  },
+                  {
+                    "const": "exportSpecifier",
+                    "type": "string"
+                  },
+                  {
+                    "const": "sourceFile",
+                    "type": "string"
+                  }
+                ]
+              },
+              "implementationRegionKind": {
+                "anyOf": [
+                  {
+                    "const": "identifier",
+                    "type": "string"
+                  },
+                  {
+                    "const": "expression",
+                    "type": "string"
+                  },
+                  {
+                    "const": "expressionSuffix",
+                    "type": "string"
+                  },
+                  {
+                    "const": "statement",
+                    "type": "string"
+                  },
+                  {
+                    "const": "array",
+                    "type": "string"
+                  },
+                  {
+                    "const": "object",
+                    "type": "string"
+                  },
+                  {
+                    "const": "string",
+                    "type": "string"
+                  },
+                  {
+                    "const": "number",
+                    "type": "string"
+                  },
+                  {
+                    "const": "boolean",
+                    "type": "string"
+                  },
+                  {
+                    "const": "null",
+                    "type": "string"
+                  },
+                  {
+                    "const": "objectProperty",
+                    "type": "string"
+                  },
+                  {
+                    "const": "type",
+                    "type": "string"
+                  },
+                  {
+                    "const": "typeMember",
+                    "type": "string"
+                  },
+                  {
+                    "const": "typeParameter",
+                    "type": "string"
+                  },
+                  {
+                    "const": "parameter",
+                    "type": "string"
+                  },
+                  {
+                    "const": "constructorParameter",
+                    "type": "string"
+                  },
+                  {
+                    "const": "heritageType",
+                    "type": "string"
+                  },
+                  {
+                    "const": "declaration",
+                    "type": "string"
+                  },
+                  {
+                    "const": "classMember",
+                    "type": "string"
+                  },
+                  {
+                    "const": "enumMember",
+                    "type": "string"
+                  },
+                  {
+                    "const": "importSpecifier",
+                    "type": "string"
+                  },
+                  {
+                    "const": "exportSpecifier",
+                    "type": "string"
+                  },
+                  {
+                    "const": "sourceFile",
+                    "type": "string"
+                  }
+                ]
+              },
+              "implementationInputName": {
+                "const": "implementation",
+                "type": "string"
+              },
+              "source": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "sourceHash": {
+                "pattern": "^sha256:[a-f0-9]{64}$",
+                "type": "string"
+              },
+              "declarationContractHash": {
+                "pattern": "^sha256:[a-f0-9]{64}$",
+                "type": "string"
+              },
+              "rootTemplateManifestDigest": {
+                "pattern": "^t[0-9]+_[a-f0-9]{64}$",
+                "type": "string"
+              }
+            }
+          },
+          "symbol": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+              "schemaVersion",
+              "symbolId",
+              "name",
+              "qualifiedName",
+              "space",
+              "path",
+              "declarationStart",
+              "declarationEnd",
+              "exported"
+            ],
+            "properties": {
+              "schemaVersion": {
+                "const": 1,
+                "type": "number"
+              },
+              "symbolId": {
+                "pattern": "^sym1_[a-f0-9]{64}$",
+                "type": "string"
+              },
+              "name": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "qualifiedName": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "space": {
+                "anyOf": [
+                  {
+                    "const": "value",
+                    "type": "string"
+                  },
+                  {
+                    "const": "type",
+                    "type": "string"
+                  }
+                ]
+              },
+              "path": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "declarationStart": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "declarationEnd": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "exported": {
+                "type": "boolean"
+              }
+            }
+          },
+          "unresolvedValueSymbolId": {
+            "pattern": "^uv1_[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "discoveryReasons": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "unresolvedValues": {
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "symbolId",
+          "targetId",
+          "path",
+          "name",
+          "qualifiedName",
+          "declarationStart",
+          "declarationEnd"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": 1,
+            "type": "number"
+          },
+          "symbolId": {
+            "pattern": "^uv1_[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "targetId": {
+            "pattern": "^it1_[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "path": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "qualifiedName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "declarationStart": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "declarationEnd": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "severity",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "const": "error",
+                "type": "string"
+              },
+              {
+                "const": "warning",
+                "type": "string"
+              }
+            ]
+          },
+          "message": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "path": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "artifactId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "templateId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "targetId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "symbolId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "start": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "end": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "expected": {},
+          "actual": {}
+        }
+      }
+    }
+  }
+}

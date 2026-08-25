@@ -25,6 +25,7 @@ import type {
 	GraphTemplateDefinition,
 	InputPortSummary,
 	RawCodePolicy,
+	TemplateImportRequirement,
 	TemplateSummary,
 	TypeDescriptor
 } from './graphTypes.js'
@@ -33,6 +34,21 @@ type TemplateManifestDigestInput = Pick<GraphTemplateDefinition<any, string, any
 
 function sortedUnique(values: readonly string[] | undefined): string[] {
 	return [...new Set(values ?? [])].sort(compareCodeUnits)
+}
+
+function normalizeImportRequirements(
+	requirements: readonly TemplateImportRequirement[] | undefined
+): readonly Record<string, unknown>[] {
+	return [...(requirements ?? [])]
+		.map(requirement => ({
+			schemaVersion: requirement.schemaVersion,
+			moduleSpecifier: requirement.moduleSpecifier,
+			importKind: requirement.importKind,
+			...(requirement.importedName === undefined ? {} : { importedName: requirement.importedName }),
+			...(requirement.localName === undefined ? {} : { localName: requirement.localName }),
+			typeOnly: requirement.typeOnly
+		}))
+		.sort((left, right) => compareCodeUnits(canonicalizeJson(left), canonicalizeJson(right)))
 }
 
 function normalizeRawCodePolicy(policy: RawCodePolicy | undefined): Record<string, unknown> {
@@ -153,6 +169,9 @@ export function normalizeTemplateSummaries(
 					bodyInput: summary.callableScope.bodyInput
 				}
 			}),
+			...(summary.importRequirements === undefined || summary.importRequirements.length === 0
+				? {}
+				: { importRequirements: normalizeImportRequirements(summary.importRequirements) }),
 			inputs: Object.fromEntries(
 				Object.keys(summary.inputs).sort(compareCodeUnits).map(inputName => [
 					inputName,

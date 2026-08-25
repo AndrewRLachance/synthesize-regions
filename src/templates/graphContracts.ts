@@ -25,6 +25,7 @@ import type {
 	ConstraintBoundStaticAcceptance,
 	ValidatedArtifactChangeSet
 } from './artifactSet.js'
+import { TemplateImportRequirementSchema } from './importRequirements.js'
 
 const RegionKindDefinition = Type.Union([
 	Type.Literal('identifier'), Type.Literal('expression'), Type.Literal('expressionSuffix'),
@@ -209,6 +210,7 @@ const SummaryContractModule = Type.Module({
 		description: Type.Optional(Type.String()),
 		typeParameters: Type.Optional(Type.Record(Type.String(), Type.Ref('SummaryTemplateTypeParameterDefinition'))),
 		callableScope: Type.Optional(Type.Ref('SummaryCallableScope')),
+		importRequirements: Type.Optional(Type.Array(TemplateImportRequirementSchema)),
 		inputs: Type.Record(Type.String(), Type.Ref('InputPortSummary')),
 		output: Type.Ref('OutputPortSummary')
 	}, { additionalProperties: false })
@@ -310,6 +312,7 @@ const CompilationContractModule = Type.Module({
 		description: Type.Optional(Type.String()),
 		typeParameters: Type.Optional(Type.Record(Type.String(), Type.Ref('CompilationTemplateTypeParameterDefinition'))),
 		callableScope: Type.Optional(Type.Ref('CompilationCallableScope')),
+		importRequirements: Type.Optional(Type.Array(TemplateImportRequirementSchema)),
 		inputs: Type.Record(Type.String(), Type.Ref('InputPort')),
 		output: Type.Ref('OutputPort'),
 		source: Type.String()

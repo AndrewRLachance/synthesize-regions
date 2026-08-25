@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.synthesize-regions.dev/template-import-requirement.schema.json",
+  "title": "synthesize-regions TemplateImportRequirement",
+  "description": "One declarative import required by an executable graph template.",
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "moduleSpecifier",
+    "importKind",
+    "typeOnly"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "type": "number"
+    },
+    "moduleSpecifier": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "importKind": {
+      "anyOf": [
+        {
+          "const": "named",
+          "type": "string"
+        },
+        {
+          "const": "default",
+          "type": "string"
+        },
+        {
+          "const": "namespace",
+          "type": "string"
+        },
+        {
+          "const": "sideEffect",
+          "type": "string"
+        }
+      ]
+    },
+    "importedName": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "localName": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "typeOnly": {
+      "type": "boolean"
+    }
+  }
+}

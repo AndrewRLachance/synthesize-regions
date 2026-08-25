@@ -213,7 +213,7 @@ const packageName = ${JSON.stringify(packageName)}
 const fixtures = JSON.parse(process.env.PACKAGE_SMOKE_SCHEMA_FIXTURES ?? '[]')
 const packageModule = await import(packageName)
 assert.ok(Object.keys(packageModule).length > 0, 'The package root did not expose any runtime exports.')
-assert.equal(packageModule.SYNTHESIZE_REGIONS_PACKAGE_VERSION, '0.4.0')
+assert.equal(packageModule.SYNTHESIZE_REGIONS_PACKAGE_VERSION, '0.5.0')
 assert.equal(packageModule.TEMPLATE_CATALOG_CONTRACT_DIGEST_VERSION, 7)
 assert.equal(packageModule.TEMPLATE_MANIFEST_DIGEST_VERSION, 4)
 assert.equal(packageModule.TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION, 4)
@@ -259,6 +259,16 @@ assert.deepEqual(packageModule.GENERATED_SOURCE_SPAN_KIND_VALUES, ['node', 'inpu
 assert.equal(packageModule.isGeneratedSourceMap(sourceMap), true)
 assert.equal(packageModule.checkContract(packageModule.GeneratedSourceMapSchema, sourceMap), true)
 assert.equal(packageModule.isGeneratedSourceMap({ version: 2, spans: [] }), false)
+
+const implementationDiscovery = packageModule.discoverImplementationTargets({
+	files: { 'src/packed-target.ts': 'export declare const packedTarget: { (): number };' },
+	enabledTargetKinds: ['declaredCallable']
+})
+assert.equal(implementationDiscovery.ok, true)
+assert.equal(implementationDiscovery.targets.length, 1)
+const completionShell = packageModule.createCompletionShellTemplate(implementationDiscovery.targets[0].completionShell)
+assert.equal(completionShell.modelId, implementationDiscovery.targets[0].requiredRootTemplateId)
+assert.equal(completionShell.manifestDigest, implementationDiscovery.targets[0].requiredRootTemplateManifestDigest)
 
 const boundedSource = '/** @TEMPLATE id=Value output=expression **/\\n/** @TYPE number id=value **/ 0 /** @END **/\\n/** @END_TEMPLATE **/'
 const [discoveredTemplate] = packageModule.discoverSourceTemplates(boundedSource)
@@ -405,6 +415,7 @@ import {
 	ConstraintBoundStaticAcceptanceSchema,
 	GraphTemplateManifestSchema,
 	assembleArtifactSetTargets,
+	assembleCompiledArtifactSetWithImports,
 	captureTemplateCatalogView,
 	checkContract,
 	classifySynthesisDiagnosticCode,
@@ -416,16 +427,20 @@ import {
 	createTemplateRegistryFromManifests,
 	deepestGeneratedSourceSpan,
 	deriveTemplateCapabilityClosure,
+	discoverImplementationTargets,
 	discoverSourceTemplates,
+	createCompletionShellTemplate,
 	finalizeArtifactSetStatic,
 	generateSourceTemplateWithReplacements,
 	templateRegistryToPartialSynthesisGraphJsonSchema,
 	templateRegistryToSynthesisGraphJsonSchema,
 	validateArtifactSetStatic,
 	validateArtifactSetSemantics,
+	validateImportReconciledArtifactSetSemantics,
 	validateJsonValueAgainstSchema,
 	validateSupportedJsonSchema,
 	validateTypeScriptType,
+	validateUnresolvedRuntimeValueReferences,
 	isGeneratedSourceMap,
 	type TypeDescriptorComparisonResult,
 	type DiscoveredSourceTemplate,
@@ -444,6 +459,9 @@ import {
 	type GraphTemplateManifest,
 	type GraphRunnerAction,
 	type GraphRunnerState,
+	type ImplementationTargetDiscoveryResult,
+	type CompletionShellManifest,
+	type UnresolvedValueTypeScriptAuthority,
 	type GraphSemanticContext,
 	type SemanticTargetFileContext,
 	type SupportedJsonSchema,
@@ -489,7 +507,7 @@ const semanticTarget: SemanticTargetFileContext = {
 const semanticContext: GraphSemanticContext = { targetFile: semanticTarget }
 const sourceMapVersion: 1 = GENERATED_SOURCE_MAP_VERSION
 const regionSyntaxVersion: 2 = REGION_SYNTAX_ENGINE_VERSION
-const packageVersion: '0.4.0' = SYNTHESIZE_REGIONS_PACKAGE_VERSION
+const packageVersion: '0.5.0' = SYNTHESIZE_REGIONS_PACKAGE_VERSION
 const catalogContractVersion: 7 = TEMPLATE_CATALOG_CONTRACT_DIGEST_VERSION
 const templateManifestVersion: 4 = TEMPLATE_MANIFEST_DIGEST_VERSION
 const catalogManifestVersion: 4 = TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION
@@ -514,6 +532,29 @@ const generatedTemplateCode: string = generateSourceTemplateWithReplacements(
 	'Value',
 	{ value: { kind: 'number', value: 42 } }
 ).code
+const implementationDiscovery: ImplementationTargetDiscoveryResult = discoverImplementationTargets({
+	files: { 'src/packed-target.ts': 'export declare const packedTarget: { (): number };' },
+	enabledTargetKinds: ['declaredCallable']
+})
+const completionShellManifest: CompletionShellManifest = implementationDiscovery.targets[0]!.completionShell
+const completionShell = createCompletionShellTemplate(completionShellManifest)
+const unresolvedValueTypeScriptAuthority: UnresolvedValueTypeScriptAuthority = {
+	schemaVersion: 1, tsConfigFilePath: 'tsconfig.json', authorizedProjectReferences: []
+}
+const unresolvedValidation = validateUnresolvedRuntimeValueReferences({
+	workspaceFiles: {
+		'tsconfig.json': '{"compilerOptions":{"module":"ESNext","moduleResolution":"Bundler"},"include":["src/**/*.ts"]}',
+		'src/packed-target.ts': 'export declare const packedTarget: { (): number };',
+		'src/packed-consumer.ts': 'import { packedTarget } from "./packed-target.js"; export const result = 0;'
+	},
+	changes: [{
+		path: 'src/packed-consumer.ts',
+		sourceText: 'import { packedTarget } from "./packed-target.js"; export const result = packedTarget();'
+	}],
+	unresolvedValues: implementationDiscovery.unresolvedValues,
+	allowedTargetIds: [],
+	typeScriptAuthority: unresolvedValueTypeScriptAuthority
+})
 const manifestRegistry = createTemplateRegistryFromManifests([templateManifest])
 const capabilityClosure: TemplateSummary[] = deriveTemplateCapabilityClosure(manifestRegistry.summaries(), {
 	kind: 'goal', goal: { outputKind: 'sourceFile' }
@@ -578,6 +619,11 @@ void unknownDiagnosticIsTerminal
 void SYNTHESIS_DIAGNOSTIC_CLASSIFICATION_CATALOG
 void discoveredTemplate
 void generatedTemplateCode
+void implementationDiscovery
+void completionShellManifest
+void completionShell
+void unresolvedValueTypeScriptAuthority
+void unresolvedValidation
 void catalogPartialSchema
 void catalogStrictSchema
 void compiledArtifactSet
@@ -594,6 +640,8 @@ void validateSupportedJsonSchema
 void validateTypeScriptType
 void validateArtifactSetStatic
 void assembleArtifactSetTargets
+void assembleCompiledArtifactSetWithImports
+void validateImportReconciledArtifactSetSemantics
 void captureTemplateCatalogView
 void finalizeArtifactSetStatic
 void [${schemaFixtures.map((_, index) => `schema${index}`).join(', ')}]
@@ -622,6 +670,52 @@ void [${schemaFixtures.map((_, index) => `schema${index}`).join(', ')}]
 
 function fixtureForSchema(subpath: string): unknown {
 	switch (basename(subpath)) {
+		case 'implementation-target-discovery-result.schema.json':
+			return { schemaVersion: 1, ok: true, discoveryDigest: `disc1_${'1'.repeat(64)}`, targets: [], unresolvedValues: [], diagnostics: [] }
+
+		case 'completion-shell-manifest.schema.json':
+			return {
+				schemaVersion: 1, targetId: `it1_${'1'.repeat(64)}`,
+				rootTemplateId: 'project.completion.target', rootTemplateVersion: '1',
+				outputRegionKind: 'declaration', implementationRegionKind: 'expression',
+				implementationInputName: 'implementation', source: 'const value = 1;',
+				sourceHash: `sha256:${'2'.repeat(64)}`, declarationContractHash: `sha256:${'3'.repeat(64)}`,
+				rootTemplateManifestDigest: `t4_${'4'.repeat(64)}`
+			}
+
+		case 'required-root-template-authority.schema.json':
+			return {
+				schemaVersion: 1, artifactId: 'artifact', requiredRootTemplateId: 'project.completion.target',
+				requiredRootTemplateManifestDigest: `t4_${'4'.repeat(64)}`
+			}
+
+		case 'template-import-requirement.schema.json':
+			return {
+				schemaVersion: 1, moduleSpecifier: '@scope/helpers', importKind: 'named',
+				importedName: 'helper', localName: 'helper', typeOnly: false
+			}
+
+		case 'artifact-import-authority.schema.json':
+			return {
+				schemaVersion: 1, artifactId: 'artifact', path: 'src/value.ts',
+				allowed: [{
+					schemaVersion: 1, moduleSpecifier: '@scope/helpers', importKind: 'named',
+					importedName: 'helper', localName: 'helper', typeOnly: false
+				}]
+			}
+
+		case 'import-reconciliation-result.schema.json':
+			return { ok: true, files: [], diagnostics: [] }
+
+		case 'unresolved-value-validation-result.schema.json':
+			return { ok: true, references: [], diagnostics: [] }
+
+		case 'unresolved-value-typescript-authority.schema.json':
+			return { schemaVersion: 1, tsConfigFilePath: 'tsconfig.json', authorizedProjectReferences: [] }
+
+		case 'implementation-enforcement-result.schema.json':
+			return { ok: true, diagnostics: [] }
+
 		case 'replacement-map.schema.json':
 			return {
 				answer: { kind: 'number', value: 42 },

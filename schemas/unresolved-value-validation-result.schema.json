@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.synthesize-regions.dev/unresolved-value-validation-result.schema.json",
+  "title": "synthesize-regions UnresolvedValueValidationResult",
+  "description": "Compiler-resolved runtime-value references to unfinished external implementation targets.",
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "ok",
+    "references",
+    "diagnostics"
+  ],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "symbolId",
+          "targetId",
+          "consumerPath",
+          "start",
+          "end",
+          "identifier"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": 1,
+            "type": "number"
+          },
+          "symbolId": {
+            "pattern": "^uv1_[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "targetId": {
+            "pattern": "^it1_[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "consumerPath": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "start": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "end": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "identifier": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "artifactId": {
+            "minLength": 1,
+            "type": "string"
+          }
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "severity",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "const": "error",
+                "type": "string"
+              },
+              {
+                "const": "warning",
+                "type": "string"
+              }
+            ]
+          },
+          "message": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "path": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "artifactId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "templateId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "targetId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "symbolId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "start": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "end": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "expected": {},
+          "actual": {}
+        }
+      }
+    }
+  }
+}

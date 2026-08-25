@@ -93,6 +93,8 @@ export const BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES = [
 	'IncompatibleSourceSchema',
 	'IncompatibleSourceType',
 	'IncompatibleSourceFileMetadata',
+	'ImportReconciliationHashMismatch',
+	'ImportReconciliationPathMismatch',
 	'InvalidCollectionBounds',
 	'InvalidCollectionMaximum',
 	'InvalidCollectionMinimum',
@@ -115,6 +117,7 @@ export const BUILT_IN_SYNTHESIS_DIAGNOSTIC_CODE_VALUES = [
 	'InvalidRawCodeMaxLength',
 	'InvalidRawCodePattern',
 	'InvalidRawCodePolicy',
+	'InvalidImportReconciliationEdit',
 	'InvalidRunnerTransition',
 	'InvalidSemanticTarget',
 	'InvalidTemplateManifest',
@@ -846,6 +849,23 @@ export interface CallableScope<InputName extends string = string> {
 	readonly bodyInput: InputName
 }
 
+/**
+ * One deterministic source import required by a template when its output is
+ * assembled into a project source file.
+ *
+ * Requirements are declarative metadata only. They do not grant permission to
+ * import a module; callers must separately provide matching
+ * `ArtifactImportAuthority` before reconciliation.
+ */
+export interface TemplateImportRequirement {
+	readonly schemaVersion: 1
+	readonly moduleSpecifier: string
+	readonly importKind: 'named' | 'default' | 'namespace' | 'sideEffect'
+	readonly importedName?: string
+	readonly localName?: string
+	readonly typeOnly: boolean
+}
+
 /** Public, implementation-free template metadata for planners and UIs. */
 export interface TemplateSummary {
 	/** Template model ID. */
@@ -858,6 +878,8 @@ export interface TemplateSummary {
 	typeParameters?: Record<string, TemplateTypeParameterDefinition>
 	/** Explicit parameter-to-body ownership for callable templates. */
 	callableScope?: CallableScope
+	/** Deterministic imports required when the generated output is assembled. */
+	importRequirements?: TemplateImportRequirement[]
 	/** Summaries of accepted inputs keyed by input name. */
 	inputs: Record<string, InputPortSummary>
 	/** Summary of the generated output. */
@@ -1021,6 +1043,8 @@ export interface GraphTemplateManifest<
 	readonly typeParameters?: P
 	/** Explicit parameter-to-body ownership for callable templates. */
 	readonly callableScope?: CallableScope<Extract<keyof I, string>>
+	/** Imports required by this template, subject to separate caller authority. */
+	readonly importRequirements?: readonly TemplateImportRequirement[]
 	/** Named input ports accepted by this template. */
 	readonly inputs: I
 	/** Output fragment contract produced by the template. */

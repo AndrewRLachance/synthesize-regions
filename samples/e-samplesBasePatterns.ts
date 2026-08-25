@@ -1334,6 +1334,24 @@ export const Ternary = defineTemplate({
 	source: `(${marker('expression', 'condition', 'false')} ? ${marker('expression', 'whenTrue', 'undefined')} : ${marker('expression', 'whenFalse', 'undefined')})`
 })
 
+export const ObjectPatternMatchWithFallback = defineTemplate({
+	modelId: 'ObjectPatternMatchWithFallback',
+	version: '1.0.0',
+	description: 'Matches an object pattern and lazily returns a final or recursively chained R fallback result.',
+	typeParameters: { R: unconstrainedTypeParameter('Handler and match result type.') },
+	inputs: {
+		value: expressionFragment('Value to match.'),
+		objectPattern: expressionFragment('ts-pattern object pattern.'),
+		matchedHandler: expressionFragment('Matching handler.', { ts: '(...args: never[]) => {{R}}' }),
+		fallbackResult: expressionFragment(
+			'Lazy fallback result; another ObjectPatternMatchWithFallback<R> may be chained here.',
+			{ ts: '{{R}}' }
+		)
+	},
+	output: { kind: 'expression', type: { ts: '{{R}}', schema: true } },
+	source: `match(${marker('expression', 'value', 'undefined')}).with(${marker('expression', 'objectPattern', 'undefined')}, ${marker('expression', 'matchedHandler', 'undefined')}).otherwise(() => ${marker('expression', 'fallbackResult', 'undefined')})`
+})
+
 // Array operations -----------------------------------------------------------
 
 const arrayOperationParameters = {
@@ -1413,6 +1431,23 @@ export const ArrayForEachCall = defineTemplate({
 })
 
 // Loops and application ------------------------------------------------------
+
+export const TypeSugarExtensionCall = defineTemplate({
+	modelId: 'TypeSugarExtensionCall',
+	version: '1.0.0',
+	description: 'Calls an assumed extension method with one or more fragment arguments.',
+	inputs: {
+		receiver: expressionFragment('Extension receiver; another extension-call result may be chained here.'),
+		method: literalPort({
+			regionKind: 'identifier',
+			schema: { type: 'string', pattern: '^[$A-Za-z_][$A-Za-z0-9_]*$' },
+			description: 'Identifier-safe extension method name.'
+		}),
+		arguments: expressionCollectionInput('Arguments in call order.')
+	},
+	output: { kind: 'expression', type: unknownType },
+	source: `(${marker('expression', 'receiver', 'undefined')}).${marker('identifier', 'method', 'extension')}(${marker('expression', 'arguments', 'undefined')})`
+})
 
 export const WhileHolds = defineTemplate({
 	modelId: 'WhileHolds',
@@ -1569,12 +1604,14 @@ export const basePatternGraphTemplateInputs = [
 	IfElse,
 	IfElseChain,
 	Ternary,
+	ObjectPatternMatchWithFallback,
 	ArrayMap,
 	ArrayFilter,
 	ArrayFind,
 	ArrayFindIndex,
 	ArrayFlatMap,
 	ArrayForEachCall,
+	TypeSugarExtensionCall,
 	WhileHolds,
 	WhileTrue,
 	ForIndex,

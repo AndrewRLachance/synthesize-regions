@@ -47,6 +47,7 @@ import type {
 import { createHash } from 'node:crypto'
 import type { ReplacementRegion } from '../core/types.js'
 import { BoundedLruMap } from './deterministic.js'
+import { assertTemplateImportRequirements } from './importRequirements.js'
 
 interface GraphTemplateMarkerContract {
     readonly regionKind: RegionKind
@@ -58,7 +59,7 @@ const templateMarkerContracts = new WeakMap<object, Readonly<Record<string, Grap
 const templateReplacementRegions = new WeakMap<object, readonly ReplacementRegion[]>()
 const TEMPLATE_DISCOVERY_CACHE_CAPACITY = 256
 const templateDiscoveryCache = new BoundedLruMap<string, readonly ReplacementRegion[]>(TEMPLATE_DISCOVERY_CACHE_CAPACITY)
-const manifestPropertyNames = new Set(['modelId', 'version', 'description', 'typeParameters', 'callableScope', 'inputs', 'output', 'source'])
+const manifestPropertyNames = new Set(['modelId', 'version', 'description', 'typeParameters', 'callableScope', 'importRequirements', 'inputs', 'output', 'source'])
 
 /** Internal authenticity check used by registries to reject forged executable definitions. */
 export function isLibraryOwnedTemplateDefinition(value: unknown): value is GraphTemplateDefinition<any, string, any> {
@@ -364,8 +365,10 @@ export function defineTemplate<
 	const output = freezeManifestValue(definition.output, 'template.output') as O
 	const typeParameters = freezeManifestValue(definition.typeParameters, 'template.typeParameters')
 	const callableScope = freezeManifestValue(definition.callableScope, 'template.callableScope')
+	const importRequirements = freezeManifestValue(definition.importRequirements, 'template.importRequirements')
 	const callableScopeIssues = validateCallableScope(callableScope, inputs)
 	if (callableScopeIssues.length > 0) throw new InvalidCallableScopeError(callableScopeIssues)
+	assertTemplateImportRequirements(importRequirements ?? [])
 	const genericIssues = validateTemplateTypeParameters(typeParameters, inputs, output)
 	if (genericIssues[0]) {
 		throw new TypeError(`${genericIssues[0].code} at ${genericIssues[0].path}: ${genericIssues[0].message}`)
@@ -381,6 +384,7 @@ export function defineTemplate<
 		...(description ? { description } : {}),
 		...(typeParameters ? { typeParameters } : {}),
 		...(callableScope ? { callableScope } : {}),
+		...(importRequirements && importRequirements.length > 0 ? { importRequirements: [...importRequirements] } : {}),
 		inputs: Object.fromEntries(
 			Object.entries(inputs).map(([key, port]) => [key, summarizeInputPort(port)])
 		),
@@ -393,6 +397,7 @@ export function defineTemplate<
 		...(description ? { description } : {}),
 		...(typeParameters ? { typeParameters } : {}),
 		...(callableScope ? { callableScope } : {}),
+		...(importRequirements && importRequirements.length > 0 ? { importRequirements } : {}),
 		inputs,
 		output,
 		source: templateSource,

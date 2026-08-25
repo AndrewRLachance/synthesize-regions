@@ -21,7 +21,7 @@ import {
 
 describe('public synthesize-regions contract identity', () => {
 	it('publishes one exact supported package and engine version matrix', () => {
-		expect(SYNTHESIZE_REGIONS_PACKAGE_VERSION).toBe('0.4.0')
+		expect(SYNTHESIZE_REGIONS_PACKAGE_VERSION).toBe('0.5.0')
 		expect(TEMPLATE_CATALOG_CONTRACT_DIGEST_VERSION).toBe(7)
 		expect(TEMPLATE_MANIFEST_DIGEST_VERSION).toBe(4)
 		expect(TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION).toBe(4)

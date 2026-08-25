@@ -1,7 +1,7 @@
 import { Type, type Static } from '@sinclair/typebox'
 
 /** Exact package version implementing the public template contract. */
-export const SYNTHESIZE_REGIONS_PACKAGE_VERSION = '0.4.0' as const
+export const SYNTHESIZE_REGIONS_PACKAGE_VERSION = '0.5.0' as const
 
 /** Version of the normalized, planner-facing template-catalog digest. */
 export const TEMPLATE_CATALOG_CONTRACT_DIGEST_VERSION = 7 as const

@@ -18,6 +18,21 @@ import {
 	TemplateSummarySchema
 } from '../src/templates/graphContracts.js'
 import { SupportedJsonSchemaSchema } from '../src/templates/schemaContract.js'
+import {
+	CompletionShellManifestSchema,
+	ImplementationTargetDiscoveryResultSchema
+} from '../src/templates/implementationTargets.js'
+import {
+	ArtifactImportAuthoritySchema,
+	ImportReconciliationResultSchema,
+	TemplateImportRequirementSchema
+} from '../src/templates/importRequirements.js'
+import { ImplementationEnforcementResultSchema } from '../src/templates/implementationAuthority.js'
+import { RequiredRootTemplateAuthoritySchema } from '../src/templates/requiredRoot.js'
+import {
+	UnresolvedValueTypeScriptAuthoritySchema,
+	UnresolvedValueValidationResultSchema
+} from '../src/templates/unresolvedValues.js'
 
 const draft202012 = 'https://json-schema.org/draft/2020-12/schema'
 const schemaBaseUrl = 'https://schemas.synthesize-regions.dev'
@@ -33,6 +48,60 @@ interface PublishedSchema {
 type JsonRecord = Record<string, unknown>
 
 const publishedSchemas: readonly PublishedSchema[] = [
+	{
+		fileName: 'implementation-target-discovery-result.schema.json',
+		title: 'synthesize-regions ImplementationTargetDiscoveryResult',
+		description: 'Closed snapshot-bound implementation target, completion-shell, unresolved-symbol, and discovery-diagnostic result.',
+		schema: ImplementationTargetDiscoveryResultSchema
+	},
+	{
+		fileName: 'completion-shell-manifest.schema.json',
+		title: 'synthesize-regions CompletionShellManifest',
+		description: 'Authenticated target-specific root template whose only open port is the authorized implementation region.',
+		schema: CompletionShellManifestSchema
+	},
+	{
+		fileName: 'required-root-template-authority.schema.json',
+		title: 'synthesize-regions RequiredRootTemplateAuthority',
+		description: 'Exact final template and executable manifest authority for one fixed artifact outline entry.',
+		schema: RequiredRootTemplateAuthoritySchema
+	},
+	{
+		fileName: 'template-import-requirement.schema.json',
+		title: 'synthesize-regions TemplateImportRequirement',
+		description: 'One declarative import required by an executable graph template.',
+		schema: TemplateImportRequirementSchema
+	},
+	{
+		fileName: 'artifact-import-authority.schema.json',
+		title: 'synthesize-regions ArtifactImportAuthority',
+		description: 'Caller-owned allowlist for imports reconciled into one artifact destination.',
+		schema: ArtifactImportAuthoritySchema
+	},
+	{
+		fileName: 'import-reconciliation-result.schema.json',
+		title: 'synthesize-regions ImportReconciliationResult',
+		description: 'Pure deterministic result containing reconciled candidate source bytes and explicit authorized insertion edits.',
+		schema: ImportReconciliationResultSchema
+	},
+	{
+		fileName: 'unresolved-value-typescript-authority.schema.json',
+		title: 'synthesize-regions UnresolvedValueTypeScriptAuthority',
+		description: 'Closed captured-tsconfig and project-reference authority used for hermetic unresolved-value checking.',
+		schema: UnresolvedValueTypeScriptAuthoritySchema
+	},
+	{
+		fileName: 'unresolved-value-validation-result.schema.json',
+		title: 'synthesize-regions UnresolvedValueValidationResult',
+		description: 'Compiler-resolved runtime-value references to unfinished external implementation targets.',
+		schema: UnresolvedValueValidationResultSchema
+	},
+	{
+		fileName: 'implementation-enforcement-result.schema.json',
+		title: 'synthesize-regions ImplementationEnforcementResult',
+		description: 'Common closed result for project implementation authority validation.',
+		schema: ImplementationEnforcementResultSchema
+	},
 	{
 		fileName: 'artifact-set-plan.schema.json',
 		title: 'synthesize-regions ArtifactSetPlan',

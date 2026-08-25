@@ -1,6 +1,6 @@
 {
   "name": "synthesize-regions",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Controlled TypeScript source-template replacement utility using ts-morph.",
   "type": "module",
   "main": "dist/index.js",
@@ -23,6 +23,15 @@
       "import": "./dist/internal/semanticProgramOwner.js"
     },
     "./contract-manifest.json": "./contract-manifest.json",
+    "./schemas/implementation-target-discovery-result.schema.json": "./schemas/implementation-target-discovery-result.schema.json",
+    "./schemas/completion-shell-manifest.schema.json": "./schemas/completion-shell-manifest.schema.json",
+    "./schemas/required-root-template-authority.schema.json": "./schemas/required-root-template-authority.schema.json",
+    "./schemas/template-import-requirement.schema.json": "./schemas/template-import-requirement.schema.json",
+    "./schemas/artifact-import-authority.schema.json": "./schemas/artifact-import-authority.schema.json",
+    "./schemas/import-reconciliation-result.schema.json": "./schemas/import-reconciliation-result.schema.json",
+		"./schemas/unresolved-value-typescript-authority.schema.json": "./schemas/unresolved-value-typescript-authority.schema.json",
+    "./schemas/unresolved-value-validation-result.schema.json": "./schemas/unresolved-value-validation-result.schema.json",
+    "./schemas/implementation-enforcement-result.schema.json": "./schemas/implementation-enforcement-result.schema.json",
     "./schemas/replacement-map.schema.json": "./schemas/replacement-map.schema.json",
     "./schemas/artifact-set-plan.schema.json": "./schemas/artifact-set-plan.schema.json",
 		"./schemas/artifact-set-compilation-result.schema.json": "./schemas/artifact-set-compilation-result.schema.json",

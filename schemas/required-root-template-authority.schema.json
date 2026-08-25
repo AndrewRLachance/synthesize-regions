@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.synthesize-regions.dev/required-root-template-authority.schema.json",
+  "title": "synthesize-regions RequiredRootTemplateAuthority",
+  "description": "Exact final template and executable manifest authority for one fixed artifact outline entry.",
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "artifactId",
+    "requiredRootTemplateId",
+    "requiredRootTemplateManifestDigest"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "type": "number"
+    },
+    "artifactId": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "requiredRootTemplateId": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "requiredRootTemplateManifestDigest": {
+      "pattern": "^t[0-9]+_[a-f0-9]{64}$",
+      "type": "string"
+    }
+  }
+}

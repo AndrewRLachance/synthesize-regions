@@ -42,6 +42,13 @@ import {
 	analyzeCapturedTypeScriptBaseline,
 	recordCandidateAnalysis
 } from './baselineAnalysisCache.js'
+import {
+	collectArtifactSetImportRequirements,
+	reconcileArtifactSetImports,
+	type ArtifactImportAuthority,
+	type ImportReconciledFile
+} from './importRequirements.js'
+import type { ImplementationEnforcementDiagnostic } from './implementationAuthority.js'
 
 const ARTIFACT_SET_IDENTITY_VERSION = 1
 const ARTIFACT_SET_WORKSPACE_IDENTITY_VERSION = 2
@@ -1062,6 +1069,167 @@ export function assembleCompiledArtifactSet(
 	return assembleArtifactSetTargets(evidence.units, catalog, options)
 }
 
+function artifactImportDiagnostics(
+	diagnostics: readonly ImplementationEnforcementDiagnostic[]
+): ArtifactSetDiagnostic[] {
+	return diagnostics.map(diagnostic => setDiagnostic(
+		diagnostic.code,
+		diagnostic.message,
+		{
+			stage: 'policy',
+			...(diagnostic.artifactId === undefined ? {} : { artifactId: diagnostic.artifactId }),
+			...(diagnostic.templateId === undefined ? {} : { templateId: diagnostic.templateId }),
+			...(diagnostic.path === undefined ? {} : { path: diagnostic.path }),
+			...(diagnostic.expected === undefined ? {} : { expected: diagnostic.expected }),
+			...(diagnostic.actual === undefined && diagnostic.start === undefined && diagnostic.end === undefined
+				? {}
+				: { actual: {
+					...(diagnostic.actual === undefined ? {} : { value: diagnostic.actual }),
+					...(diagnostic.start === undefined ? {} : { start: diagnostic.start }),
+					...(diagnostic.end === undefined ? {} : { end: diagnostic.end })
+				} })
+		},
+		diagnostic.severity
+	))
+}
+
+function changesWithReconciledImports(
+	changes: readonly ArtifactSetChange[],
+	files: readonly ImportReconciledFile[],
+	diagnostics: ArtifactSetDiagnostic[]
+): ArtifactSetChange[] | undefined {
+	const byPath = new Map<string, ImportReconciledFile>()
+	for (const file of files) {
+		if (byPath.has(file.path)) diagnostics.push(setDiagnostic(
+			'ImportReconciliationPathMismatch',
+			`Import reconciliation repeats ${file.path}.`,
+			{ path: file.path, stage: 'policy' }
+		))
+		byPath.set(file.path, file)
+	}
+	const changePaths = new Set(changes.map(change => change.path))
+	for (const path of byPath.keys()) {
+		if (!changePaths.has(path)) diagnostics.push(setDiagnostic(
+			'ImportReconciliationPathMismatch',
+			`Import reconciliation added unauthorized path ${path}.`,
+			{ path, stage: 'policy' }
+		))
+	}
+	const result: ArtifactSetChange[] = []
+	for (const change of changes) {
+		const file = byPath.get(change.path)
+		if (file === undefined) {
+			diagnostics.push(setDiagnostic(
+				'ImportReconciliationPathMismatch',
+				`Import reconciliation omitted ${change.path}.`,
+				{ path: change.path, stage: 'policy' }
+			))
+			continue
+		}
+		const insertions = [...file.importEdits].sort((left, right) => left.start - right.start)
+		if (insertions.some((insertion, index) => insertion.start < 0 || insertion.start > change.sourceText.length
+			|| (index > 0 && insertion.start === insertions[index - 1]!.start))) {
+			diagnostics.push(setDiagnostic(
+				'InvalidImportReconciliationEdit',
+				`Import reconciliation contains an invalid or ambiguous insertion for ${change.path}.`,
+				{ path: change.path, stage: 'policy' }
+			))
+			continue
+		}
+		let reconstructed = change.sourceText
+		for (const insertion of [...insertions].reverse()) {
+			reconstructed = `${reconstructed.slice(0, insertion.start)}${insertion.text}${reconstructed.slice(insertion.start)}`
+		}
+		if (reconstructed !== file.sourceText
+			|| createArtifactSetFileHash(file.sourceText) !== file.resultingFileHash) {
+			diagnostics.push(setDiagnostic(
+				'ImportReconciliationHashMismatch',
+				`Import reconciliation bytes for ${change.path} are detached from its insertion evidence.`,
+				{
+					path: change.path,
+					stage: 'policy',
+					expected: createArtifactSetFileHash(reconstructed),
+					actual: file.resultingFileHash
+				}
+			))
+			continue
+		}
+		const shiftedStart = (position: number): number => position + insertions
+			.filter(insertion => insertion.start <= position)
+			.reduce((total, insertion) => total + insertion.text.length, 0)
+		const shiftedEnd = (position: number): number => position + insertions
+			.filter(insertion => insertion.start < position)
+			.reduce((total, insertion) => total + insertion.text.length, 0)
+		result.push({
+			...change,
+			sourceText: file.sourceText,
+			resultingFileHash: file.resultingFileHash,
+			edits: change.edits.map(edit => ({
+				...edit,
+				resultStart: shiftedStart(edit.resultStart),
+				resultEnd: shiftedEnd(edit.resultEnd)
+			}))
+		})
+	}
+	return hasErrors(diagnostics) ? undefined : result
+}
+
+/**
+ * Assemble authenticated graph evidence and insert only catalog-declared
+ * imports covered by exact per-artifact authority.
+ */
+export function assembleCompiledArtifactSetWithImports(
+	compilation: ArtifactSetGraphCompilationResult,
+	catalog: TemplateCatalogView | readonly GraphTemplateDefinition<any, string, any>[],
+	importAuthority: readonly ArtifactImportAuthority[],
+	options: ArtifactSetAssemblyOptions = {}
+): ArtifactSetAssemblyResult {
+	let catalogView: TemplateCatalogView
+	try { catalogView = captureCatalog(catalog) } catch (error) {
+		const diagnostics = catalogErrorDiagnostics(error)
+		return { ok: false, classification: classifySynthesisDiagnostics('artifactSetAssembly', diagnostics), changes: [], diagnostics }
+	}
+	const assembly = assembleCompiledArtifactSet(compilation, catalogView, options)
+	if (!assembly.ok) return assembly
+	const collected = collectArtifactSetImportRequirements(compilation.plan, catalogView)
+	const collectedDiagnostics = artifactImportDiagnostics(collected.diagnostics)
+	if (hasErrors(collectedDiagnostics)) return {
+		ok: false,
+		classification: classifySynthesisDiagnostics('artifactSetAssembly', collectedDiagnostics),
+		changes: [],
+		diagnostics: [...assembly.diagnostics, ...collectedDiagnostics]
+	}
+	const reconciled = reconcileArtifactSetImports(
+		assembly.changes,
+		collected.requirementsByArtifact,
+		importAuthority
+	)
+	const diagnostics = [...assembly.diagnostics, ...artifactImportDiagnostics(reconciled.diagnostics)]
+	if (!reconciled.ok) return {
+		ok: false,
+		classification: classifySynthesisDiagnostics('artifactSetAssembly', diagnostics),
+		changes: [],
+		diagnostics
+	}
+	const changes = changesWithReconciledImports(assembly.changes, reconciled.files, diagnostics)
+	if (changes === undefined) return {
+		ok: false,
+		classification: classifySynthesisDiagnostics('artifactSetAssembly', diagnostics),
+		changes: [],
+		diagnostics
+	}
+	return {
+		...assembly,
+		changes,
+		changeSetHash: createArtifactSetChangeSetHash(changes, {
+			contractDigest: assembly.contractDigest,
+			manifestDigest: assembly.manifestDigest,
+			workspaceSnapshotHash: assembly.workspaceSnapshotHash
+		}),
+		diagnostics
+	}
+}
+
 /**
  * Run project semantic validation from successful graph-compilation evidence.
  * This preserves the authoritative assembly and semantic checks while avoiding
@@ -1325,6 +1493,99 @@ export function validateAssembledArtifactSetSemantics(
 		contractDigest: assembly.contractDigest,
 		manifestDigest: assembly.manifestDigest,
 		workspaceSnapshotHash: assembly.workspaceSnapshotHash,
+		diagnostics
+	}
+}
+
+/**
+ * Authenticate an import-reconciled assembly by deterministically deriving it
+ * again from graph evidence, catalog requirements, and caller import authority,
+ * then run project semantic validation over those exact reconciled bytes.
+ */
+export function validateImportReconciledArtifactSetSemantics(
+	compilation: ArtifactSetGraphCompilationResult,
+	assembly: ArtifactSetAssemblyResult,
+	catalog: TemplateCatalogView | readonly GraphTemplateDefinition<any, string, any>[],
+	importAuthority: readonly ArtifactImportAuthority[],
+	options: ArtifactSetAssemblyOptions = {}
+): ArtifactSetSemanticValidationResult {
+	let catalogView: TemplateCatalogView
+	try { catalogView = captureCatalog(catalog) } catch (error) {
+		const diagnostics = catalogErrorDiagnostics(error)
+		return { ok: false, classification: classifySynthesisDiagnostics('artifactSetSemanticValidation', diagnostics), changes: [], diagnostics }
+	}
+	const expected = assembleCompiledArtifactSetWithImports(
+		compilation,
+		catalogView,
+		importAuthority,
+		options
+	)
+	if (!expected.ok) return expected
+	if (!assembly.ok) return {
+		ok: false,
+		classification: classifySynthesisDiagnostics('artifactSetSemanticValidation', assembly.diagnostics),
+		changes: [],
+		diagnostics: assembly.diagnostics
+	}
+	if (canonicalizeJson(assembly) !== canonicalizeJson(expected)) {
+		const diagnostics = [setDiagnostic(
+			'ArtifactAssemblyHashMismatch',
+			'Import-reconciled assembly evidence does not match deterministic catalog requirements and authority.',
+			{
+				stage: 'policy',
+				expected: expected.changeSetHash,
+				actual: assembly.changeSetHash
+			}
+		)]
+		return {
+			ok: false,
+			classification: classifySynthesisDiagnostics('artifactSetSemanticValidation', diagnostics),
+			changes: [],
+			diagnostics
+		}
+	}
+	const evidence = assemblyUnitsFromCompilation(compilation, catalogView, options)
+	if (!evidence.ok) return {
+		ok: false,
+		classification: classifySynthesisDiagnostics('artifactSetSemanticValidation', evidence.diagnostics),
+		changes: [],
+		diagnostics: evidence.diagnostics
+	}
+	const workspace = normalizeWorkspaceFiles(options.workspaceFiles ?? {})
+	const contextDiagnostics = staticAcceptanceContextDiagnostics(evidence.units, workspace.files, options)
+	const acceptanceDiagnostics = [...workspace.diagnostics, ...contextDiagnostics]
+	if (hasErrors(acceptanceDiagnostics)) return {
+		ok: false,
+		classification: classifySynthesisDiagnostics('artifactSetSemanticValidation', acceptanceDiagnostics),
+		changes: [],
+		diagnostics: acceptanceDiagnostics
+	}
+	const prepared = evidence.units.map((unit, authoredIndex) => ({
+		...unit,
+		authoredIndex,
+		artifactHash: unit.artifactHash ?? createArtifactSetArtifactHash(unit.artifact)
+	}))
+	const semanticDiagnostics = validateAssembledSources(
+		expected.changes,
+		workspace.files,
+		options,
+		prepared,
+		true
+	)
+	const diagnostics = [...expected.diagnostics, ...semanticDiagnostics]
+	if (hasErrors(semanticDiagnostics)) return {
+		ok: false,
+		classification: classifySynthesisDiagnostics('artifactSetSemanticValidation', diagnostics),
+		changes: [],
+		diagnostics
+	}
+	return {
+		ok: true,
+		validation: 'semantic',
+		changes: expected.changes,
+		contractDigest: expected.contractDigest,
+		manifestDigest: expected.manifestDigest,
+		workspaceSnapshotHash: expected.workspaceSnapshotHash,
 		diagnostics
 	}
 }

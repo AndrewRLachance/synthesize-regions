@@ -74,7 +74,7 @@ npm run contracts:check
 
 ### Contract compatibility
 
-Package `0.4.0` is a hard contract cutover. It exports catalog-contract digest
+Package `0.5.0` extends the project-planning authority contract. It exports catalog-contract digest
 version 7 (`c7_`), template-manifest digest version 4 (`t4_`), catalog-manifest
 digest version 4 (`m4_`), catalog planner-schema version 4, and capability
 closure version 3. Planner-schema and closure-engine versions are included in
@@ -1582,9 +1582,32 @@ createGraphRunner(registryOrTemplates, graph, options?)
 applyGraphPatch(graph, action)
 compileArtifactSet(plan, registryOrTemplates, options?)
 assembleArtifactSetTargets(units, registryOrTemplates, options?)
+assembleCompiledArtifactSetWithImports(compilation, registryOrTemplates, importAuthority, options?)
 validateArtifactSetStatic(plan, registryOrTemplates, options?)
+validateImportReconciledArtifactSetSemantics(compilation, assembly, registryOrTemplates, importAuthority, options?)
+discoverImplementationTargets(options)
+createCompletionShellTemplate(manifest)
+validateRequiredRootTemplates(plan, artifactsOrUndefined, authority)
+collectArtifactSetImportRequirements(plan, registryOrTemplates)
+validateTemplateImportRequirements(requirementsByArtifact, authority)
+reconcileArtifactSetImports(changes, requirementsByArtifact, authority)
+validateUnresolvedRuntimeValueReferences(options)
 code
 ```
+
+`validateUnresolvedRuntimeValueReferences` requires a closed
+`typeScriptAuthority` value containing the captured `tsConfigFilePath` and a
+sorted, unique list of captured `authorizedProjectReferences`. Those paths name
+bytes already present in `workspaceFiles`; they never grant host-filesystem
+read authority. Module aliases and resolution therefore match the captured
+project configuration instead of a validator-specific compiler default.
+
+Import-aware assembly collects requirements directly from the authenticated
+compiled plan and captured catalog, inserts only requirements covered by exact
+per-artifact authority, and rehashes the resulting bytes. Its paired semantic
+validator rederives that reconciled assembly before accepting it, so an import
+insertion cannot be smuggled into assembly evidence or rejected merely because
+it is not a graph artifact edit.
 
 Canonical behavior examples live under `test/fixtures/`, and
 `test/fixture-integration.test.ts` runs every fixture through

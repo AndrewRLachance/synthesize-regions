@@ -34,6 +34,12 @@ export interface CapturedTypeScriptProjectResult {
 	readonly issues: readonly CapturedCompilerIssue[]
 }
 
+interface CapturedTypeScriptProjectBuild {
+	readonly result: CapturedTypeScriptProjectResult
+	readonly workspaceRoot: string
+	readonly program?: ts.Program
+}
+
 declare const capturedTypeScriptProgramOwnerBrand: unique symbol
 
 /**
@@ -226,11 +232,39 @@ export function buildCapturedTypeScriptProjectWithOwner(
 	options: CapturedTypeScriptProjectOptions,
 	owner?: CapturedTypeScriptProgramOwner
 ): CapturedTypeScriptProjectResult {
+	return buildCapturedTypeScriptProjectProgram(options, owner).result
+}
+
+/**
+ * Inspect the exact hermetic program used by captured-project validation.
+ *
+ * @internal The callback boundary deliberately keeps compiler objects out of
+ * the package's public data contracts. Callers receive no path-based read
+ * authority: every workspace source/config byte still comes from `files`.
+ */
+export function inspectCapturedTypeScriptProject<T>(
+	options: CapturedTypeScriptProjectOptions,
+	inspect: (program: ts.Program, workspaceRoot: string) => T
+): { readonly result: CapturedTypeScriptProjectResult; readonly inspection?: T } {
+	const built = buildCapturedTypeScriptProjectProgram(options)
+	return {
+		result: built.result,
+		...(built.program === undefined ? {} : { inspection: inspect(built.program, built.workspaceRoot) })
+	}
+}
+
+function buildCapturedTypeScriptProjectProgram(
+	options: CapturedTypeScriptProjectOptions,
+	owner?: CapturedTypeScriptProgramOwner
+): CapturedTypeScriptProjectBuild {
+	const root = portable(resolve(options.workspaceRoot ?? '/__synthesize_regions_workspace__'))
 	if (options.files.size === 0) {
-		return { compilerOptions: DEFAULT_OPTIONS, rootFilePaths: [], sourceFilePaths: [], projectReferencePaths: [], issues: [] }
+		return {
+			workspaceRoot: root,
+			result: { compilerOptions: DEFAULT_OPTIONS, rootFilePaths: [], sourceFilePaths: [], projectReferencePaths: [], issues: [] }
+		}
 	}
 
-	const root = portable(resolve(options.workspaceRoot ?? '/__synthesize_regions_workspace__'))
 	const captured = new Map<string, string>()
 	for (const [relativePath, sourceText] of options.files) {
 		captured.set(portable(resolve(root, relativePath)), sourceText)
@@ -247,9 +281,12 @@ export function buildCapturedTypeScriptProjectWithOwner(
 	if (configPath !== undefined) {
 		if (!captured.has(configPath)) {
 			return {
-				compilerOptions,
-				rootFilePaths: [], sourceFilePaths: [], projectReferencePaths: [],
-				issues: [configIssue(5083, `Cannot read captured project configuration ${options.tsConfigFilePath}.`, options.tsConfigFilePath)]
+				workspaceRoot: root,
+				result: {
+					compilerOptions,
+					rootFilePaths: [], sourceFilePaths: [], projectReferencePaths: [],
+					issues: [configIssue(5083, `Cannot read captured project configuration ${options.tsConfigFilePath}.`, options.tsConfigFilePath)]
+				}
 			}
 		}
 		const parseHost: ts.ParseConfigFileHost = {
@@ -277,9 +314,12 @@ export function buildCapturedTypeScriptProjectWithOwner(
 		const parsed = ts.getParsedCommandLineOfConfigFile(configPath, { noEmit: true }, parseHost)
 		if (parsed === undefined) {
 			return {
-				compilerOptions,
-				rootFilePaths: [], sourceFilePaths: [], projectReferencePaths: [],
-				issues: configurationDiagnostics.map(diagnostic => compilerIssue('configuration', diagnostic, root, options.tsConfigFilePath))
+				workspaceRoot: root,
+				result: {
+					compilerOptions,
+					rootFilePaths: [], sourceFilePaths: [], projectReferencePaths: [],
+					issues: configurationDiagnostics.map(diagnostic => compilerIssue('configuration', diagnostic, root, options.tsConfigFilePath))
+				}
 			}
 		}
 		compilerOptions = { ...parsed.options, noEmit: true }
@@ -389,14 +429,18 @@ export function buildCapturedTypeScriptProjectWithOwner(
 		.sort(compareCodeUnits)
 
 	return {
-		compilerOptions,
-		rootFilePaths: rootNames.map(path => relativeCapturedPath(root, path) ?? path).sort(compareCodeUnits),
-		sourceFilePaths,
-		projectReferencePaths: projectReferencePaths.map(path => relativeCapturedPath(root, path) ?? path),
-		issues: issues.sort((left, right) =>
-			compareCodeUnits(left.path ?? '', right.path ?? '')
-			|| (left.start ?? -1) - (right.start ?? -1)
-			|| left.code - right.code
-			|| compareCodeUnits(left.message, right.message))
+		workspaceRoot: root,
+		program,
+		result: {
+			compilerOptions,
+			rootFilePaths: rootNames.map(path => relativeCapturedPath(root, path) ?? path).sort(compareCodeUnits),
+			sourceFilePaths,
+			projectReferencePaths: projectReferencePaths.map(path => relativeCapturedPath(root, path) ?? path),
+			issues: issues.sort((left, right) =>
+				compareCodeUnits(left.path ?? '', right.path ?? '')
+				|| (left.start ?? -1) - (right.start ?? -1)
+				|| left.code - right.code
+				|| compareCodeUnits(left.message, right.message))
+		}
 	}
 }
