@@ -529,7 +529,7 @@ resuming a persisted session. Either mismatch is terminal. The first prevents
 planning against a different vocabulary; the second prevents source-only
 implementation changes from silently changing generated code.
 
-The package `0.4.0` matrix is catalog contract 7 (`c7_`), template manifest 4
+The package `0.6.1` matrix is catalog contract 7 (`c7_`), template manifest 4
 (`t4_`), catalog manifest 4 (`m4_`), planner schema 4, and capability closure 3.
 Planner-schema and closure versions participate in the `c7_` payload. Package
 `0.2.x` and earlier databases, artifacts, and `c5_`/`t2_`/`m2_` evidence must be recreated;

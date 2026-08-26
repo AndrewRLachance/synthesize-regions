@@ -54,6 +54,22 @@ export function validateRequiredRootTemplates(
 			}))
 			continue
 		}
+		const requiredTemplateNodes = unit.graph.nodes.filter(
+			node => node.templateId === requirement.requiredRootTemplateId
+		)
+		if (requiredTemplateNodes.length !== 1) {
+			diagnostics.push(implementationDiagnostic(
+				'InvalidRequiredRootTemplateMultiplicity',
+				`Artifact ${unit.id} must contain required root template ${requirement.requiredRootTemplateId} exactly once.`,
+				{
+					artifactId: unit.id,
+					templateId: requirement.requiredRootTemplateId,
+					path: `artifacts[${index}].graph.nodes`,
+					expected: 1,
+					actual: requiredTemplateNodes.length
+				}
+			))
+		}
 		const roots = unit.graph.nodes.filter(node => node.id === unit.graph.finalNodeId)
 		if (roots.length !== 1) {
 			diagnostics.push(implementationDiagnostic('InvalidRequiredRootNode', `Artifact ${unit.id} must resolve exactly one final graph node.`, {

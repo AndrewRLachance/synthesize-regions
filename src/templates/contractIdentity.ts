@@ -1,7 +1,13 @@
 import { Type, type Static } from '@sinclair/typebox'
 
 /** Exact package version implementing the public template contract. */
-export const SYNTHESIZE_REGIONS_PACKAGE_VERSION = '0.5.0' as const
+export const SYNTHESIZE_REGIONS_PACKAGE_VERSION = '0.6.1' as const
+
+/** Version of the artifact-set change-set identity contract. */
+export const ARTIFACT_SET_CHANGE_SET_IDENTITY_VERSION = 1 as const
+
+/** Exact supported artifact-set change-set identity syntax. */
+export const ARTIFACT_SET_CHANGE_SET_HASH_PATTERN = '^cs1_[a-f0-9]{64}$' as const
 
 /** Version of the normalized, planner-facing template-catalog digest. */
 export const TEMPLATE_CATALOG_CONTRACT_DIGEST_VERSION = 7 as const
@@ -42,6 +48,11 @@ export const TemplateCatalogManifestDigestSchema = Type.String({
 	pattern: TEMPLATE_CATALOG_MANIFEST_DIGEST_PATTERN
 })
 
+/** Closed TypeBox contract for an exact library artifact-set change set. */
+export const ArtifactSetChangeSetHashSchema = Type.String({
+	pattern: ARTIFACT_SET_CHANGE_SET_HASH_PATTERN
+})
+
 /** Current normalized catalog-contract digest. */
 export type TemplateCatalogContractDigest = Static<typeof TemplateCatalogContractDigestSchema>
 
@@ -50,3 +61,6 @@ export type TemplateManifestDigest = Static<typeof TemplateManifestDigestSchema>
 
 /** Current exact executable catalog-manifest digest. */
 export type TemplateCatalogManifestDigest = Static<typeof TemplateCatalogManifestDigestSchema>
+
+/** Exact identity emitted by `createArtifactSetChangeSetHash`. */
+export type ArtifactSetChangeSetHash = Static<typeof ArtifactSetChangeSetHashSchema>

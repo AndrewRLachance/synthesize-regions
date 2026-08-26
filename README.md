@@ -74,7 +74,7 @@ npm run contracts:check
 
 ### Contract compatibility
 
-Package `0.5.0` extends the project-planning authority contract. It exports catalog-contract digest
+Package `0.6.1` extends the project-planning authority contract. It exports catalog-contract digest
 version 7 (`c7_`), template-manifest digest version 4 (`t4_`), catalog-manifest
 digest version 4 (`m4_`), catalog planner-schema version 4, and capability
 closure version 3. Planner-schema and closure-engine versions are included in

@@ -52,9 +52,13 @@ export type UnresolvedValueTypeScriptAuthority = Static<typeof UnresolvedValueTy
 export interface UnresolvedValueCandidateChange {
 	readonly path: string
 	readonly sourceText: string
-	/** Final-source ranges owned by generated artifacts. Omit to inspect the complete changed file. */
+	/** Paired predecessor/final ranges owned by generated artifacts. Omit to inspect the complete changed file. */
 	readonly edits?: readonly {
 		readonly artifactId?: string
+		/** Authorized predecessor-source range replaced by this edit. */
+		readonly start: number
+		readonly end: number
+		/** Corresponding range in sourceText after all edits are assembled. */
 		readonly resultStart: number
 		readonly resultEnd: number
 	}[]
@@ -173,11 +177,25 @@ function resolvedSymbol(checker: ts.TypeChecker, identifier: ts.Identifier): ts.
 function targetForSymbol(
 	symbol: ts.Symbol,
 	registry: readonly UnresolvedValueSymbol[],
-	workspaceRoot: string
+	workspaceRoot: string,
+	changed: ReadonlyMap<string, UnresolvedValueCandidateChange>
 ): UnresolvedValueSymbol | undefined {
 	const matches = registry.filter(target => (symbol.declarations ?? []).some(declaration => {
 		const path = relativePath(workspaceRoot, declaration.getSourceFile().fileName)
-		const start = declaration.getStart()
+		const resultStart = declaration.getStart()
+		const change = path === undefined ? undefined : changed.get(path)
+		let start = resultStart
+		let delta = 0
+		for (const edit of [...(change?.edits ?? [])].sort((left, right) => left.resultStart - right.resultStart)) {
+			if (resultStart < edit.resultStart) break
+			if (resultStart < edit.resultEnd) {
+				start = edit.start
+				delta = 0
+				break
+			}
+			delta += (edit.resultEnd - edit.resultStart) - (edit.end - edit.start)
+			start = resultStart - delta
+		}
 		return path === target.path && start >= target.declarationStart && start < target.declarationEnd
 	}))
 	return matches.length === 1 ? matches[0] : undefined
@@ -260,7 +278,7 @@ function inspectUnresolvedReferences(
 				const edit = owningEdit(selectedChange, node.getStart(sourceFile), node.end)
 				if (edit !== undefined) {
 					const symbol = resolvedSymbol(checker, node)
-					const target = symbol === undefined ? undefined : targetForSymbol(symbol, registry, workspaceRoot)
+					const target = symbol === undefined ? undefined : targetForSymbol(symbol, registry, workspaceRoot, changed)
 					if (target !== undefined && !allowed.has(target.targetId)) {
 						const key = `${consumerPath}:${node.getStart(sourceFile)}:${target.symbolId}`
 						if (!seen.has(key)) {

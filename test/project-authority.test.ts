@@ -56,6 +56,22 @@ describe('project implementation authority enforcement', () => {
 			artifacts: [{ ...plan.artifacts[0]!, graph: { ...graph, nodes: [{ ...graph.nodes[0]!, templateId: 'wrong.root' }] } }]
 		}
 		expect(validateRequiredRootTemplates(badPlan, undefined, authority).diagnostics.map(item => item.code)).toContain('RequiredRootTemplateMismatch')
+		const duplicateRootPlan: ArtifactSetPlan = {
+			artifacts: [{
+				...plan.artifacts[0]!,
+				graph: {
+					...graph,
+					nodes: [...graph.nodes, { ...graph.nodes[0]!, id: 'duplicate-root' }]
+				}
+			}]
+		}
+		expect(validateRequiredRootTemplates(duplicateRootPlan, undefined, authority).diagnostics.map(item => item.code))
+			.toContain('InvalidRequiredRootTemplateMultiplicity')
+		const danglingFinalPlan: ArtifactSetPlan = {
+			artifacts: [{ ...plan.artifacts[0]!, graph: { ...graph, finalNodeId: 'missing-root' } }]
+		}
+		expect(validateRequiredRootTemplates(danglingFinalPlan, undefined, authority).diagnostics.map(item => item.code))
+			.toContain('InvalidRequiredRootNode')
 
 		const compiled = compileGraph(graph, [shell])
 		expect(compiled.ok).toBe(true)
@@ -289,6 +305,31 @@ describe('project implementation authority enforcement', () => {
 			typeScriptAuthority
 		})
 		expect(allowed).toEqual({ ok: true, references: [], diagnostics: [] })
+
+		const longPrefix = `export const consumer = ${JSON.stringify('x'.repeat(120))};\n`
+		const unfinishedDeclaration = 'export declare const unfinished: { (): number };\n'
+		const ordinaryDeclaration = 'export const ordinary = 1;\n'
+		const shiftedBase = `${longPrefix}${unfinishedDeclaration}${ordinaryDeclaration}`
+		const shiftedSource = `export const consumer = ordinary;\n${unfinishedDeclaration}${ordinaryDeclaration}`
+		const shiftedDiscovery = discoverImplementationTargets({
+			files: { 'src/shifted.ts': shiftedBase }, enabledTargetKinds: ['declaredCallable']
+		})
+		const shiftedProvider = validateUnresolvedRuntimeValueReferences({
+			workspaceFiles: {
+				'tsconfig.json': workspaceFiles['tsconfig.json']!,
+				'src/shifted.ts': shiftedBase
+			},
+			changes: [{
+				path: 'src/shifted.ts',
+				sourceText: shiftedSource,
+				edits: [{ resultStart: 0, resultEnd: 'export const consumer = ordinary;\n'.length,
+					artifactId: 'consumer', start: 0, end: longPrefix.length }]
+			}],
+			unresolvedValues: shiftedDiscovery.unresolvedValues,
+			allowedTargetIds: [],
+			typeScriptAuthority
+		})
+		expect(shiftedProvider).toEqual({ ok: true, references: [], diagnostics: [] })
 	})
 
 	it('uses captured tsconfig path aliases and rejects non-canonical or host-relative authority', () => {

@@ -13,7 +13,12 @@ import {
 	implementationDiagnostic,
 	type ImplementationEnforcementDiagnostic
 } from './implementationAuthority.js'
-import { REGION_KIND_VALUES, type GraphTemplateDefinition, type RegionKind } from './graphTypes.js'
+import {
+	REGION_KIND_VALUES,
+	type GraphTemplateDefinition,
+	type GraphTemplateManifest,
+	type RegionKind
+} from './graphTypes.js'
 import { templateModeForRegionKind } from './rendering.js'
 import { wrapTemplateSource } from './templateMode.js'
 
@@ -746,6 +751,25 @@ export function createCompletionShellTemplate(manifest: CompletionShellManifest)
 		throw new TypeError('Completion shell template manifest digest does not match its executable definition.')
 	}
 	return template
+}
+
+/**
+ * Convert an authenticated completion shell to the source-bearing declarative
+ * manifest accepted by isolated catalog capture. Executable methods and the
+ * redundant manifest digest never cross this data-only boundary.
+ */
+export function createCompletionShellTemplateManifest(
+	manifest: CompletionShellManifest
+): GraphTemplateManifest<any, string, any> {
+	const template = createCompletionShellTemplate(manifest)
+	return structuredClone({
+		modelId: template.modelId,
+		...(template.version === undefined ? {} : { version: template.version }),
+		...(template.description === undefined ? {} : { description: template.description }),
+		inputs: template.inputs,
+		output: template.output,
+		source: template.source
+	})
 }
 
 function completeCandidate(

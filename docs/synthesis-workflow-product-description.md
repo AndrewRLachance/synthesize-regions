@@ -218,7 +218,7 @@ and require a fresh database.
 The current hard-cutover identities are workflow `8`, protocol/reducer `7`,
 database schema `9`, model-role contract `4`, prompt set `5`, captured
 context/static tasks `5`, and approval envelope `4`. Catalogs use the exact
-`synthesize-regions` `0.4.0` `c7_`/`t4_`/`m4_` identity generations. Earlier
+`synthesize-regions` `0.6.1` `c7_`/`t4_`/`m4_` identity generations. Earlier
 development databases and evidence are recreated; there is no migration.
 The topology contains the four constraint-check phases and set-repair loop even
 when a session has no constraints. Repository `.wsc` files supply policy data

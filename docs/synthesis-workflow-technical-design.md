@@ -279,7 +279,7 @@ interface CapturedCatalog {
 The contract digest excludes implementation source and supports planner
 compatibility. The manifest digest includes exact LF-normalized marked source,
 normalized contracts, per-template `t4_` digests, and engine versions. The
-runtime accepts exactly `synthesize-regions` `0.4.0`, catalog contract version
+runtime accepts exactly `synthesize-regions` `0.6.1`, catalog contract version
 `7`, template/catalog-manifest versions `4`, planner-schema version `4`, and
 capability-closure version `3`; it does not accept wildcard future prefixes.
 

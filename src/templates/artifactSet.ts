@@ -49,6 +49,7 @@ import {
 	type ImportReconciledFile
 } from './importRequirements.js'
 import type { ImplementationEnforcementDiagnostic } from './implementationAuthority.js'
+import type { ArtifactSetChangeSetHash } from './contractIdentity.js'
 
 const ARTIFACT_SET_IDENTITY_VERSION = 1
 const ARTIFACT_SET_WORKSPACE_IDENTITY_VERSION = 2
@@ -424,7 +425,7 @@ export function createArtifactSetArtifactHash(artifact: TemplateArtifact): strin
 export function createArtifactSetChangeSetHash(
 	changes: readonly ArtifactSetChange[],
 	identity?: Omit<ArtifactSetAcceptanceIdentity, 'staticPolicyVersion'> & { staticPolicyVersion?: number }
-): string {
+): ArtifactSetChangeSetHash {
 	return versionedHash('cs', [
 		'artifact-change-set',
 		ARTIFACT_SET_IDENTITY_VERSION,
@@ -443,7 +444,7 @@ export function createArtifactSetChangeSetHash(
 				artifactHash: edit.artifactHash
 			}))
 		}))
-	])
+	]) as ArtifactSetChangeSetHash
 }
 
 /** Hash a normalized immutable workspace snapshot for candidate binding. */
