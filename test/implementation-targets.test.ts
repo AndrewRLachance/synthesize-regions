@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
+import ts from 'typescript'
 
 import {
 	REGION_KIND_VALUES,
@@ -267,16 +268,58 @@ describe('project implementation target discovery', () => {
 		const compiled = compileGraph({
 			nodes: [{
 				id: 'root', templateId: shell.modelId,
-				inputs: { implementation: { kind: 'rawCode', code: '(value: string) => value.length' } }
+				inputs: { implementation: { kind: 'rawCode', code: 'return value.length;' } }
 			}],
 			finalNodeId: 'root'
 		}, [shell])
 
 		expect(compiled.ok).toBe(true)
 		if (!compiled.ok) return
-		expect(compiled.finalArtifact.code).toBe('export const calculate: { (value: string): number } = (value: string) => value.length;')
+		expect(compiled.finalArtifact.code).toBe('export const calculate: { (value: string): number } = function (value: string): number { return value.length; };')
 		expect(compiled.finalArtifact.source.templateId).toBe(target.requiredRootTemplateId)
 		expect(compiled.finalArtifact.source.templateManifestDigest).toBe(target.requiredRootTemplateManifestDigest)
+	})
+
+	it('preserves every declared callable parameter in a body-only completion shell', () => {
+		const result = discoverImplementationTargets({
+			files: { 'src/value.ts': 'export declare const initialJobState: <T>(routing: T, reservedBytes: number) => number;' },
+			enabledTargetKinds: ['declaredCallable']
+		})
+		const target = result.targets[0]!
+		const shell = createCompletionShellTemplate(target.completionShell)
+
+		expect(target.implementationRegionKind).toBe('statement')
+		expect(shell.source).toContain('function <T>(routing: T, reservedBytes: number): number')
+		expect(shell.source).toContain('@TYPE statement id=implementation')
+	})
+
+	it('makes an omitted-parameter whole-function response fail unused-parameter checking', () => {
+		const result = discoverImplementationTargets({
+			files: { 'src/value.ts': 'export declare const initialJobState: (routing: string, reservedBytes: number) => number;' },
+			enabledTargetKinds: ['declaredCallable']
+		})
+		const shell = createCompletionShellTemplate(result.targets[0]!.completionShell)
+		const compiled = compileGraph({
+			nodes: [{
+				id: 'root', templateId: shell.modelId,
+				inputs: { implementation: { kind: 'rawCode', code: '(routing: string) => 0;' } }
+			}],
+			finalNodeId: 'root'
+		}, [shell])
+		expect(compiled.ok).toBe(true)
+		if (!compiled.ok) return
+
+		const fileName = '/generated.ts'
+		const options: ts.CompilerOptions = { noEmit: true, noLib: true, noUnusedParameters: true, strict: true }
+		const host = ts.createCompilerHost(options)
+		host.fileExists = path => path === fileName
+		host.readFile = path => path === fileName ? compiled.finalArtifact.code : undefined
+		host.getSourceFile = path => path === fileName
+			? ts.createSourceFile(path, compiled.finalArtifact.code, ts.ScriptTarget.Latest, true)
+			: undefined
+		const diagnostics = ts.getPreEmitDiagnostics(ts.createProgram([fileName], options, host))
+		expect(diagnostics.some(diagnostic => diagnostic.code === 6133
+			&& ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n').includes('reservedBytes'))).toBe(true)
 	})
 
 	it('reports the real image-processor inventory without modifying its files', () => {

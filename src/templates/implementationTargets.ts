@@ -305,6 +305,32 @@ function shellVariableStatement(sourceText: string, statement: ts.VariableStatem
 	return `${stripped.replace(/;\s*$/u, '')} = ${marker('expression', 'undefined')};`
 }
 
+type DeclaredCallableSignature = (ts.FunctionTypeNode | ts.CallSignatureDeclaration) & { readonly type: ts.TypeNode }
+
+function declaredCallableSignature(type: ts.TypeNode): DeclaredCallableSignature | undefined {
+	if (ts.isFunctionTypeNode(type)) return type as DeclaredCallableSignature
+	if (ts.isParenthesizedTypeNode(type)) return declaredCallableSignature(type.type)
+	if (!ts.isTypeLiteralNode(type)) return undefined
+	const signatures = type.members.filter(ts.isCallSignatureDeclaration)
+	const signature = signatures.length === 1 && type.members.length === 1 ? signatures[0] : undefined
+	return signature?.type === undefined ? undefined : signature as DeclaredCallableSignature
+}
+
+function shellDeclaredCallable(
+	sourceText: string,
+	statement: ts.VariableStatement,
+	signature: DeclaredCallableSignature
+): string {
+	const stripped = removeModifiers(sourceText, statement, new Set([ts.SyntaxKind.DeclareKeyword])).trimEnd()
+	const sourceFile = statement.getSourceFile()
+	const typeParameters = signature.typeParameters === undefined
+		? ''
+		: `<${signature.typeParameters.map(parameter => parameter.getText(sourceFile)).join(', ')}>`
+	const parameters = signature.parameters.map(parameter => parameter.getText(sourceFile)).join(', ')
+	const returnType = signature.type.getText(sourceFile)
+	return `${stripped.replace(/;\s*$/u, '')} = function ${typeParameters}(${parameters}): ${returnType} { ${marker('statement', 'void 0;')} };`
+}
+
 function shellBodyDeclaration(sourceText: string, node: ts.FunctionDeclaration | ts.MethodDeclaration): string {
 	const stripped = removeModifiers(sourceText, node, new Set([ts.SyntaxKind.DeclareKeyword, ts.SyntaxKind.AbstractKeyword])).trimEnd()
 	return `${stripped.replace(/;\s*$/u, '')} { ${marker('statement', 'void 0;')} }`
@@ -425,7 +451,16 @@ function scanPredefinedTargets(
 						path, start: node.getStart(), end: node.end
 					}))
 				} else if (hasCallableTypeSyntax(declaration.type)) {
-					if (enabled.has('declaredCallable')) candidates.push(makeCandidate(path, sourceText, node, declaration.name.text, 'declaredCallable', 'declaration', 'expression', shellVariableStatement(sourceText, node), 'configured declaredCallable rule'))
+					const signature = declaredCallableSignature(declaration.type)
+					if (signature === undefined) diagnostics.push(implementationDiagnostic(
+						'UnsafeDeclaredCallableTarget',
+						'Ambient callable targets require exactly one function or call signature whose parameter list can be preserved by the completion shell.',
+						{ path, start: node.getStart(), end: node.end, actual: declaration.type.getText(sourceFile) }
+					))
+					else if (enabled.has('declaredCallable')) candidates.push(makeCandidate(
+						path, sourceText, node, declaration.name.text, 'declaredCallable', 'declaration', 'statement',
+						shellDeclaredCallable(sourceText, node, signature), 'configured declaredCallable rule'
+					))
 				} else if (enabled.has('declaredValue')) {
 					candidates.push(makeCandidate(path, sourceText, node, declaration.name.text, 'declaredValue', 'declaration', 'expression', shellVariableStatement(sourceText, node), 'configured declaredValue rule'))
 				} else {

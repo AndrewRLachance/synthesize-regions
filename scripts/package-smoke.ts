@@ -213,7 +213,7 @@ const packageName = ${JSON.stringify(packageName)}
 const fixtures = JSON.parse(process.env.PACKAGE_SMOKE_SCHEMA_FIXTURES ?? '[]')
 const packageModule = await import(packageName)
 assert.ok(Object.keys(packageModule).length > 0, 'The package root did not expose any runtime exports.')
-assert.equal(packageModule.SYNTHESIZE_REGIONS_PACKAGE_VERSION, '0.6.1')
+assert.equal(packageModule.SYNTHESIZE_REGIONS_PACKAGE_VERSION, '0.6.2')
 assert.equal(packageModule.TEMPLATE_CATALOG_CONTRACT_DIGEST_VERSION, 7)
 assert.equal(packageModule.TEMPLATE_MANIFEST_DIGEST_VERSION, 4)
 assert.equal(packageModule.TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION, 4)
@@ -507,7 +507,7 @@ const semanticTarget: SemanticTargetFileContext = {
 const semanticContext: GraphSemanticContext = { targetFile: semanticTarget }
 const sourceMapVersion: 1 = GENERATED_SOURCE_MAP_VERSION
 const regionSyntaxVersion: 2 = REGION_SYNTAX_ENGINE_VERSION
-const packageVersion: '0.6.1' = SYNTHESIZE_REGIONS_PACKAGE_VERSION
+const packageVersion: '0.6.2' = SYNTHESIZE_REGIONS_PACKAGE_VERSION
 const catalogContractVersion: 7 = TEMPLATE_CATALOG_CONTRACT_DIGEST_VERSION
 const templateManifestVersion: 4 = TEMPLATE_MANIFEST_DIGEST_VERSION
 const catalogManifestVersion: 4 = TEMPLATE_CATALOG_MANIFEST_DIGEST_VERSION

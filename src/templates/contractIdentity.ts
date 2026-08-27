@@ -1,7 +1,7 @@
 import { Type, type Static } from '@sinclair/typebox'
 
 /** Exact package version implementing the public template contract. */
-export const SYNTHESIZE_REGIONS_PACKAGE_VERSION = '0.6.1' as const
+export const SYNTHESIZE_REGIONS_PACKAGE_VERSION = '0.6.2' as const
 
 /** Version of the artifact-set change-set identity contract. */
 export const ARTIFACT_SET_CHANGE_SET_IDENTITY_VERSION = 1 as const

@@ -74,7 +74,7 @@ npm run contracts:check
 
 ### Contract compatibility
 
-Package `0.6.1` extends the project-planning authority contract. It exports catalog-contract digest
+Package `0.6.2` extends the project-planning authority contract. It exports catalog-contract digest
 version 7 (`c7_`), template-manifest digest version 4 (`t4_`), catalog-manifest
 digest version 4 (`m4_`), catalog planner-schema version 4, and capability
 closure version 3. Planner-schema and closure-engine versions are included in
@@ -1594,6 +1594,11 @@ reconcileArtifactSetImports(changes, requirementsByArtifact, authority)
 validateUnresolvedRuntimeValueReferences(options)
 code
 ```
+
+For an ambient callable binding, the authenticated completion shell owns the
+generic parameters, parameter list, and return type. Its only open input is a
+statement body; a synthesized function or declaration cannot replace that
+signature. Ambient value bindings retain an expression implementation input.
 
 `validateUnresolvedRuntimeValueReferences` requires a closed
 `typeScriptAuthority` value containing the captured `tsConfigFilePath` and a

@@ -444,7 +444,7 @@ resuming work planned and compiled against an earlier snapshot. Source-only
 changes keep `c7_` stable but change `t4_` and `m4_`. Type-parameter
 declarations are part of both planner-facing and executable identities.
 
-Package `0.6.1` publishes catalog-contract version 7, template-manifest version
+Package `0.6.2` publishes catalog-contract version 7, template-manifest version
 4, catalog-manifest version 4, catalog planner-schema version 4, and source-free
 capability-closure version 3. The planner-schema and closure versions are bound
 into `c7_`. This is a hard cutover from `0.2.x`/`c5_`/`t2_`/`m2_`; old evidence
