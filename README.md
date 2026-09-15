@@ -1,5 +1,7 @@
 # synthesize-regions
 
+NOTE: Some of the documentation and templates (under `/samples`) are no longer relevant and due for clean-up.
+
 Controlled TypeScript source-template replacement built on
 [`ts-morph`](https://ts-morph.com/).
 
@@ -29,7 +31,7 @@ project:
 - [Synthesis Graphs](./docs/SYNTHESIS_GRAPHS.md) explains graph inputs,
   compilation, partial artifacts, repair actions, runner-based LLM loops,
   semantic validation, provenance, and reproducibility.
-- [Project Glossary](./GLOSSARY.md) defines terminology shared by both layers.
+- [Project Glossary](./docs/GLOSSARY.md) defines terminology shared by both layers.
 
 ## Phase-Granular Static Pipeline
 
