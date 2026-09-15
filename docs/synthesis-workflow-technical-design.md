@@ -1,3 +1,5 @@
+Create the initial project with scaffolding such as: types, interfaces, function declarations, abstract classes (which may or may-not contain initial code implementations in their protected/private methods)
+
 # Technical Design: Static Synthesize Regions Agent Runtime
 
 > **Cross-project snapshot:** `synthesize-regions` owns the static library

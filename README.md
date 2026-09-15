@@ -11,15 +11,18 @@ validates the generated TypeScript before returning it.
 See the [project glossary](./GLOSSARY.md) for terminology used by the
 replacement engine, synthesis graph, repair protocol, and validation layers.
 
-This is intentionally not a macro language. It does not execute template code,
-inject imports, resolve dependencies, or transform arbitrary AST nodes. It only
-replaces regions marked with `@TYPE` and `@END`.
+The low-level replacement engine is intentionally not a macro language. It does
+not execute template code, infer imports, resolve dependencies, or transform
+arbitrary AST nodes. It only replaces regions marked with `@TYPE` and `@END`.
 
 ## Core Guides
 
 The template catalog and synthesis graph are the main higher-level model of the
 project:
 
+- [Technical Design](./docs/synthesize-regions-technical-design.md) defines the
+  package-owned architecture, trust boundaries, validation pipeline, identity
+  model, and integration boundaries.
 - [Graph Template Authoring](./docs/TEMPLATES.md) explains template identity,
   input ports, output contracts, region kinds, partial invocation, and catalog
   design.
