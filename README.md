@@ -1,6 +1,25 @@
 # synthesize-regions
 
 NOTE: Some of the documentation and templates (under `/samples`) are no longer relevant and due for clean-up.
+Most relevant templates are under:
+- `samples/e-samplesBasePatterns.ts`        
+- `samples/effect-concurrency-templates.ts` 
+- `samples/effect-coordination-templates.ts` 
+- `samples/effect-es-toolkit-templates.ts`    
+- `samples/effect-resource-templates.ts` 
+- `samples/effect-schema-templates.ts`        
+- `samples/effect-stream-templates.ts` 
+- `samples/effect-testing-templates.ts` 
+- `samples/effect-workflow-templates.ts`
+- `samples/effect-application-templates.ts` 
+- `samples/effect-config-templates.ts`      
+- `samples/effect-error-templates.ts`        
+- `samples/effect-observability-templates.ts` 
+- `samples/effect-schedule-templates.ts` 
+- `samples/effect-service-layer-templates.ts` 
+- `samples/effect-template-helpers.ts` 
+- `samples/effect-ts.ts`                
+- `samples/es-toolkit-templates.ts`
 
 Controlled TypeScript source-template replacement built on
 [`ts-morph`](https://ts-morph.com/).
