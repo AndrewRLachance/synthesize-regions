@@ -63,6 +63,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.typecheck.json --noEmit",
     "schemas:generate": "node --import tsx scripts/generate-schemas.ts",
     "schemas:check": "node --import tsx scripts/generate-schemas.ts --check",
