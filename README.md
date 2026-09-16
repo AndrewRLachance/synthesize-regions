@@ -1,6 +1,9 @@
 # synthesize-regions
 
-NOTE: Some of the documentation and templates (under `/samples`) are no longer relevant and due for clean-up.
+NOTE: Some of the documentation and templates (under `/samples`) are no longer relevant and due for clean-up (along w/ much of the other code).
+
+Related packages will be shared soon, I just wanted to share this core component to inspire others NOW.
+
 Most relevant templates are under:
 - `samples/e-samplesBasePatterns.ts`        
 - `samples/effect-concurrency-templates.ts` 
