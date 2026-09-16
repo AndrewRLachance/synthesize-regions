@@ -1,5 +1,3 @@
-Create the initial project with scaffolding such as: types, interfaces, function declarations, abstract classes (which may or may-not contain initial code implementations in their protected/private methods)
-
 # Technical Design: Static Synthesize Regions Agent Runtime
 
 > **Cross-project snapshot:** `synthesize-regions` owns the static library
@@ -310,8 +308,8 @@ flowchart LR
   manifest["Manifest typeParameters<br/>source remains captured only"] --> summary["Source-free TemplateSummary"]
   summary --> closure["Package-owned capability closure<br/>exact bound consumers + conservative generic producers"]
   closure --> schema["Catalog-specific planner schema<br/>complete concrete typeArguments"]
-  schema --> graph["Accepted graph node bindings"]
-  graph --> compiler["Authoritative graph compilation<br/>constraint + compatibility checks"]
+  schema --> graphNode["Accepted graph node bindings"]
+  graphNode --> compiler["Authoritative graph compilation<br/>constraint + compatibility checks"]
   compiler --> provenance["Concrete typeArguments in provenance"]
   provenance --> evidence["Candidate, phase, staging, and approval CAS identities"]
 
@@ -319,7 +317,7 @@ flowchart LR
   classDef proposal fill:#fff7d6,stroke:#8a6d1d,color:#2f2500;
   classDef infrastructure fill:#f4f0ff,stroke:#7057a3,color:#2f2347;
   class manifest,summary,closure,schema,compiler runtime;
-  class graph proposal;
+  class graphNode proposal;
   class provenance,evidence infrastructure;
 ```
 
@@ -881,18 +879,18 @@ flowchart TD
   indeterminate -->|Yes| terminal
   indeterminate -->|No| classification{"Classification and exact ownership"}
   classification -->|"one artifact + node + raw/literal input"| input["Input Synthesizer"]
-  classification -->|"one artifact + node/template"| graph["Graph Repairer"]
+  classification -->|"one artifact + node/template"| graphRepair["Graph Repairer"]
   classification -->|"cross-artifact, ambiguous, target, set goal, count, or shape"| setRepair["Artifact-Set Repairer"]
   classification -->|"identity, scope, policy, budget, or integrity"| terminal
   input --> compile["Recompile candidate"]
-  graph --> compile
+  graphRepair --> compile
   setRepair --> plan["Recheck plan constraints and replan affected graphs"]
 
   classDef runtime fill:#e8f1ff,stroke:#315f9b,color:#10243e;
   classDef model fill:#fff7d6,stroke:#8a6d1d,color:#2f2500;
   classDef failure fill:#fdecec,stroke:#a33a3a,color:#4d1717;
   class result,known,indeterminate,classification,compile,plan runtime;
-  class input,graph,setRepair model;
+  class input,graphRepair,setRepair model;
   class terminal failure;
 ```
 
@@ -1521,7 +1519,7 @@ sequenceDiagram
     O->>R: Complete with both live leases and fencing tokens
     R->>Q: One transaction: result events + state + next work + source completion
   else rejected
-    R-->>C: Deterministic protocol rejection; no domain event
+    R-->>C: Deterministic protocol rejection, no domain event
   end
 ```
 
