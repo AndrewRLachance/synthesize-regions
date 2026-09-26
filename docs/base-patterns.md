@@ -6,33 +6,33 @@ Generic templates require explicit `typeArguments` on every graph node. TypeScri
 
 ## Conditions
 
-- in — [`PropertyIn`](../samples/samplesBasePatterns.ts)
-- and — [`ConditionAnd`](../samples/samplesBasePatterns.ts)
-- or — [`ConditionOr`](../samples/samplesBasePatterns.ts)
-- xor — [`ConditionXor`](../samples/samplesBasePatterns.ts)
-- xand/xnor — [`ConditionXand`](../samples/samplesBasePatterns.ts)
-- not — [`ConditionNot`](../samples/samplesBasePatterns.ts)
-- nand — [`ConditionNand`](../samples/samplesBasePatterns.ts)
-- nor — [`ConditionNor`](../samples/samplesBasePatterns.ts)
-- implication — [`ConditionImplication`](../samples/samplesBasePatterns.ts)
-- converse implication — [`ConditionConverseImplication`](../samples/samplesBasePatterns.ts)
-- iff — [`ConditionIff`](../samples/samplesBasePatterns.ts)
-- non-implication — [`ConditionNonImplication`](../samples/samplesBasePatterns.ts)
-- converse non-implication — [`ConditionConverseNonImplication`](../samples/samplesBasePatterns.ts)
-- boolean formula application — [`ConditionFormulaCall`](../samples/samplesBasePatterns.ts)
-- exists / `some` — [`ArrayExists`](../samples/samplesBasePatterns.ts)
-- forall / `every` — [`ArrayForAll`](../samples/samplesBasePatterns.ts)
+- in — [`PropertyIn`](../core-templates/e-samplesBasePatterns.ts)
+- and — [`ConditionAnd`](../core-templates/e-samplesBasePatterns.ts)
+- or — [`ConditionOr`](../core-templates/e-samplesBasePatterns.ts)
+- xor — [`ConditionXor`](../core-templates/e-samplesBasePatterns.ts)
+- xand/xnor — [`ConditionXand`](../core-templates/e-samplesBasePatterns.ts)
+- not — [`ConditionNot`](../core-templates/e-samplesBasePatterns.ts)
+- nand — [`ConditionNand`](../core-templates/e-samplesBasePatterns.ts)
+- nor — [`ConditionNor`](../core-templates/e-samplesBasePatterns.ts)
+- implication — [`ConditionImplication`](../core-templates/e-samplesBasePatterns.ts)
+- converse implication — [`ConditionConverseImplication`](../core-templates/e-samplesBasePatterns.ts)
+- iff — [`ConditionIff`](../core-templates/e-samplesBasePatterns.ts)
+- non-implication — [`ConditionNonImplication`](../core-templates/e-samplesBasePatterns.ts)
+- converse non-implication — [`ConditionConverseNonImplication`](../core-templates/e-samplesBasePatterns.ts)
+- boolean formula application — [`ConditionFormulaCall`](../core-templates/e-samplesBasePatterns.ts)
+- exists / `some` — [`ArrayExists`](../core-templates/e-samplesBasePatterns.ts)
+- forall / `every` — [`ArrayForAll`](../core-templates/e-samplesBasePatterns.ts)
 
 `ConditionXand` and `ConditionIff` intentionally retain separate model identities even though both compile to strict boolean equality.
 
 ## Statements and Conditionals
 
-- statement block — [`StatementBlock`](../samples/samplesBasePatterns.ts)
-- if — [`IfStatement`](../samples/samplesBasePatterns.ts)
-- if/else — [`IfElse`](../samples/samplesBasePatterns.ts)
-- recursive if/else-if chain — [`IfElseChain`](../samples/samplesBasePatterns.ts)
-- typed ternary chain — [`Ternary`](../samples/samplesBasePatterns.ts)
-- object-pattern match with fallback — [`ObjectPatternMatchWithFallback`](../samples/samplesBasePatterns.ts)
+- statement block — [`StatementBlock`](../core-templates/e-samplesBasePatterns.ts)
+- if — [`IfStatement`](../core-templates/e-samplesBasePatterns.ts)
+- if/else — [`IfElse`](../core-templates/e-samplesBasePatterns.ts)
+- recursive if/else-if chain — [`IfElseChain`](../core-templates/e-samplesBasePatterns.ts)
+- typed ternary chain — [`Ternary`](../core-templates/e-samplesBasePatterns.ts)
+- object-pattern match with fallback — [`ObjectPatternMatchWithFallback`](../core-templates/e-samplesBasePatterns.ts)
 
 `ObjectPatternMatchWithFallback` assumes `match` from `ts-pattern` is available in the generated context. Its `matchedHandler` remains callable, while `fallbackResult` accepts an `R` expression and is evaluated lazily through `.otherwise(() => fallbackResult)`. Another `ObjectPatternMatchWithFallback<R>` can therefore connect directly to `fallbackResult`.
 
@@ -40,17 +40,17 @@ Variadic native switch composition is intentionally unsupported. A native case c
 
 ## Arrays, Loops, and Application
 
-- map — [`ArrayMap`](../samples/samplesBasePatterns.ts)
-- filter — [`ArrayFilter`](../samples/samplesBasePatterns.ts)
-- find — [`ArrayFind`](../samples/samplesBasePatterns.ts)
-- find index — [`ArrayFindIndex`](../samples/samplesBasePatterns.ts)
-- flat map — [`ArrayFlatMap`](../samples/samplesBasePatterns.ts)
-- `forEach` call returning `void` — [`ArrayForEachCall`](../samples/samplesBasePatterns.ts)
-- assumed type-sugar extension call — [`TypeSugarExtensionCall`](../samples/samplesBasePatterns.ts)
-- while condition holds — [`WhileHolds`](../samples/samplesBasePatterns.ts)
-- intentional continuous loop — [`WhileTrue`](../samples/samplesBasePatterns.ts)
-- incremental index loop — [`ForIndex`](../samples/samplesBasePatterns.ts)
-- typed `for...of` loop — [`ForEach`](../samples/samplesBasePatterns.ts)
+- map — [`ArrayMap`](../core-templates/e-samplesBasePatterns.ts)
+- filter — [`ArrayFilter`](../core-templates/e-samplesBasePatterns.ts)
+- find — [`ArrayFind`](../core-templates/e-samplesBasePatterns.ts)
+- find index — [`ArrayFindIndex`](../core-templates/e-samplesBasePatterns.ts)
+- flat map — [`ArrayFlatMap`](../core-templates/e-samplesBasePatterns.ts)
+- `forEach` call returning `void` — [`ArrayForEachCall`](../core-templates/e-samplesBasePatterns.ts)
+- assumed type-sugar extension call — [`TypeSugarExtensionCall`](../core-templates/e-samplesBasePatterns.ts)
+- while condition holds — [`WhileHolds`](../core-templates/e-samplesBasePatterns.ts)
+- intentional continuous loop — [`WhileTrue`](../core-templates/e-samplesBasePatterns.ts)
+- incremental index loop — [`ForIndex`](../core-templates/e-samplesBasePatterns.ts)
+- typed `for...of` loop — [`ForEach`](../core-templates/e-samplesBasePatterns.ts)
 
 Array inputs are readonly. Callback return values are ignored by statement-level loops. `WhileTrue` provides no normal termination mechanism; its application must throw, never return, or terminate through external behavior.
 

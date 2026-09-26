@@ -16,7 +16,7 @@ import {
 	validateEditGoal,
 	validateEditStarterGraph,
 	validateEditTemplateManifests
-} from '../samples/validate-edit-templates.js'
+} from '../core-templates/validate-edit-templates.js'
 
 const memberInputs = [
 	'abstractInstanceVariables',

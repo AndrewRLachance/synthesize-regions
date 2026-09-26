@@ -679,9 +679,9 @@ results into the repository. Timings are local evidence, not fixed test limits.
 
 ## 15. Public contracts and packaging
 
-The root ESM export exposes replacement, discovery, validation, builder,
+The root ESM export exposes replacement, discovery, validation,
 template, graph, runner, artifact-set, schema, identity, and project-authority
-APIs. Narrow subpath exports provide builders, contract identity, capability
+APIs. Narrow subpath exports provide contract identity, capability
 closure, and the runtime-owned internal semantic-program boundary.
 
 Published JSON Schemas cover replacement maps, template manifests and
@@ -702,7 +702,7 @@ Verification is layered to match the architecture:
 
 - fixture tests cover canonical low-level replacements;
 - unit tests cover marker discovery, syntax contexts, serialization, security,
-  builders, template validation, schemas, type/schema compatibility, graph
+  template validation, schemas, type/schema compatibility, graph
   compilation, partial fills, patching, runners, provenance, and semantic
   attribution;
 - adversarial tests cover forged catalogs and artifacts, stale hashes, invalid
@@ -786,7 +786,7 @@ Package-owned supporting guides:
 - [Graph Template Authoring](./TEMPLATES.md)
 - [Synthesis Graphs](./SYNTHESIS_GRAPHS.md)
 - [Base Pattern Catalog](./base-patterns.md)
-- [Project Glossary](../GLOSSARY.md)
+- [Project Glossary](GLOSSARY.md)
 - [Phase 1-3 invariant ledger](./phase-1-3-invariants.md)
 
 Cross-project documents copied into this package for integration review:

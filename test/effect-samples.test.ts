@@ -12,7 +12,7 @@ import {
 	effectCallbackPolicy,
 	effectExpressionPolicy,
 	effectGraphTemplateInputs
-} from '../samples/effect-ts.js'
+} from '../core-templates/effect-ts.js'
 
 const expectedModelIds = [
 	'EffectSucceed',
@@ -32,17 +32,9 @@ const expectedModelIds = [
 	'EffectAll',
 	'EffectAllConcurrent',
 	'EffectRace',
-	'EffectMapError',
-	'EffectRetry',
-	'EffectTimeout',
 	'EffectCatchAll',
-	'EffectCatchTag',
 	'EffectOrElse',
 	'EffectEither',
-	'EffectOption',
-	'EffectMatch',
-	'EffectMatchEffect',
-	'EffectEnsuring',
 	'EffectAcquireRelease',
 	'EffectScoped',
 	'EffectProvideService',
@@ -71,7 +63,7 @@ const effectSemanticOptions = {
 	tsConfigFilePath: 'tsconfig.typecheck.json',
 	filePath: 'test/generated-effect-sample.ts',
 	semanticContext: {
-		prelude: 'import { Context, Effect, Schedule } from "effect"\nclass Counter extends Context.Tag("Counter")<Counter, { readonly value: number }>() {}'
+		prelude: 'import { Context, Effect, Schedule } from "effect"\nclass Counter extends Context.Service<any, { readonly value: number }>()("Counter") {}'
 	}
 } as const
 
@@ -141,8 +133,8 @@ const genReturn: SynthesisNode = {
 	inputs: { value: raw('value') }
 }
 
-describe('Effect v3 sample catalog', () => {
-	it('registers exactly 40 unique models in stable order', () => {
+describe('Effect v4 sample catalog', () => {
+	it('registers exactly 32 unique models in stable order', () => {
 		const ids = effectGraphTemplateInputs.map(template => template.modelId)
 		expect(ids).toEqual(expectedModelIds)
 		expect(new Set(ids).size).toBe(expectedModelIds.length)
@@ -250,7 +242,7 @@ describe('Effect v3 sample catalog', () => {
 		['EffectTry', { thunk: raw('() => JSON.parse(text)') }, 'Effect.try(() => JSON.parse(text))'],
 		['EffectPromise', { thunk: raw('() => Promise.resolve(1)') }, 'Effect.promise(() => Promise.resolve(1))'],
 		['EffectTryPromise', { thunk: raw('signal => fetch(url, { signal })') }, 'Effect.tryPromise(signal => fetch(url, { signal }))'],
-		['EffectAsync', { register: raw('resume => resume(Effect.succeed(1))') }, 'Effect.async(resume => resume(Effect.succeed(1)))'],
+		['EffectAsync', { register: raw('resume => resume(Effect.succeed(1))') }, 'Effect.callback(resume => resume(Effect.succeed(1)))'],
 		['EffectSuspend', { thunk: raw('() => Effect.succeed(1)') }, 'Effect.suspend(() => Effect.succeed(1))'],
 		['EffectSleep', { duration: raw('"10 millis"') }, 'Effect.sleep("10 millis")'],
 		['EffectMap', { source: raw('source'), transform: raw('value => value + 1') }, 'Effect.map(source, value => value + 1)'],
@@ -259,17 +251,9 @@ describe('Effect v3 sample catalog', () => {
 		['EffectFlatMap', { source: raw('source'), transform: raw('value => next(value)') }, 'Effect.flatMap(source, value => next(value))'],
 		['EffectZip', { left: raw('left'), right: raw('right') }, 'Effect.zip(left, right)'],
 		['EffectRace', { left: raw('left'), right: raw('right') }, 'Effect.race(left, right)'],
-		['EffectMapError', { source: raw('source'), transform: raw('error => normalize(error)') }, 'Effect.mapError(source, error => normalize(error))'],
-		['EffectRetry', { source: raw('source'), policy: raw('{ times: 3 }') }, 'Effect.retry(source, { times: 3 })'],
-		['EffectTimeout', { source: raw('source'), duration: literal(1000) }, 'Effect.timeout(source, 1000)'],
-		['EffectCatchAll', { source: raw('source'), handler: raw('error => recover(error)') }, 'Effect.catchAll(source, error => recover(error))'],
-		['EffectCatchTag', { source: raw('source'), tag: literal('NotFound'), handler: raw('error => recover(error)') }, 'Effect.catchTag(source, "NotFound", error => recover(error))'],
+		['EffectCatchAll', { source: raw('source'), handler: raw('error => recover(error)') }, 'Effect.catch(source, error => recover(error))'],
 		['EffectOrElse', { source: raw('source'), fallback: raw('() => fallback') }, 'Effect.orElse(source, () => fallback)'],
 		['EffectEither', { source: raw('source') }, 'Effect.either(source)'],
-		['EffectOption', { source: raw('source') }, 'Effect.option(source)'],
-		['EffectMatch', { source: raw('source'), onFailure: raw('error => error.message'), onSuccess: raw('value => String(value)') }, 'Effect.match(source, { onFailure: error => error.message, onSuccess: value => String(value) })'],
-		['EffectMatchEffect', { source: raw('source'), onFailure: raw('error => recover(error)'), onSuccess: raw('value => persist(value)') }, 'Effect.matchEffect(source, { onFailure: error => recover(error), onSuccess: value => persist(value) })'],
-		['EffectEnsuring', { source: raw('source'), finalizer: raw('cleanup') }, 'Effect.ensuring(source, cleanup)'],
 		['EffectAcquireRelease', { acquire: raw('acquire'), release: raw('(resource, exit) => release(resource, exit)') }, 'Effect.acquireRelease(acquire, (resource, exit) => release(resource, exit))'],
 		['EffectScoped', { source: raw('source') }, 'Effect.scoped(source)'],
 		['EffectProvideService', { source: raw('source'), tag: raw('Service'), service: raw('implementation') }, 'Effect.provideService(source, Service, implementation)'],
@@ -326,12 +310,12 @@ describe('Effect v3 sample catalog', () => {
 		expect(result.ok, JSON.stringify(result.diagnostics, null, 2)).toBe(true)
 		if (result.ok) {
 			expect(result.finalArtifact.code).toBe(
-				'Effect.runPromise(Effect.zip(Effect.flatMap(Effect.map(Effect.succeed(1), value => value + 1), value => Effect.succeed(value * 2)), Effect.catchAll(Effect.fail("boom"), () => Effect.succeed(0))))'
+				'Effect.runPromise(Effect.zip(Effect.flatMap(Effect.map(Effect.succeed(1), value => value + 1), value => Effect.succeed(value * 2)), Effect.catch(Effect.fail("boom"), () => Effect.succeed(0))))'
 			)
 		}
 	})
 
-	it('type-checks representative generated artifacts against Effect v3 declarations', () => {
+	it('type-checks representative generated artifacts against Effect v4 declarations', () => {
 		const composition: SynthesisNode[] = [
 			{ id: 'seed', templateId: 'EffectSucceed', inputs: { value: literal(1) } },
 			{ id: 'mapped', templateId: 'EffectMap', inputs: { source: ref('seed'), transform: raw('value => value + 1') } },
@@ -352,11 +336,10 @@ describe('Effect v3 sample catalog', () => {
 		]
 		const resilience: SynthesisNode[] = [
 			{ id: 'async', templateId: 'EffectAsync', inputs: { register: raw('resume => resume(Effect.succeed(1))') } },
-			{ id: 'retried', templateId: 'EffectRetry', inputs: { source: ref('async'), policy: raw('Schedule.recurs(2)') } },
-			{ id: 'timed', templateId: 'EffectTimeout', inputs: { source: ref('retried'), duration: raw('"1 second"') } },
+			{ id: 'recovered', templateId: 'EffectCatchAll', inputs: { source: ref('async'), handler: raw('() => Effect.succeed(1)') } },
 			{ id: 'sleep', templateId: 'EffectSleep', inputs: { duration: literal(0) } },
-			{ id: 'finalized', templateId: 'EffectEnsuring', inputs: { source: ref('timed'), finalizer: ref('sleep') } },
-			{ id: 'subject', templateId: 'EffectRunPromiseExit', inputs: { source: ref('finalized') } }
+			{ id: 'zipped', templateId: 'EffectZip', inputs: { left: ref('recovered'), right: ref('sleep') } },
+			{ id: 'subject', templateId: 'EffectRunPromiseExit', inputs: { source: ref('zipped') } }
 		]
 		const scopedResource: SynthesisNode[] = [
 			{ id: 'acquire', templateId: 'EffectSucceed', inputs: { value: raw('{ close: () => undefined }') } },

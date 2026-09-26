@@ -1,28 +1,28 @@
 # synthesize-regions
 
-NOTE: Some of the documentation and templates (under `/samples`) are no longer relevant and due for clean-up (along w/ much of the other code).
+NOTE: Some of the documentation and templates (under `/core-templates`) are no longer relevant and due for clean-up (along w/ much of the other code).
 
 Related packages will be shared soon, I just wanted to share this core component to inspire others NOW.
 
 Most relevant templates are under:
-- `samples/e-samplesBasePatterns.ts`        
-- `samples/effect-concurrency-templates.ts` 
-- `samples/effect-coordination-templates.ts` 
-- `samples/effect-es-toolkit-templates.ts`    
-- `samples/effect-resource-templates.ts` 
-- `samples/effect-schema-templates.ts`        
-- `samples/effect-stream-templates.ts` 
-- `samples/effect-testing-templates.ts` 
-- `samples/effect-workflow-templates.ts`
-- `samples/effect-application-templates.ts` 
-- `samples/effect-config-templates.ts`      
-- `samples/effect-error-templates.ts`        
-- `samples/effect-observability-templates.ts` 
-- `samples/effect-schedule-templates.ts` 
-- `samples/effect-service-layer-templates.ts` 
-- `samples/effect-template-helpers.ts` 
-- `samples/effect-ts.ts`                
-- `samples/es-toolkit-templates.ts`
+- `core-templates/e-samplesBasePatterns.ts`        
+- `core-templates/effect-concurrency-templates.ts` 
+- `core-templates/effect-coordination-templates.ts` 
+- `core-templates/effect-es-toolkit-templates.ts`    
+- `core-templates/effect-resource-templates.ts` 
+- `core-templates/effect-schema-templates.ts`        
+- `core-templates/effect-stream-v4-templates.ts` 
+- `core-templates/effect-v4-testing-foundational-templates.ts` 
+- `core-templates/effect-workflow-templates.ts`
+- `core-templates/effect-application-templates.ts` 
+- `core-templates/effect-config-templates.ts`      
+- `core-templates/effect-error-management-v4-templates.ts`        
+- `core-templates/effect-observability-v4-templates.ts` 
+- `core-templates/effect-schedule-templates.ts` 
+- `core-templates/effect-service-layer-templates.ts` 
+- `core-templates/effect-template-helpers.ts` 
+- `core-templates/effect-ts.ts`                
+- `core-templates/es-toolkit-templates.ts`
 
 Controlled TypeScript source-template replacement built on
 [`ts-morph`](https://ts-morph.com/).
@@ -32,7 +32,7 @@ paired block comments. It scans template text, validates each marked placeholder
 against a TypeScript AST context, serializes structured replacement objects, and
 validates the generated TypeScript before returning it.
 
-See the [project glossary](./GLOSSARY.md) for terminology used by the
+See the [project glossary](./docs/GLOSSARY.md) for terminology used by the
 replacement engine, synthesis graph, repair protocol, and validation layers.
 
 The low-level replacement engine is intentionally not a macro language. It does
@@ -1016,7 +1016,7 @@ carry `contractDigest`, `manifestDigest`, `workspaceSnapshotHash`,
 those identities. The plan, compilation-result, and static-validation-result
 wire contracts are published as JSON Schemas.
 
-The [`samples/validate-edit-templates.ts`](samples/validate-edit-templates.ts)
+The [`core-templates/validate-edit-templates.ts`](core-templates/validate-edit-templates.ts)
 catalog demonstrates a complete `sourceFile` wrapper around
 `AbstractReasoningGraph`. Its seven member-category
 ports are optional collections: omitting a category means zero members, while a
@@ -1024,7 +1024,7 @@ present collection may reference multiple structurally enforced helper
 templates. The starter graph therefore contains only the class declaration and
 source-file wrapper rather than forcing one invented member of every category.
 The companion task-scoped guidance in
-[`samples/abstract-reasoning-graph-design.md`](samples/abstract-reasoning-graph-design.md)
+[`docs/abstract-reasoning-graph-design.md`](docs/abstract-reasoning-graph-design.md)
 is Markdown prompt context for the agent-runtime manual harness; it is not
 parsed or enforced by this package.
 
@@ -1201,70 +1201,6 @@ final goal validation.
 Graph templates use closed declarative manifests. The lower-level
 `generateWithReplacements` API remains available for callers that already own
 their marked source and replacement map.
-
-## Code Builders
-
-The exported `code` helper builds plain TypeScript code strings and replacement
-objects. It is a small serialization helper, not a template runtime.
-
-```ts
-import { code, generateWithReplacements } from "synthesize-regions";
-
-const valueExpr = code.expr.call(code.expr.id("normalize"), [
-  code.expr.prop(code.expr.id("input"), "value")
-]);
-
-const result = generateWithReplacements(templateSource, {
-  body: [
-    code.replacement.statement(code.stmt.const("x", valueExpr)),
-    code.replacement.statement(code.stmt.return(code.expr.id("x")))
-  ]
-});
-```
-
-Common builder groups:
-
-```ts
-code.expr.id("input")
-code.expr.prop("input", "value")
-code.expr.computedProp("input", "key")
-code.expr.call("normalize", ["input.value"])
-code.expr.array(["1", "2"])
-code.expr.object({ mode: '"strict"' })
-code.expr.string("hello")
-code.expr.number(42)
-code.expr.boolean(true)
-code.expr.null()
-code.expr.paren("input.value + 1")
-
-code.suffix.method("with", ['{ type: "video" }', "x => x"])
-code.suffix.optionalMethod("with", ['{ type: "video" }', "x => x"])
-code.suffix.prop("value")
-code.suffix.optionalProp("value")
-
-code.stmt.expression("doWork()")
-code.stmt.return("x")
-code.stmt.const("x", "1")
-code.stmt.const("x", "1", { kind: "let" })
-code.stmt.block(["const x = 1;", "return x;"])
-
-code.prop.pair("mode", '"strict"')
-code.prop.pair("dynamicKey", "value", { computed: true })
-
-code.replacement.expression("input.value")
-code.replacement.expressionSuffix(".with({ type: 'video' }, x => x)")
-code.replacement.statement("return input.value;")
-code.replacement.objectProperty("mode", { kind: "string", value: "strict" })
-```
-
-Identifier-oriented helpers validate TypeScript identifiers. Property helpers
-quote non-identifier names where appropriate.
-
-The builders are also exported from a subpath:
-
-```ts
-import { code } from "synthesize-regions/builders";
-```
 
 ## Discovery API
 
@@ -1496,7 +1432,7 @@ TemplateCatalogValidationError
 ## Public API
 
 The root export includes public types, errors, marker scanning, discovery,
-generation, validation helpers, security-policy helpers, builders, and graph
+generation, validation helpers, security-policy helpers, and graph
 template helpers:
 
 ```ts

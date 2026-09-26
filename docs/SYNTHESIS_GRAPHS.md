@@ -631,5 +631,5 @@ responsibilities.
 ## Related material
 
 - [Graph Template Authoring](./TEMPLATES.md)
-- [Project glossary](../GLOSSARY.md)
+- [Project glossary](GLOSSARY.md)
 - [README graph API reference](../README.md#synthesis-graphs)

@@ -443,7 +443,6 @@ filesystem mutation.
 | --- | --- | --- |
 | `GraphRunner`, `GraphRunnerState`, `GraphRunnerAction`, `createGraphRunner()` and runner schemas/patterns | Not used | The authoritative runtime uses its generated workflow, pure command decider, pure reducer, event store, and outbox. |
 | `defineTemplate()` and executable template definitions supplied by a session | Not used at runtime | Runtime catalogs are manifest data compiled by library-owned code. |
-| `synthesize-regions/builders` | Not used by runtime | Builders are template-author engineering helpers, not model/runtime authority. |
 | Direct `generate()`, replacement maps, marker discovery, or file-template APIs | Not used by runtime | Graph/artifact-set facades are the controlled synthesis boundary. |
 | Direct `ts-morph` imports in the runtime | Not used | AST/compiler objects stay behind `synthesize-regions` and library-owned fact APIs. |
 | `node:vm`, dynamic `import()` of repository code, compiler plugins, custom validators | Not used | Generated and repository-authored policy data is never executed. |

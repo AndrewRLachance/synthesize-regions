@@ -8,22 +8,22 @@ import {
 	type SynthesisInput,
 	type SynthesisNode
 } from '../src/index.js'
-import { effectApplicationGraphTemplateInputs } from '../samples/effect-application-templates.js'
-import { effectConcurrencyGraphTemplateInputs } from '../samples/effect-concurrency-templates.js'
-import { effectConfigGraphTemplateInputs } from '../samples/effect-config-templates.js'
-import { effectCoordinationGraphTemplateInputs } from '../samples/effect-coordination-templates.js'
-import { effectErrorGraphTemplateInputs } from '../samples/effect-error-templates.js'
-import { effectObservabilityGraphTemplateInputs } from '../samples/effect-observability-templates.js'
-import { effectResourceGraphTemplateInputs } from '../samples/effect-resource-templates.js'
-import { effectScheduleGraphTemplateInputs } from '../samples/effect-schedule-templates.js'
-import { effectSchemaGraphTemplateInputs } from '../samples/effect-schema-templates.js'
-import { effectServiceLayerGraphTemplateInputs } from '../samples/effect-service-layer-templates.js'
-import { effectStreamGraphTemplateInputs } from '../samples/effect-stream-templates.js'
-import { effectTestingGraphTemplateInputs } from '../samples/effect-testing-templates.js'
-import { effectGraphTemplateInputs } from '../samples/effect-ts.js'
+import { effectApplicationGraphTemplateInputs } from '../core-templates/effect-application-templates.js'
+import { effectConcurrencyGraphTemplateInputs } from '../core-templates/effect-concurrency-templates.js'
+import { effectConfigV4GraphTemplateInputs } from '../core-templates/effect-config-templates.js'
+import { effectCoordinationGraphTemplateInputs } from '../core-templates/effect-coordination-templates.js'
+import { effectErrorGraphTemplateInputs } from '../core-templates/effect-error-management-v4-templates.js'
+import { effectObservabilityGraphTemplateInputs } from '../core-templates/effect-observability-v4-templates.js'
+import { effectResourceGraphTemplateInputs } from '../core-templates/effect-resource-templates.js'
+import { effectScheduleGraphTemplateInputs } from '../core-templates/effect-schedule-templates.js'
+import { effectSchemaGraphTemplateInputs } from '../core-templates/effect-schema-templates.js'
+import { effectServiceLayerGraphTemplateInputs } from '../core-templates/effect-service-layer-templates.js'
+import { effectStreamV4GraphTemplateInputs } from '../core-templates/effect-stream-v4-templates.js'
+import { effectV4TestingFoundationalGraphTemplateInputs } from '../core-templates/effect-v4-testing-foundational-templates.js'
+import { effectGraphTemplateInputs } from '../core-templates/effect-ts.js'
 import {
 	effectWorkflowGraphTemplateInputs
-} from '../samples/effect-workflow-templates.js'
+} from '../core-templates/effect-workflow-templates.js'
 
 const existingEffectTemplates = [
 	...effectGraphTemplateInputs,
@@ -34,11 +34,11 @@ const existingEffectTemplates = [
 	...effectConcurrencyGraphTemplateInputs,
 	...effectScheduleGraphTemplateInputs,
 	...effectResourceGraphTemplateInputs,
-	...effectConfigGraphTemplateInputs,
+	...effectConfigV4GraphTemplateInputs,
 	...effectCoordinationGraphTemplateInputs,
 	...effectObservabilityGraphTemplateInputs,
-	...effectStreamGraphTemplateInputs,
-	...effectTestingGraphTemplateInputs
+	...effectStreamV4GraphTemplateInputs,
+	...effectV4TestingFoundationalGraphTemplateInputs
 ]
 
 const registry = createTemplateRegistry([...existingEffectTemplates, ...effectWorkflowGraphTemplateInputs])
@@ -93,7 +93,7 @@ const resilientInputs = {
 }
 
 describe('Effect workflow template catalog', () => {
-	it('registers ten stable workflow models and 138 total Effect models without collisions', () => {
+	it('registers ten stable workflow models and 399 total Effect models without collisions', () => {
 		expect(effectWorkflowGraphTemplateInputs.map(template => template.modelId)).toEqual([
 			'SchemaValidatedServiceOperation',
 			'ServiceWithLiveAndTestLayers',
@@ -106,8 +106,8 @@ describe('Effect workflow template catalog', () => {
 			'StreamIngestionPipeline',
 			'ApplicationMain'
 		])
-		expect(existingEffectTemplates).toHaveLength(128)
-		expect(new Set([...existingEffectTemplates, ...effectWorkflowGraphTemplateInputs].map(template => template.modelId)).size).toBe(138)
+		expect(existingEffectTemplates).toHaveLength(389)
+		expect(new Set([...existingEffectTemplates, ...effectWorkflowGraphTemplateInputs].map(template => template.modelId)).size).toBe(399)
 		expect(() => createTemplateRegistry([...existingEffectTemplates, ...effectWorkflowGraphTemplateInputs])).not.toThrow()
 	})
 
@@ -115,7 +115,7 @@ describe('Effect workflow template catalog', () => {
 		[
 			'SchemaValidatedServiceOperation',
 			{ inputSchema: raw('InputSchema'), outputSchema: raw('OutputSchema'), input: raw('input'), operation: raw('operate') },
-			'Effect.flatMap(Schema.decodeUnknown(InputSchema)(input), value => Effect.flatMap((operate)(value), Schema.encode(OutputSchema)))'
+			'Effect.flatMap(Schema.decodeUnknownEffect(InputSchema)(input), value => Effect.flatMap((operate)(value), Schema.encodeUnknownEffect(OutputSchema)))'
 		],
 		[
 			'ServiceWithLiveAndTestLayers',
@@ -129,7 +129,7 @@ describe('Effect workflow template catalog', () => {
 		],
 		[
 			'ResilientClientCall', resilientInputs,
-			'Effect.retry(Effect.timeout(clientCall, 1000), Schedule.jittered(Schedule.intersect(Schedule.exponential(100, 2), Schedule.recurs(3)))).pipe(Effect.catchTag("ClientError", error => recover(error)))'
+			'Effect.retry(Effect.timeout(clientCall, 1000), Schedule.jittered(Schedule.max([Schedule.exponential(100, 2), Schedule.recurs(3)]))).pipe(Effect.catchTag("ClientError", error => recover(error)))'
 		],
 		[
 			'BoundedParallelTraverse',
@@ -139,7 +139,7 @@ describe('Effect workflow template catalog', () => {
 		[
 			'ScopedResourceService',
 			{ tag: raw('Service'), acquire: raw('acquire'), release: raw('(service, exit) => release(service, exit)') },
-			'Layer.scoped(Service, Effect.acquireRelease(acquire, (service, exit) => release(service, exit)))'
+			'Layer.effect(Service, Effect.acquireRelease(acquire, (service, exit) => release(service, exit)))'
 		],
 		[
 			'QueueWorkerWithScopedFiber',
@@ -149,12 +149,12 @@ describe('Effect workflow template catalog', () => {
 		[
 			'SchemaValidatedHttpEndpoint',
 			{ requestSchema: raw('RequestSchema'), responseSchema: raw('ResponseSchema'), extract: raw('request => request.body'), operation: raw('handle'), respond: raw('body => ({ body })') },
-			'(request => Effect.flatMap(Schema.decodeUnknown(RequestSchema)((request => request.body)(request)), value => Effect.flatMap((handle)(value), result => Effect.map(Schema.encode(ResponseSchema)(result), body => ({ body })))))'
+			'(request => Effect.flatMap(Schema.decodeUnknownEffect(RequestSchema)((request => request.body)(request)), value => Effect.flatMap((handle)(value), result => Effect.map(Schema.encodeUnknownEffect(ResponseSchema)(result), body => ({ body })))))'
 		],
 		[
 			'StreamIngestionPipeline',
 			{ stream: raw('source'), schema: raw('ItemSchema') },
-			'Stream.mapEffect(source, Schema.decodeUnknown(ItemSchema))'
+			'Stream.mapEffect(source, Schema.decodeUnknownEffect(ItemSchema))'
 		]
 	] as const)('compiles %s to its exact workflow', (templateId, inputs, expected) => {
 		expectCode(templateId, inputs, expected)
@@ -172,7 +172,7 @@ describe('Effect workflow template catalog', () => {
 		expect(result.ok, JSON.stringify(result.diagnostics, null, 2)).toBe(true)
 		if (!result.ok) return
 		expect(result.finalArtifact.code).toBe(
-			'import { Config, Context, Deferred, Effect, Fiber, Layer, ManagedRuntime, Metric, MetricBoundaries, Option, PubSub, Queue, Ref, Schedule, Schema, Stream } from "effect"\n\n' +
+			'import { Config, Context, Deferred, Effect, Fiber, Layer, ManagedRuntime, Metric, Option, PubSub, Queue, Ref, Schedule, Schema, Stream } from "effect"\n\n' +
 			'const ApplicationLayer = Layer.mergeAll(Layer.succeed(Service, service))\n' +
 			'const ApplicationRuntime = ManagedRuntime.make(ApplicationLayer)\n' +
 			'const ApplicationProgram = program\n' +
@@ -180,7 +180,7 @@ describe('Effect workflow template catalog', () => {
 		)
 	})
 
-	it('type-checks a generated ApplicationMain against Effect 3.22 declarations', () => {
+	it('type-checks a generated ApplicationMain against Effect v4 declarations', () => {
 		const nodes: SynthesisNode[] = [
 			{
 				id: 'tag', templateId: 'ContextTagDeclaration',
@@ -215,7 +215,7 @@ describe('Effect workflow template catalog', () => {
 		expect(result.ok, JSON.stringify(result.diagnostics, null, 2)).toBe(true)
 	})
 
-	it('type-checks resilient-client and framework-neutral endpoint workflows against Effect 3.22', () => {
+	it('type-checks resilient-client and framework-neutral endpoint workflows against Effect v4', () => {
 		const semanticOptions = {
 			checkSemanticDiagnostics: true,
 			tsConfigFilePath: 'tsconfig.typecheck.json',

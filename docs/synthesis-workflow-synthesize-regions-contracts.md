@@ -29,7 +29,7 @@ conditional-type lines.
 
 | Built declaration | SHA-256 |
 | --- | --- |
-| `dist/index.d.ts` | `df9d11ad50f2cf2c2c09484c4baf7d3369590327bd281ee477406d11b1f64b90` |
+| `dist/index.d.ts` | `970ead8bd63b61e62678a1cf96ec3311c450d55d059b334bab09f172c5aa861b` |
 | `dist/templates.d.ts` | `52376b0c557acb78a87ad3a02f5972709049924afe2bdba86108e438fec5af44` |
 | `dist/templates/contractIdentity.d.ts` | `0aa4ce6a12b2365811dfd0aa4af840643ea7c48794871115d9b2957c31957f8f` |
 | `dist/templates/capabilityClosure.d.ts` | `a524d32a37ade5ee49fc84a18fb3b06319ed5e116f25be76f193d14fad38b091` |
@@ -110,7 +110,6 @@ export * from "./replacements.js";
 export * from "./validation.js";
 export * from "./securityPolicy.js";
 export * from "./generate.js";
-export * from "./builders.js";
 export * from "./templates.js";
 ```
 

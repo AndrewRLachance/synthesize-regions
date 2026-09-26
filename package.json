@@ -46,11 +46,7 @@
     "./schemas/template-summary.schema.json": "./schemas/template-summary.schema.json",
     "./schemas/graph-compilation-result.schema.json": "./schemas/graph-compilation-result.schema.json",
     "./schemas/graph-runner-action.schema.json": "./schemas/graph-runner-action.schema.json",
-    "./schemas/graph-runner-state.schema.json": "./schemas/graph-runner-state.schema.json",
-    "./builders": {
-      "types": "./dist/builders.d.ts",
-      "import": "./dist/builders.js"
-    }
+    "./schemas/graph-runner-state.schema.json": "./schemas/graph-runner-state.schema.json"
   },
   "files": [
     "dist",
@@ -58,8 +54,7 @@
     "docs",
     "invariants",
     "contract-manifest.json",
-    "README.md",
-    "GLOSSARY.md"
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -82,7 +77,8 @@
     "test:package:built": "node --import tsx scripts/package-smoke.ts",
     "prepack": "npm run schemas:check && npm run invariants:check && npm run contract-manifest:check && npm run build && node --import tsx scripts/generate-contract-snapshot.ts --check",
     "verify": "npm run schemas:check && npm run invariants:check && npm run contract-manifest:check && npm run typecheck && npm run test:fast && npm run build && npm run test:package:built && npm run contracts:check:built",
-    "samples:export": "node --import tsx scripts/export-mining-catalog.ts"
+    "samples:export": "node --import tsx scripts/export-mining-catalog.ts",
+    "demo": "node --import tsx scripts/demo.ts"
   },
   "dependencies": {
     "@sinclair/typebox": "0.34.51",
@@ -94,7 +90,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
-    "effect": "3.22.1",
+    "effect": "4.0.0-rc.117",
     "tsx": "^4.19.2",
     "vitest": "^2.1.8"
   }

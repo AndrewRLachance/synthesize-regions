@@ -529,7 +529,8 @@ an API boundary before calling the TypeScript API.
 
 ## Effect sample catalogs
 
-The `samples` directory includes a composable Effect 3.22 catalog. The original
+The `core-templates` directory includes a composable Effect catalog, currently
+pinned to `effect@4.0.0-rc.117`. The original
 `effect-ts.ts` contains the core 40 Effect constructors, combinators, generator
 statements, and runners. The extended application catalog is split by concern:
 
@@ -590,5 +591,5 @@ remaining requirements into the resulting Effect or Layer.
 ## Related material
 
 - [Synthesis Graphs](./SYNTHESIS_GRAPHS.md)
-- [Project glossary](../GLOSSARY.md)
+- [Project glossary](GLOSSARY.md)
 - [README graph API reference](../README.md#synthesis-graphs)

@@ -9,7 +9,7 @@ import {
 	type SynthesisNode,
 	type TypeDescriptor
 } from '../src/index.js'
-import { basePatternGraphTemplateInputs } from '../samples/e-samplesBasePatterns.js'
+import { basePatternGraphTemplateInputs } from '../core-templates/e-samplesBasePatterns.js'
 
 const expectedModelIds = [
 	'PropertyIn', 'ConditionAnd', 'ConditionOr', 'ConditionXor', 'ConditionXand', 'ConditionNot',

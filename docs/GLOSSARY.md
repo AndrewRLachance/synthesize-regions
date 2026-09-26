@@ -103,10 +103,6 @@ compilation begins.
 Child fragments can themselves be partial and can carry nested unresolved
 inputs and source spans into the parent artifact.
 
-**Code builder** — A helper in the builders API that constructs a typed
-replacement object or code snippet without manually assembling its serialized
-TypeScript text.
-
 **Compatibility** — The directional relationship between a producer contract
 and a consumer contract. Producer values must be a subset of the consumer JSON
 Schema and the producer TypeScript type must be assignable to the consumer

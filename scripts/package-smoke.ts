@@ -44,7 +44,7 @@ try {
 		'Ajv must be published as a runtime dependency because schema validation is part of the root API.'
 	)
 	await assertPathExists(
-		join(packedPackageDirectory, 'GLOSSARY.md'),
+		join(packedPackageDirectory, 'docs', 'GLOSSARY.md'),
 		'The packed package must contain the glossary linked from its README.'
 	)
 	await assertPathExists(

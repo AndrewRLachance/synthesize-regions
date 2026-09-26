@@ -5,8 +5,8 @@ import {
 	createTemplateRegistry,
 	type SynthesisNode
 } from '../src/index.js'
-import { effectGraphTemplateInputs } from '../samples/effect-ts.js'
-import { effectEsToolkitGraphTemplateInputs } from '../samples/effect-es-toolkit-templates.js'
+import { effectGraphTemplateInputs } from '../core-templates/effect-ts.js'
+import { effectEsToolkitGraphTemplateInputs } from '../core-templates/effect-es-toolkit-templates.js'
 
 const registry = createTemplateRegistry([
 	...effectGraphTemplateInputs,
