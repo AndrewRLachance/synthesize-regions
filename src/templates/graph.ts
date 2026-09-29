@@ -732,9 +732,14 @@ export type GraphCompiler<TTemplates extends readonly GraphTemplateDefinition<an
 	/** Immutable catalog captured by this compiler for trusted artifact validation. */
 	readonly catalog: TemplateRegistrySnapshot
 	/** Compile a previously defined graph with strict required-input behavior. */
-	(graph: DefinedSynthesisGraph<TTemplates>): GraphCompilationResult
+	(graph: DefinedSynthesisGraph<TTemplates>, options?: GraphCompileOptions): GraphCompilationResult
 	/** Compile an inline typed graph with strict required-input behavior. */
-	<const TGraph extends AuthoredGraphInput>(graph: StrictSynthesisGraph<TTemplates, TGraph>): GraphCompilationResult
+	<const TGraph extends AuthoredGraphInput>(
+		graph: StrictSynthesisGraph<TTemplates, TGraph>,
+		options?: GraphCompileOptions
+	): GraphCompilationResult
+	/** Compile a dynamic graph with strict required-input behavior. */
+	(graph: SynthesisGraph, options?: GraphCompileOptions): GraphCompilationResult
 	/** Compile while preserving unresolved required inputs. */
 	(graph: DefinedPartialSynthesisGraph<TTemplates>, options: GraphCompileOptions & { mode: 'partial' }): GraphPartialCompilationResult
 	/** Compile an inline catalog-aware partial graph. */

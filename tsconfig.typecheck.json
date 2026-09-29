@@ -22,19 +22,16 @@
     "core-templates/effect-stream-v4-templates.ts",
     "core-templates/effect-v4-testing-foundational-templates.ts",
     "core-templates/effect-workflow-templates.ts",
-    "test/effect-family-samples.test.ts",
-    "test/effect-family-api.typecheck.ts",
-    "test/effect-workflow-samples.test.ts",
     "core-templates/es-toolkit-templates.ts",
     "core-templates/effect-es-toolkit-templates.ts",
     "core-templates/validate-edit-templates.ts",
     "core-templates/catalog.ts",
-    "test/define-template.typecheck.ts",
-    "test/core-template-catalog.test.ts",
+    "test/**/*.ts",
     "demo/**/*.ts"
   ],
   "exclude": [
     "dist",
-    "node_modules"
+    "node_modules",
+    "test/fixtures"
   ]
 }

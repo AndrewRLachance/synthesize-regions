@@ -37,8 +37,8 @@ function callableWithBody(body: InputPort) {
 			implementation: body
 		},
 		callableScope: {
-			parametersInput: 'args',
-			bodyInput: 'implementation'
+			parametersInput: 'args' as const,
+			bodyInput: 'implementation' as const
 		},
 		output: { kind: 'expression' as const },
 		source: callableSource
@@ -164,10 +164,8 @@ describe('callable template metadata', () => {
 	})
 
 	it('binds callable ownership into planner and executable identities', () => {
-		const withoutScope = defineTemplate({
-			...callableWithBody(rawBodyPort()),
-			callableScope: undefined
-		})
+		const { callableScope: _omitted, ...withoutScopeDefinition } = callableWithBody(rawBodyPort())
+		const withoutScope = defineTemplate(withoutScopeDefinition)
 		const withScope = defineTemplate(callableWithBody(rawBodyPort()))
 
 		expect(withScope.manifestDigest).not.toBe(withoutScope.manifestDigest)

@@ -88,8 +88,27 @@ interface BenchmarkResult {
 	readonly name: string
 	readonly coldMilliseconds: number
 	readonly warmMedianMilliseconds: number
+	readonly warmSpread: TimingStats
 	readonly operations: number
 	readonly peakRssBytes: number
+}
+
+/** Median with the observed min/max range, so single-sample noise is visible. */
+interface TimingStats {
+	readonly medianMilliseconds: number
+	readonly minMilliseconds: number
+	readonly maxMilliseconds: number
+	readonly samples: number
+}
+
+/** First-revision versus second-revision latency within one program-ownership arm. */
+interface RevisionArmSummary {
+	readonly initialRevisionMilliseconds: TimingStats
+	readonly secondRevisionMilliseconds: TimingStats
+	readonly revisionImprovementPercent: number
+	readonly initialCandidateAnalysisMilliseconds: TimingStats
+	readonly secondRevisionCandidateAnalysisMilliseconds: TimingStats
+	readonly candidateAnalysisImprovementPercent: number
 }
 
 function benchmark(name: string, operation: () => void): BenchmarkResult {
@@ -101,11 +120,13 @@ function benchmark(name: string, operation: () => void): BenchmarkResult {
 		return performance.now() - started
 	}
 	const coldMilliseconds = measure()
-	const warm = Array.from({ length: iterations }, measure).sort((left, right) => left - right)
+	const warm = Array.from({ length: iterations }, measure)
+	const warmStats = timingStats(warm)
 	return {
 		name,
-		coldMilliseconds: Number(coldMilliseconds.toFixed(2)),
-		warmMedianMilliseconds: Number(warm[Math.floor(warm.length / 2)]!.toFixed(2)),
+		coldMilliseconds: round(coldMilliseconds),
+		warmMedianMilliseconds: warmStats.medianMilliseconds,
+		warmSpread: warmStats,
 		operations: iterations + 1,
 		peakRssBytes
 	}
@@ -219,6 +240,37 @@ function measureSemantic(
 	}
 }
 
+function round(value: number): number {
+	return Number(value.toFixed(2))
+}
+
+function roundPercent(value: number): number {
+	return Number(value.toFixed(1))
+}
+
+/**
+ * Central tendency plus observed spread.
+ *
+ * Reporting the range alongside the median makes benchmark noise visible instead
+ * of hiding it inside a single-sample percentage.
+ */
+function timingStats(values: readonly number[]): TimingStats {
+	if (values.length === 0) throw new RangeError('timingStats requires at least one sample')
+	const ordered = [...values].sort((left, right) => left - right)
+	return {
+		medianMilliseconds: round(ordered[Math.floor(ordered.length / 2)]!),
+		minMilliseconds: round(ordered[0]!),
+		maxMilliseconds: round(ordered[ordered.length - 1]!),
+		samples: ordered.length
+	}
+}
+
+/** Positive when the "after" measurement completed faster than the "before" one. */
+function improvementPercent(before: number, after: number): number {
+	if (before <= 0) return 0
+	return roundPercent((100 * (before - after)) / before)
+}
+
 function median(values: readonly number[]): number {
 	const ordered = [...values].sort((left, right) => left - right)
 	return ordered[Math.floor(ordered.length / 2)]!
@@ -226,52 +278,123 @@ function median(values: readonly number[]): number {
 
 const coldSemantic = measureSemantic(firstSemanticEvidence)
 const warmSemantic = Array.from({ length: iterations }, () => measureSemantic(firstSemanticEvidence))
-const consecutiveRevision = measureSemantic(secondSemanticEvidence)
-const semanticOwner = createSemanticProgramOwner()
-const retainedInitial = runWithSemanticProgramOwner(semanticOwner, () => measureSemantic(firstSemanticEvidence))
-const retainedConsecutiveRevision = runWithSemanticProgramOwner(semanticOwner, () => measureSemantic(secondSemanticEvidence))
-discardSemanticProgramOwner(semanticOwner)
+
+/**
+ * Revision-latency samples, one pair per repetition.
+ *
+ * Each pair measures the same first-then-second revision transition, so both
+ * arms do identical work and each can report a median instead of a single
+ * sample. See `measureRetainedPair` for why the owner is per-repetition.
+ */
+const unretainedInitial: SemanticMeasurement[] = []
+const unretainedRevision: SemanticMeasurement[] = []
+const retainedInitialSamples: SemanticMeasurement[] = []
+const retainedRevisionSamples: SemanticMeasurement[] = []
+
+function measureUnretainedPair(): void {
+	unretainedInitial.push(measureSemantic(firstSemanticEvidence))
+	unretainedRevision.push(measureSemantic(secondSemanticEvidence))
+}
+
+/** Build a fresh owner so this repetition measures the same transition as the last. */
+function measureRetainedPair(): void {
+	const owner = createSemanticProgramOwner()
+	try {
+		retainedInitialSamples.push(runWithSemanticProgramOwner(owner, () => measureSemantic(firstSemanticEvidence)))
+		retainedRevisionSamples.push(runWithSemanticProgramOwner(owner, () => measureSemantic(secondSemanticEvidence)))
+	} finally {
+		discardSemanticProgramOwner(owner)
+	}
+}
+
+for (let repetition = 0; repetition < iterations; repetition += 1) {
+	// Alternate which arm runs first so neither arm is systematically measured
+	// against a colder or warmer JIT state than the other.
+	if (repetition % 2 === 0) {
+		measureUnretainedPair()
+		measureRetainedPair()
+	} else {
+		measureRetainedPair()
+		measureUnretainedPair()
+	}
+}
+
+function summarizeRevisionArm(
+	initial: readonly SemanticMeasurement[],
+	revision: readonly SemanticMeasurement[]
+): RevisionArmSummary {
+	const initialStats = timingStats(initial.map(measurement => measurement.elapsedMilliseconds))
+	const revisionStats = timingStats(revision.map(measurement => measurement.elapsedMilliseconds))
+	const initialCandidate = timingStats(initial.map(measurement => measurement.candidateAnalysisMilliseconds))
+	const revisionCandidate = timingStats(revision.map(measurement => measurement.candidateAnalysisMilliseconds))
+	return {
+		initialRevisionMilliseconds: initialStats,
+		secondRevisionMilliseconds: revisionStats,
+		revisionImprovementPercent: improvementPercent(
+			initialStats.medianMilliseconds,
+			revisionStats.medianMilliseconds
+		),
+		initialCandidateAnalysisMilliseconds: initialCandidate,
+		secondRevisionCandidateAnalysisMilliseconds: revisionCandidate,
+		candidateAnalysisImprovementPercent: improvementPercent(
+			initialCandidate.medianMilliseconds,
+			revisionCandidate.medianMilliseconds
+		)
+	}
+}
+
+const unretainedRevisionSummary = summarizeRevisionArm(unretainedInitial, unretainedRevision)
+const retainedRevisionSummary = summarizeRevisionArm(retainedInitialSamples, retainedRevisionSamples)
+
 const semanticCache = baselineAnalysisCacheStats()
-const warmMedian = median(warmSemantic.map(measurement => measurement.elapsedMilliseconds))
+const warmStats = timingStats(warmSemantic.map(measurement => measurement.elapsedMilliseconds))
+const warmMedian = warmStats.medianMilliseconds
+const coldTypeScriptAnalysis = coldSemantic.baselineAnalysisMilliseconds + coldSemantic.candidateAnalysisMilliseconds
+const warmTypeScriptAnalysisMedian = median(warmSemantic.map(measurement =>
+	measurement.baselineLookupMilliseconds + measurement.candidateAnalysisMilliseconds))
 const semanticValidation = {
-	coldMilliseconds: Number(coldSemantic.elapsedMilliseconds.toFixed(2)),
-	coldBaselineAnalysisMilliseconds: Number(coldSemantic.baselineAnalysisMilliseconds.toFixed(2)),
-	coldCandidateAnalysisMilliseconds: Number(coldSemantic.candidateAnalysisMilliseconds.toFixed(2)),
-	warmMedianMilliseconds: Number(warmMedian.toFixed(2)),
-	warmBaselineCacheMedianMilliseconds: Number(median(
+	coldMilliseconds: round(coldSemantic.elapsedMilliseconds),
+	coldBaselineAnalysisMilliseconds: round(coldSemantic.baselineAnalysisMilliseconds),
+	coldCandidateAnalysisMilliseconds: round(coldSemantic.candidateAnalysisMilliseconds),
+	warmMedianMilliseconds: warmMedian,
+	warmElapsedSpread: warmStats,
+	warmBaselineCacheMedianMilliseconds: round(median(
 		warmSemantic.map(measurement => measurement.baselineLookupMilliseconds)
-	).toFixed(2)),
-	candidateSemanticMedianMilliseconds: Number(median(
+	)),
+	candidateSemanticMedianMilliseconds: round(median(
 		warmSemantic.map(measurement => measurement.candidateAnalysisMilliseconds)
-	).toFixed(2)),
-	consecutiveRevisionMilliseconds: Number(consecutiveRevision.elapsedMilliseconds.toFixed(2)),
-	consecutiveRevisionCandidateMilliseconds: Number(consecutiveRevision.candidateAnalysisMilliseconds.toFixed(2)),
-	retainedInitialMilliseconds: Number(retainedInitial.elapsedMilliseconds.toFixed(2)),
-	retainedConsecutiveRevisionMilliseconds: Number(retainedConsecutiveRevision.elapsedMilliseconds.toFixed(2)),
-	retainedConsecutiveRevisionCandidateMilliseconds: Number(retainedConsecutiveRevision.candidateAnalysisMilliseconds.toFixed(2)),
-	retainedRevisionImprovementPercent: Number((100 * (
-		consecutiveRevision.elapsedMilliseconds - retainedConsecutiveRevision.elapsedMilliseconds
-	) / consecutiveRevision.elapsedMilliseconds).toFixed(1)),
-	warmImprovementPercent: Number((100 * (coldSemantic.elapsedMilliseconds - warmMedian) / coldSemantic.elapsedMilliseconds).toFixed(1)),
-	typeScriptAnalysisWarmImprovementPercent: Number((100 * (
-		coldSemantic.baselineAnalysisMilliseconds + coldSemantic.candidateAnalysisMilliseconds
-		- median(warmSemantic.map(measurement =>
-			measurement.baselineLookupMilliseconds + measurement.candidateAnalysisMilliseconds))
-	) / (coldSemantic.baselineAnalysisMilliseconds + coldSemantic.candidateAnalysisMilliseconds)).toFixed(1)),
+	)),
+	// Both revision arms compare a first revision against a second revision
+	// within the same arm, so each percentage answers "how much did the second
+	// revision improve" rather than mixing two differently-measured operations.
+	unretainedProgramRevision: unretainedRevisionSummary,
+	retainedProgramRevision: retainedRevisionSummary,
+	// Cross-arm comparison, both medians taken over the same interleaved work.
+	retainedSecondRevisionSpeedupPercent: improvementPercent(
+		unretainedRevisionSummary.secondRevisionMilliseconds.medianMilliseconds,
+		retainedRevisionSummary.secondRevisionMilliseconds.medianMilliseconds
+	),
+	warmImprovementPercent: improvementPercent(coldSemantic.elapsedMilliseconds, warmMedian),
+	typeScriptAnalysisWarmImprovementPercent: improvementPercent(
+		coldTypeScriptAnalysis,
+		warmTypeScriptAnalysisMedian
+	),
 	cache: {
 		hits: semanticCache.hits,
 		misses: semanticCache.misses,
 		entries: semanticCache.entries,
 		retainedBytes: semanticCache.retainedBytes
 	},
-	operations: iterations + 4,
+	operations: iterations * 5 + 1,
 	startingRssBytes: semanticStartingRssBytes,
 	peakRssBytes: semanticPeakRssBytes,
-	peakRssIncreasePercent: Number((100 * (semanticPeakRssBytes - semanticStartingRssBytes) / semanticStartingRssBytes).toFixed(1))
+	peakRssIncreasePercent: roundPercent(
+		(100 * (semanticPeakRssBytes - semanticStartingRssBytes)) / semanticStartingRssBytes
+	)
 }
 
 console.log(JSON.stringify({
-	schemaVersion: 3,
+	schemaVersion: 4,
 	iterations,
 	results,
 	semanticValidation

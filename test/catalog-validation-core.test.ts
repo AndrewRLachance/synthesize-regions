@@ -13,8 +13,17 @@ import {
 	type GraphTemplateDefinition,
 	type InputPort,
 	type RegionKind,
-	type SupportedJsonSchema
+	type SupportedJsonSchema,
+	type UnionInputPort
 } from '../src/index.js'
+
+/**
+ * Build a union port whose compile-time guard is deliberately bypassed, so
+ * runtime catalog validation is exercised on shapes authoring cannot express.
+ */
+function uncheckedUnionPort(options: readonly InputPort[]): InputPort {
+	return unionPort({ options } as unknown as Omit<UnionInputPort, 'kind'>)
+}
 
 function template(
 	modelId: string,
@@ -98,7 +107,8 @@ describe('catalog validation core', () => {
 	})
 
 	it('recursively rejects empty and mixed-region union ports', () => {
-		const nestedEmpty = unionPort({ options: [] }) as InputPort
+		// Bypass the compile-time union guard so runtime validation is exercised.
+		const nestedEmpty = uncheckedUnionPort([])
 		const mixed = unionPort({
 			options: [
 				literalPort({ regionKind: 'expression' }),
@@ -406,7 +416,7 @@ describe('catalog validation core', () => {
 
 	it('throws one aggregate package error containing deterministic diagnostics', () => {
 		const invalid = template('Invalid', {
-			choice: unionPort({ options: [] }) as InputPort
+			choice: uncheckedUnionPort([])
 		})
 
 		try {

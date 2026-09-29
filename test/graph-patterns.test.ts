@@ -1,4 +1,4 @@
-import { isMatching } from "ts-pattern";
+import { isMatching, type P } from "ts-pattern";
 import { describe, expect, it } from "vitest";
 import {
   definedSynthesisGraphPattern,
@@ -27,10 +27,24 @@ const fragment = {
   source: { templateId: "SourceTemplate" }
 } as const;
 
+/**
+ * Match a value against an exported pattern.
+ *
+ * The two-argument `isMatching(pattern, value)` overload infers its value type
+ * from the pattern, and `KnownPattern<T>` is invariant in `T`, so a pattern over
+ * a wide union rejects the narrower literal shapes these tests intentionally
+ * probe. The curried overload takes the value as `unknown`, which keeps the
+ * runtime check identical while letting these tests assert both accepting and
+ * rejecting inputs.
+ */
+function matches(pattern: P.Pattern<unknown>, value: unknown): boolean {
+  return isMatching(pattern)(value);
+}
+
 describe("graph ts-pattern matchers", () => {
   it("matches every exact region syntax context", () => {
-    for (const kind of REGION_KIND_VALUES) expect(isMatching(regionKindPattern, kind)).toBe(true);
-    expect(isMatching(regionKindPattern, "methodBody")).toBe(false);
+    for (const kind of REGION_KIND_VALUES) expect(matches(regionKindPattern, kind)).toBe(true);
+    expect(matches(regionKindPattern, "methodBody")).toBe(false);
   });
 
   it("matches strict graph compilation results deeply", () => {
@@ -43,7 +57,7 @@ describe("graph ts-pattern matchers", () => {
       diagnostics: []
     };
 
-    expect(isMatching(graphCompilationResultPattern, result)).toBe(true);
+    expect(matches(graphCompilationResultPattern, result)).toBe(true);
     expect(isGraphCompilationResult(result)).toBe(true);
   });
 
@@ -66,16 +80,16 @@ describe("graph ts-pattern matchers", () => {
       }]
     };
 
-    expect(isMatching(graphCompilationResultPattern, result)).toBe(true);
+    expect(matches(graphCompilationResultPattern, result)).toBe(true);
     expect(isGraphCompilationResult(result)).toBe(true);
   });
 
   it("rejects strict result maps with invalid fragment values", () => {
-    expect(isMatching(generatedFragmentRecordPattern, { source: { code: "value" } })).toBe(false);
+    expect(matches(generatedFragmentRecordPattern, { source: { code: "value" } })).toBe(false);
   });
 
   it("matches nested union input ports", () => {
-    expect(isMatching(inputPortPattern, {
+    expect(matches(inputPortPattern, {
       kind: "union",
       options: [
         {
@@ -93,7 +107,7 @@ describe("graph ts-pattern matchers", () => {
   });
 
   it("rejects union input ports with invalid nested options", () => {
-    expect(isMatching(inputPortPattern, {
+    expect(matches(inputPortPattern, {
       kind: "union",
       options: [{ kind: "literal", regionKind: "not-a-region-kind" }]
     })).toBe(false);
@@ -134,14 +148,14 @@ describe("graph ts-pattern matchers", () => {
       }
     } as const;
 
-    expect(isMatching(synthesisGraphPattern, graph)).toBe(true);
-    expect(isMatching(definedSynthesisGraphPattern, graph)).toBe(true);
-    expect(isMatching(strictSynthesisGraphPattern, graph)).toBe(true);
+    expect(matches(synthesisGraphPattern, graph)).toBe(true);
+    expect(matches(definedSynthesisGraphPattern, graph)).toBe(true);
+    expect(matches(strictSynthesisGraphPattern, graph)).toBe(true);
     expect(isSynthesisGraph(graph)).toBe(true);
   });
 
   it("rejects synthesis graphs with invalid nested graph inputs", () => {
-    expect(isMatching(synthesisGraphPattern, {
+    expect(matches(synthesisGraphPattern, {
       nodes: [
         {
           id: "source",
@@ -182,10 +196,10 @@ describe("graph ts-pattern matchers", () => {
       diagnostics: []
     };
 
-    expect(isMatching(partialTemplateArtifactPattern, partialArtifact)).toBe(true);
-    expect(isMatching(graphPartialCompilationResultPattern, result)).toBe(true);
+    expect(matches(partialTemplateArtifactPattern, partialArtifact)).toBe(true);
+    expect(matches(graphPartialCompilationResultPattern, result)).toBe(true);
     expect(isGraphPartialCompilationResult(result)).toBe(true);
-    expect(isMatching(graphPartialCompilationCompleteSuccessPattern, result)).toBe(false);
+    expect(matches(graphPartialCompilationCompleteSuccessPattern, result)).toBe(false);
   });
 
   it("matches partial compilation results with an explicitly complete final artifact", () => {
@@ -202,7 +216,7 @@ describe("graph ts-pattern matchers", () => {
       diagnostics: []
     } as const;
 
-    expect(isMatching(graphPartialCompilationCompleteSuccessPattern, result)).toBe(true);
+    expect(matches(graphPartialCompilationCompleteSuccessPattern, result)).toBe(true);
   });
 
   it("requires complete to be explicitly true for complete partial compilation results", () => {
@@ -215,7 +229,7 @@ describe("graph ts-pattern matchers", () => {
       diagnostics: []
     } as const;
 
-    expect(isMatching(graphPartialCompilationCompleteSuccessPattern, result)).toBe(false);
+    expect(matches(graphPartialCompilationCompleteSuccessPattern, result)).toBe(false);
   });
 
   it("matches artifact fill/finalize results", () => {
@@ -226,9 +240,9 @@ describe("graph ts-pattern matchers", () => {
       diagnostics: []
     };
 
-    expect(isMatching(templateArtifactResultPattern, result)).toBe(true);
+    expect(matches(templateArtifactResultPattern, result)).toBe(true);
     expect(isTemplateArtifactResult(result)).toBe(true);
-    expect(isMatching(templateArtifactCompleteSuccessPattern, result)).toBe(true);
+    expect(matches(templateArtifactCompleteSuccessPattern, result)).toBe(true);
   });
 
   it("rejects partial artifacts for complete artifact success results", () => {
@@ -255,8 +269,8 @@ describe("graph ts-pattern matchers", () => {
       diagnostics: []
     };
 
-    expect(isMatching(templateArtifactResultPattern, result)).toBe(true);
-    expect(isMatching(templateArtifactCompleteSuccessPattern, result)).toBe(false);
+    expect(matches(templateArtifactResultPattern, result)).toBe(true);
+    expect(matches(templateArtifactCompleteSuccessPattern, result)).toBe(false);
   });
 
   it("does not cross-match result failure families", () => {
@@ -267,8 +281,8 @@ describe("graph ts-pattern matchers", () => {
       diagnostics: []
     } as const;
 
-    expect(isMatching(templateArtifactResultPattern, artifactFailure)).toBe(true);
-    expect(isMatching(graphCompilationResultPattern, artifactFailure)).toBe(false);
-    expect(isMatching(graphPartialCompilationResultPattern, artifactFailure)).toBe(false);
+    expect(matches(templateArtifactResultPattern, artifactFailure)).toBe(true);
+    expect(matches(graphCompilationResultPattern, artifactFailure)).toBe(false);
+    expect(matches(graphPartialCompilationResultPattern, artifactFailure)).toBe(false);
   });
 });

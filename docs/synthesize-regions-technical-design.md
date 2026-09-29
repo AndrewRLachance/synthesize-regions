@@ -676,6 +676,12 @@ replaced by identity and integrity verification.
 `npm run benchmark:compilation` reports cold/warm graph, artifact-set,
 baseline, candidate, cache, and memory measurements without writing benchmark
 results into the repository. Timings are local evidence, not fixed test limits.
+Warm and revision timings are medians over `--iterations=N` samples reported with
+their observed minimum and maximum. Revision figures compare a first revision
+against a second revision inside one program-ownership arm, so the retained and
+unretained percentages answer the same question; the two arms are interleaved
+with alternating order and a fresh owner per repetition so neither ordering nor
+a previous repetition's program can bias the comparison.
 
 ## 15. Public contracts and packaging
 

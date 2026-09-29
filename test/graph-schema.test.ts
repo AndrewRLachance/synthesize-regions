@@ -45,7 +45,9 @@ function compilePublishedSchema(path: string): {
 	validate: ValidateFunction<unknown>
 } {
 	const ajv = new Ajv2020({ allErrors: true, strict: true })
-	const schemas = new Map(publishedSchemaPaths.map(schemaPath => [schemaPath, readJson(schemaPath)]))
+	const schemas = new Map<string, Record<string, unknown>>(
+		publishedSchemaPaths.map(schemaPath => [schemaPath, readJson(schemaPath)] as const)
+	)
 	for (const publishedSchema of schemas.values()) ajv.addSchema(publishedSchema)
 
 	const schema = schemas.get(path)

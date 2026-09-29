@@ -79,6 +79,13 @@ This roadmap prioritizes correctness and deterministic LLM repair behavior befor
 - [ ] Reuse semantic-validation project context across runner repair iterations.
 - [ ] Add runtime benchmarks for large graphs and multi-step repair loops.
 - [ ] Add TypeScript editor/type-instantiation benchmarks for recursively strict graphs.
+- [x] Report warm and revision benchmark timings as medians with observed spread, measured over
+      interleaved repetitions so the retained and unretained program arms are directly comparable.
+- Deferred, not pending: automated performance regression gating against a committed baseline. The
+  repository has no CI, so `verify` only ever runs on a developer machine, where any wall-clock
+  threshold tight enough to catch a real regression would also fail for hardware, Node build, or
+  thermal reasons. `benchmark:compilation` is intentionally read-only local evidence. Revisit if CI
+  lands or a performance regression is observed in the field.
 - [ ] Replace implicit all-or-nothing loose typing with an explicit dynamic-graph escape hatch where feasible.
 
 **Done when:** repeated compilation and repair avoid redundant parsing, with measurable latency and editor-performance targets.

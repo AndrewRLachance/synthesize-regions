@@ -584,7 +584,7 @@ describe('artifact marker invariants', () => {
 
 		const result = fillTemplateArtifactWithCatalog(outer, {
 			[slot.id]: { kind: 'fragment', fragment: collidingChild }
-		}, catalog, { trustedBaseArtifact: true })
+		}, catalog)
 		expectDiagnostic(result, 'ArtifactInputIdCollision')
 		if (!result.ok) expect(result.classification).toBe('artifactFillable')
 	})

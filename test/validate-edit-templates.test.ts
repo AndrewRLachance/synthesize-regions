@@ -137,7 +137,6 @@ describe('validate-edit AbstractReasoningGraph starter graph', () => {
 	it('compiles a complete source file with zero helper members', () => {
 		const registry = createTemplateRegistryFromManifests(validateEditTemplateManifests)
 		const result = compileGraph(validateEditStarterGraph, registry, {
-			mode: 'strict',
 			checkSemanticDiagnostics: false,
 			securityPolicy: { forbidImports: false },
 			format: 'ts-morph'
@@ -281,7 +280,6 @@ describe('validate-edit AbstractReasoningGraph starter graph', () => {
 		}
 		const registry = createTemplateRegistryFromManifests(validateEditTemplateManifests)
 		const result = compileGraph(completeGraph, registry, {
-			mode: 'strict',
 			checkSemanticDiagnostics: false,
 			securityPolicy: { forbidImports: false },
 			format: 'ts-morph'

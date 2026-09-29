@@ -6,7 +6,8 @@ import {
 	defineTemplate,
 	type GraphCompilationResult,
 	type SynthesisInput,
-	type SynthesisNode
+	type SynthesisNode,
+	type TypeDescriptor
 } from '../src/index.js'
 import {
 	effectCallbackPolicy,
@@ -67,7 +68,7 @@ const effectSemanticOptions = {
 	}
 } as const
 
-const defaultTypeArguments = (templateId: string) => {
+const defaultTypeArguments = (templateId: string): Record<string, TypeDescriptor> | undefined => {
 	const template = effectGraphTemplateInputs.find(candidate => candidate.modelId === templateId)
 	if (!template?.typeParameters) return undefined
 	return Object.fromEntries(Object.keys(template.typeParameters).map(name => [
@@ -76,12 +77,11 @@ const defaultTypeArguments = (templateId: string) => {
 	]))
 }
 
-const typedNode = (node: SynthesisNode): SynthesisNode => ({
-	...node,
-	...(node.typeArguments || !defaultTypeArguments(node.templateId)
-		? {}
-		: { typeArguments: defaultTypeArguments(node.templateId) })
-})
+const typedNode = (node: SynthesisNode): SynthesisNode => {
+	if (node.typeArguments) return node
+	const typeArguments = defaultTypeArguments(node.templateId)
+	return typeArguments === undefined ? node : { ...node, typeArguments }
+}
 
 const typedNodes = (nodes: readonly SynthesisNode[]): SynthesisNode[] => nodes.map(typedNode)
 

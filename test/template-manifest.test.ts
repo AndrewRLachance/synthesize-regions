@@ -31,7 +31,7 @@ function expressionTemplate(modelId: string, source = expressionMarker('value'))
 
 describe('declarative graph template manifests', () => {
 	it('captures source, clones and freezes contracts, and exposes a stable template digest', () => {
-		const schema = { type: 'string' as const, enum: ['alpha', 'beta'] }
+		const schema = { type: 'string' as const, enum: ['alpha', 'beta'] as [string, ...string[]] }
 		const input = literalPort({ regionKind: 'expression', schema })
 		const template = defineTemplate({
 			modelId: 'FrozenManifest',
@@ -225,6 +225,9 @@ describe('declarative graph template manifests', () => {
 
 		expect(firstResult.finalArtifact.source.templateManifestDigest).toBe(first.manifestDigest)
 		expect(secondResult.finalArtifact.source.templateManifestDigest).toBe(second.manifestDigest)
+		if (firstResult.finalArtifact.complete || secondResult.finalArtifact.complete) {
+			throw new Error('Expected both scoped artifacts to remain partial.')
+		}
 		expect(firstResult.finalArtifact.unresolvedInputs[0]?.id)
 			.not.toBe(secondResult.finalArtifact.unresolvedInputs[0]?.id)
 	})

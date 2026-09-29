@@ -128,7 +128,9 @@ describe('applyGraphPatch', () => {
 		})).graph
 
 		const collection = rootNode(result).inputs.collection
-		if (!('kind' in collection) || collection.kind !== 'fragmentCollection') throw new Error('Expected collection')
+		if (collection === undefined || !('kind' in collection) || collection.kind !== 'fragmentCollection') {
+			throw new Error('Expected collection')
+		}
 		const childItem = collection.items[1]
 		if (!childItem || !('kind' in childItem) || childItem.kind !== 'inline') throw new Error('Expected inline item')
 		expect(childItem.node.inputs.value).toEqual({

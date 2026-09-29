@@ -11,8 +11,11 @@ import {
 	createCompletionShellTemplate,
 	discoverImplementationTargets,
 	ImplementationTargetDiscoveryResultSchema,
+	type GraphCompilationResult,
+	type GraphTemplateDefinition,
 	type ImplementationSymbolSpace,
-	type RegionKind
+	type RegionKind,
+	type SynthesisGraph
 } from '../src/index.js'
 
 const REGION_FRAGMENTS: Readonly<Record<RegionKind, string>> = {
@@ -265,13 +268,13 @@ describe('project implementation target discovery', () => {
 		})
 		const target = result.targets[0]!
 		const shell = createCompletionShellTemplate(target.completionShell)
-		const compiled = compileGraph({
+		const compiled = compileWithShell({
 			nodes: [{
 				id: 'root', templateId: shell.modelId,
 				inputs: { implementation: { kind: 'rawCode', code: 'return value.length;' } }
 			}],
 			finalNodeId: 'root'
-		}, [shell])
+		}, shell)
 
 		expect(compiled.ok).toBe(true)
 		if (!compiled.ok) return
@@ -299,13 +302,13 @@ describe('project implementation target discovery', () => {
 			enabledTargetKinds: ['declaredCallable']
 		})
 		const shell = createCompletionShellTemplate(result.targets[0]!.completionShell)
-		const compiled = compileGraph({
+		const compiled = compileWithShell({
 			nodes: [{
 				id: 'root', templateId: shell.modelId,
 				inputs: { implementation: { kind: 'rawCode', code: '(routing: string) => 0;' } }
 			}],
 			finalNodeId: 'root'
-		}, [shell])
+		}, shell)
 		expect(compiled.ok).toBe(true)
 		if (!compiled.ok) return
 
@@ -338,3 +341,19 @@ describe('project implementation target discovery', () => {
 		expect(after).toEqual(before)
 	})
 })
+
+/**
+ * Compile one graph against a runtime-built completion shell.
+ *
+ * Completion shells are produced at runtime rather than authored as literals,
+ * so passing them as an inline `[shell]` array makes TypeScript instantiate the
+ * recursive strict catalog prover, which exceeds its instantiation budget
+ * (TS2589). This helper widens the catalog element type so graph execution stays
+ * typed while the prover is skipped for these runtime-built templates.
+ */
+function compileWithShell(
+	graph: SynthesisGraph,
+	shell: GraphTemplateDefinition<any, string, any>
+): GraphCompilationResult {
+	return compileGraph(graph, [shell] as readonly GraphTemplateDefinition<any, string>[])
+}

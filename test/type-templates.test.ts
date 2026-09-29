@@ -253,8 +253,8 @@ describe("type syntax graph integration", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.finalArtifact.code).toMatch(/readonly id: string\s+name\?: string/u);
-    expect(result.finalArtifact.sourceMap.spans.some(span => span.nodeId === "id")).toBe(true);
-    expect(result.finalArtifact.sourceMap.spans.some(span => span.nodeId === "name")).toBe(true);
+    expect(result.finalArtifact.sourceMap?.spans.some(span => span.nodeId === "id")).toBe(true);
+    expect(result.finalArtifact.sourceMap?.spans.some(span => span.nodeId === "name")).toBe(true);
   });
 
   it("validates advertised types in a virtual generic insertion context", () => {

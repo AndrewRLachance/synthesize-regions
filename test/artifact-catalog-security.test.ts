@@ -127,7 +127,7 @@ describe('catalog-bound artifact validation', () => {
 		}
 		const rejectedBase = fillTemplateArtifactWithCatalog(forgedBase, {
 			[inputId]: { kind: 'fragment', fragment: leafArtifact() }
-		}, catalog, { trustedBaseArtifact: true })
+		}, catalog)
 		expect(rejectedBase).toMatchObject({
 			ok: false,
 			classification: 'terminalFailure',
@@ -136,7 +136,7 @@ describe('catalog-bound artifact validation', () => {
 
 		const rejectedChild = fillTemplateArtifactWithCatalog(partial, {
 			[inputId]: { kind: 'fragment', fragment: leafArtifact('process.env.SECRET') }
-		}, catalog, { trustedBaseArtifact: true })
+		}, catalog)
 		expect(rejectedChild).toMatchObject({
 			ok: false,
 			classification: 'artifactFillable',
@@ -146,7 +146,7 @@ describe('catalog-bound artifact validation', () => {
 
 		const valid = fillTemplateArtifactWithCatalog(partial, {
 			[inputId]: { kind: 'fragment', fragment: leafArtifact() }
-		}, catalog, { trustedBaseArtifact: true })
+		}, catalog)
 		expect(valid).toMatchObject({ ok: true, artifact: { complete: true, code: 'wrap(1)' } })
 	})
 
@@ -164,6 +164,7 @@ describe('catalog-bound artifact validation', () => {
 			}
 		})
 		expect(forged.kind).toBe('needsArtifactInputs')
+		if (forged.kind !== 'needsArtifactInputs') return
 		expect(forged.diagnostics.map(diagnostic => diagnostic.code)).toContain('TemplateManifestDigestMismatch')
 
 		const unsafe = runner.advance({
@@ -171,6 +172,7 @@ describe('catalog-bound artifact validation', () => {
 			inputs: { [inputId]: { kind: 'fragment', fragment: leafArtifact('globalThis.SECRET') } }
 		})
 		expect(unsafe.kind).toBe('needsArtifactInputs')
+		if (unsafe.kind !== 'needsArtifactInputs') return
 		expect(unsafe.diagnostics.map(diagnostic => diagnostic.code)).toContain('RawCodeRejected')
 
 		const complete = runner.advance({

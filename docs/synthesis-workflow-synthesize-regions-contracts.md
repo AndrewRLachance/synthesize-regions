@@ -38,7 +38,7 @@ conditional-type lines.
 | `dist/templates/registry.d.ts` | `6f0ea14237f4cf1d7174aeeefea27d2f1f70c0e7f30d253d293dcc81a0463a25` |
 | `dist/templates/catalogDigest.d.ts` | `bd1ca042ec736ce37ef27c86232a3811bd9b4eab8a5807c49de5e1c56486f2f0` |
 | `dist/templates/catalogCapture.d.ts` | `1ea49fb04fe0e93357578ee0e13028a0c5c00505d0f1928f568ff5664c46fdc2` |
-| `dist/templates/graph.d.ts` | `2a7b66288173b524209440f2758b54d8c402d7b0288a6c0d7d80d2f84b0a2873` |
+| `dist/templates/graph.d.ts` | `b1de9a83338e7b45ddad68dfb6ffc3b1bff1850cc294bc37d147b1d9ad2a2436` |
 | `dist/templates/graphPatch.d.ts` | `997ea369d50496351329a2bcd2f80324e72f2826c08c98fd2d615e1aae77772a` |
 | `dist/templates/graphPatterns.d.ts` | `e8d93cfbce3ad5936c77b4187fe12539d705ee2977b1573beec97543e3485c2f` |
 | `dist/templates/graphContracts.d.ts` | `c7ec3bce09e0a9ac234c1abb21f82687b7e763b209d46ea8d517c12467b81c16` |
@@ -1182,9 +1182,11 @@ export type GraphCompiler<TTemplates extends readonly GraphTemplateDefinition<an
     /** Immutable catalog captured by this compiler for trusted artifact validation. */
     readonly catalog: TemplateRegistrySnapshot;
     /** Compile a previously defined graph with strict required-input behavior. */
-    (graph: DefinedSynthesisGraph<TTemplates>): GraphCompilationResult;
+    (graph: DefinedSynthesisGraph<TTemplates>, options?: GraphCompileOptions): GraphCompilationResult;
     /** Compile an inline typed graph with strict required-input behavior. */
-    <const TGraph extends AuthoredGraphInput>(graph: StrictSynthesisGraph<TTemplates, TGraph>): GraphCompilationResult;
+    <const TGraph extends AuthoredGraphInput>(graph: StrictSynthesisGraph<TTemplates, TGraph>, options?: GraphCompileOptions): GraphCompilationResult;
+    /** Compile a dynamic graph with strict required-input behavior. */
+    (graph: SynthesisGraph, options?: GraphCompileOptions): GraphCompilationResult;
     /** Compile while preserving unresolved required inputs. */
     (graph: DefinedPartialSynthesisGraph<TTemplates>, options: GraphCompileOptions & {
         mode: 'partial';

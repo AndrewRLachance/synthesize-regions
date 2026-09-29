@@ -353,7 +353,7 @@ describe('artifact-set compilation', () => {
 			id: unit.artifactId,
 			target: unit.target,
 			artifact: unit.artifact as Extract<typeof unit.artifact, { complete: true }>,
-			artifactHash: unit.artifactHash
+			...(unit.artifactHash === undefined ? {} : { artifactHash: unit.artifactHash })
 		})), registry)
 		expect(assembled.ok).toBe(true)
 		expect(checkContract(ArtifactSetAssemblyResultSchema, assembled)).toBe(true)
@@ -395,7 +395,7 @@ describe('artifact-set compilation', () => {
 			constraintEntryPath: '.constraints/main.wsc',
 			constraintDigest: `wc1_${'b'.repeat(64)}`,
 			constraintSourceSnapshotHash: hash,
-			constraintEngineVersion: 4,
+			constraintEngineVersion: 4 as const,
 			evaluatorIdentity: 'workspace-constraints-evaluator-4',
 			toolchainIdentity: 'typescript-5.9.3',
 			analysisSnapshotHash: hash,

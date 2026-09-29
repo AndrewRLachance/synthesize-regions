@@ -256,6 +256,7 @@ describe('graph runner', () => {
 			}
 		})
 		expect(wrongFragment.kind).toBe('needsArtifactInputs')
+		if (wrongFragment.kind !== 'needsArtifactInputs') return
 		expect(wrongFragment.diagnostics.map(diagnostic => diagnostic.code)).toContain('IncompatibleFragmentKind')
 		const invalidMetadata = fragmentRunner.advance({
 			kind: 'fill',
@@ -300,6 +301,7 @@ describe('graph runner', () => {
 			kind: 'fill', inputs: { [rawInputId]: { kind: 'rawCode', code: 'eval("1")' } }
 		})
 		expect(rawRejected.kind).toBe('needsArtifactInputs')
+		if (rawRejected.kind !== 'needsArtifactInputs') return
 		expect(rawRejected.diagnostics.map(diagnostic => diagnostic.code)).toContain('RawCodeRejected')
 		const rawComplete = rawRunner.advance({
 			kind: 'fill', inputs: { [rawInputId]: { kind: 'rawCode', code: 'value + 1' } }

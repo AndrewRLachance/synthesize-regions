@@ -1591,6 +1591,16 @@ cache hits/misses, retained cache bytes, and peak RSS. The
 command does not write benchmark results into the repository. Timing values are
 local acceptance evidence, not unit-test assertions.
 
+Warm and revision timings report a median alongside the observed minimum and
+maximum so spread is visible instead of implied. `--iterations=N` controls the
+sample count for warm timings and for the revision arms, and each arm is
+measured once per repetition rather than once overall. Within a repetition the
+retained and unretained arms alternate which runs first, so neither arm is
+systematically measured against a colder or warmer JIT state than the other.
+Each retained repetition builds and discards its own program owner, so no
+repetition inherits the previous one's program and every repetition measures the
+same first-then-second revision transition.
+
 Artifact-set semantic validation caches only successful immutable baseline
 analysis data. Exact captured file hashes, the effective workspace root and
 tsconfig, authorized project references, analysis mode, snapshot identity, and

@@ -335,7 +335,7 @@ describe("sourceFile graph contracts", () => {
     const inputId = partial.finalArtifact.unresolvedInputs[0]!.id;
     const wrongKind = fillTemplateArtifactWithCatalog(partial.finalArtifact, {
       [inputId]: { kind: "fragment", fragment: declaration.finalArtifact }
-    }, registry, { trustedBaseArtifact: true });
+    }, registry);
     expect(wrongKind.ok).toBe(false);
     expect(wrongKind.diagnostics).toEqual(expect.arrayContaining([
       expect.objectContaining({ code: "IncompatibleFragmentKind" })
@@ -346,7 +346,7 @@ describe("sourceFile graph contracts", () => {
         kind: "fragment",
         fragment: { ...source.finalArtifact, type: { ts: "string" } }
       }
-    }, registry, { trustedBaseArtifact: true });
+    }, registry);
     expect(invalidMetadata.ok).toBe(false);
     expect(invalidMetadata.diagnostics).toEqual(expect.arrayContaining([
       expect.objectContaining({ code: "IncompatibleSourceFileMetadata", path: "type" })
@@ -354,7 +354,7 @@ describe("sourceFile graph contracts", () => {
 
     const filled = fillTemplateArtifactWithCatalog(partial.finalArtifact, {
       [inputId]: { kind: "fragment", fragment: source.finalArtifact }
-    }, registry, { trustedBaseArtifact: true });
+    }, registry);
     expect(filled.ok).toBe(true);
     if (filled.ok) expect(filled.artifact).toMatchObject({ kind: "sourceFile", code: "export const value = 1;" });
   });
