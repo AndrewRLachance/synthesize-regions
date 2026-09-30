@@ -42,31 +42,6 @@
   ],
   "approximatedContracts": [],
   "documentationBoundaries": [
-    {
-      "path": "docs/synthesis-workflow-product-description.md",
-      "authority": "synthesize-regions-agent-runtime-core",
-      "requiredPhrases": ["Cross-project snapshot", "readyForApproval", "future, separately versioned Phase 4", "not implemented here"]
-    },
-    {
-      "path": "docs/synthesis-workflow-technical-design.md",
-      "authority": "synthesize-regions-agent-runtime-core",
-      "requiredPhrases": ["Cross-project snapshot", "readyForApproval", "future Phase 4 work", "not package exports"]
-    },
-    {
-      "path": "docs/synthesis-workflow-implementation-inventory.md",
-      "authority": "synthesize-regions-agent-runtime-core",
-      "requiredPhrases": ["Cross-project snapshot", "readyForApproval", "planned external work", "not current exports"]
-    },
-    {
-      "path": "docs/workspace-constraints-product-description.md",
-      "authority": "workspace-constraints",
-      "requiredPhrases": ["Cross-project snapshot", "readyForApproval", "future external Phase 4 workflow"]
-    },
-    {
-      "path": "docs/workspace-constraints-technical-design.md",
-      "authority": "workspace-constraints",
-      "requiredPhrases": ["Cross-project snapshot", "immutable staging", "Phase 4 concerns", "not Workspace Constraints features"]
-    }
   ],
   "entries": [
     {

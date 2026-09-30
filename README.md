@@ -1607,6 +1607,4 @@ tsconfig, authorized project references, analysis mode, snapshot identity, and
 TypeScript identity all participate in the key. The baseline cache never retains
 generated candidate source or compiler objects. Runtime-core may separately
 install a private authority-scoped candidate-program owner across input/graph
-repairs; it is not part of the public compilation API. See
-[`docs/synthesis-workflow-technical-design.md`](docs/synthesis-workflow-technical-design.md#241-captured-typescript-baseline-reuse)
-for ownership and incremental-analysis constraints.
+repairs; it is not part of the public compilation API. It is part of the agent runtime design.
