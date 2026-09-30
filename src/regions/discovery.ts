@@ -45,7 +45,7 @@ function discoverReplacementRegionsInContext(sourceText: string, options: Discov
   );
 
   for (const region of regions) {
-    validateRegionContext(sourceFile, offsetRegion(region, offset));
+    validateRegionContext(sourceFile, offsetRegion(region, offset), options);
   }
   const hasEmptyTypedListMarker = regions.some(region =>
     region.arity === "many" && region.bodyText.trim().length === 0

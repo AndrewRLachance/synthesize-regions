@@ -7,7 +7,7 @@ import {
 } from "../core/errors.js";
 import type { GenerateOptions, MarkerExpectedKind, ReplacementRegion, TemplateMode } from "../core/types.js";
 import { wrapTemplateSource } from "../templates/templateMode.js";
-import { createAnalysisSourceFile, createIndependentAnalysisProject } from "./analysisContext.js";
+import { createAnalysisSourceFile, createIndependentAnalysisProject, withAnalysisSourceFile } from "./analysisContext.js";
 
 /**
  * Create the ts-morph project used for parsing and diagnostics.
@@ -270,14 +270,21 @@ function statementsInSourceFileRegion(
   return contained.length > 0 && contained.length === overlapping.length ? contained : undefined;
 }
 
-function validateSourceFileRegion(sourceFile: SourceFile, region: ReplacementRegion): void {
+function validateSourceFileRegion(
+  sourceFile: SourceFile,
+  region: ReplacementRegion,
+  options: GenerateOptions
+): void {
   if (region.arity !== "one" || statementsInSourceFileRegion(sourceFile, region) === undefined) {
     throwInvalidContext(region, "Expected the marked body to contain one or more complete top-level source-file statements.");
   }
 
-  const project = createProject();
-  const bodySourceFile = createSourceFile(project, region.bodyText, "__source_file_region__.ts");
-  const diagnostics = bodySourceFile.getProject().getProgram().getSyntacticDiagnostics(bodySourceFile);
+  const diagnostics = withAnalysisSourceFile(
+    options,
+    region.bodyText,
+    "__source_file_region__.ts",
+    bodySourceFile => bodySourceFile.getProject().getProgram().getSyntacticDiagnostics(bodySourceFile)
+  );
   if (diagnostics.length > 0) {
     throwInvalidContext(region, "Expected the marked body to be a complete TypeScript source-file fragment.");
   }
@@ -341,8 +348,15 @@ export function inferExpectedKind(sourceFile: SourceFile, region: ReplacementReg
 
 /**
  * Ensure a marker's placeholder body is valid for the marker kind and arity.
+ *
+ * `options` carries the caller's analysis ownership so nested region checks do
+ * not build a private project when a reusable scope is active.
  */
-export function validateRegionContext(sourceFile: SourceFile, region: ReplacementRegion): void {
+export function validateRegionContext(
+  sourceFile: SourceFile,
+  region: ReplacementRegion,
+  options: GenerateOptions = {}
+): void {
   const range = trimmedBodyRange(region);
 
   if (!range) {
@@ -363,12 +377,12 @@ export function validateRegionContext(sourceFile: SourceFile, region: Replacemen
   }
 
   if (region.effectiveType === "expressionSuffix") {
-    validateExpressionSuffixRegion(region);
+    validateExpressionSuffixRegion(region, options);
     return;
   }
 
   if (region.effectiveType === "sourceFile") {
-    validateSourceFileRegion(sourceFile, region);
+    validateSourceFileRegion(sourceFile, region, options);
     return;
   }
 
@@ -397,20 +411,26 @@ export function validateRegionContext(sourceFile: SourceFile, region: Replacemen
   }
 }
 
-function validateExpressionSuffixRegion(region: ReplacementRegion): void {
-  if (!isExpressionSuffixSyntaxValid(region.bodyText)) {
+function validateExpressionSuffixRegion(region: ReplacementRegion, options: GenerateOptions): void {
+  if (!isExpressionSuffixSyntaxValid(region.bodyText, options)) {
     throwInvalidContext(region, "Expected the marked body to be an expression suffix beginning with . or ?..");
   }
 }
 
-function isExpressionSuffixSyntaxValid(code: string): boolean {
+function isExpressionSuffixSyntaxValid(code: string, options: GenerateOptions): boolean {
   const trimmed = code.trim();
   if (!trimmed.startsWith(".") && !trimmed.startsWith("?.")) return false;
 
-  const project = createProject();
-  const sourceFile = createSourceFile(project, `const __x = __partialReceiver${code};`, "__expression_suffix_context__.ts");
-  const variable = sourceFile.getVariableDeclaration("__x");
-  return sourceFile.getProject().getProgram().getSyntacticDiagnostics(sourceFile).length === 0 && Boolean(variable?.getInitializer());
+  return withAnalysisSourceFile(
+    options,
+    `const __x = __partialReceiver${code};`,
+    "__expression_suffix_context__.ts",
+    sourceFile => {
+      const variable = sourceFile.getVariableDeclaration("__x");
+      return sourceFile.getProject().getProgram().getSyntacticDiagnostics(sourceFile).length === 0
+        && Boolean(variable?.getInitializer());
+    }
+  );
 }
 
 function throwInvalidContext(region: ReplacementRegion, message: string): never {

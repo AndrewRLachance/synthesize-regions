@@ -2,11 +2,10 @@ import { readFileSync } from 'node:fs'
 import { ts } from 'ts-morph'
 import type { GenerateOptions } from '../core/types.js'
 import {
-	createProject,
-	createSourceFile,
 	structuredSemanticDiagnostics,
 	type StructuredTypeScriptDiagnostic
 } from '../validation/ast.js'
+import { withAnalysisSourceFile } from '../validation/analysisContext.js'
 import type { RegionKind, SemanticTargetFileContext, TypeDescriptor } from './graphTypes.js'
 
 /** Final artifact information needed for virtual target-file validation. */
@@ -134,11 +133,7 @@ function collectSemanticDiagnostics(
 	sourceText: string,
 	options: Pick<VirtualSemanticTargetOptions, 'targetFile' | 'tsConfigFilePath'>
 ): StructuredTypeScriptDiagnostic[] {
-	const project = createProject(options.tsConfigFilePath === undefined
-		? {}
-		: { tsConfigFilePath: options.tsConfigFilePath })
-	const sourceFile = createSourceFile(project, sourceText, options.targetFile.filePath)
-	return structuredSemanticDiagnostics(sourceFile)
+	return withAnalysisSourceFile(options, sourceText, options.targetFile.filePath, structuredSemanticDiagnostics)
 }
 
 function validateTargetRange(sourceText: string, start: number, end: number): void {
@@ -267,18 +262,23 @@ function findSuffixReceiverExpression(
 	artifactEnd: number,
 	tsConfigFilePath: string | undefined
 ): { start: number; end: number } | undefined {
-	const project = createProject(tsConfigFilePath === undefined ? {} : { tsConfigFilePath })
-	const sourceFile = createSourceFile(project, sourceText, filePath)
-	let best: { start: number; end: number } | undefined
-	sourceFile.forEachDescendant(node => {
-		if (!ts.isExpression(node.compilerNode)) return undefined
-		const start = node.getStart(false)
-		const end = node.getEnd()
-		if (start >= artifactStart || end < artifactEnd) return undefined
-		if (!best || end - start < best.end - best.start) best = { start, end }
-		return undefined
-	})
-	return best
+	return withAnalysisSourceFile(
+		tsConfigFilePath === undefined ? {} : { tsConfigFilePath },
+		sourceText,
+		filePath,
+		sourceFile => {
+			let best: { start: number; end: number } | undefined
+			sourceFile.forEachDescendant(node => {
+				if (!ts.isExpression(node.compilerNode)) return undefined
+				const start = node.getStart(false)
+				const end = node.getEnd()
+				if (start >= artifactStart || end < artifactEnd) return undefined
+				if (!best || end - start < best.end - best.start) best = { start, end }
+				return undefined
+			})
+			return best
+		}
+	)
 }
 
 function diagnosticMultiset(
