@@ -24,6 +24,7 @@ import {
 	discardSemanticProgramOwner,
 	runWithSemanticProgramOwner
 } from '../src/internal/semanticProgramOwner.js'
+import { createCompilationContextLease } from '../src/compilationContext.js'
 
 const marker = (kind: RegionKind, id: string, placeholder: string): string =>
 	`/** @TYPE ${kind} id=${id} **/${placeholder}/** @END **/`
@@ -99,6 +100,23 @@ interface TimingStats {
 	readonly minMilliseconds: number
 	readonly maxMilliseconds: number
 	readonly samples: number
+}
+
+/**
+ * One multi-step repair loop measured with and without a compilation-context
+ * lease.
+ *
+ * Both arms answer the same question over interleaved repetitions, so reuse is
+ * reported as a project count and not only as a timing.
+ */
+interface AnalysisScopeArmSummary {
+	readonly iterations: number
+	readonly leasedLoopMilliseconds: TimingStats
+	readonly unleasedLoopMilliseconds: TimingStats
+	readonly leaseImprovementPercent: number
+	/** Projects each lease built for its loop; 1 means the project was reused. */
+	readonly leasedProjectRebuilds: readonly number[]
+	readonly unleasedOperationCount: number
 }
 
 /** First-revision versus second-revision latency within one program-ownership arm. */
@@ -347,6 +365,71 @@ const unretainedRevisionSummary = summarizeRevisionArm(unretainedInitial, unreta
 const retainedRevisionSummary = summarizeRevisionArm(retainedInitialSamples, retainedRevisionSamples)
 
 const semanticCache = baselineAnalysisCacheStats()
+
+// ---------------------------------------------------------------------------
+// Analysis-scope arm: a multi-step graph-compilation loop with and without one
+// compilation-context lease. This is the mechanism TODO 7.1 measures. Timing is
+// read-only local evidence; reuse is proven by the project count, not a clock.
+// ---------------------------------------------------------------------------
+
+const analysisLoopSteps = 6
+const analysisScopeLeasedSamples: number[] = []
+const analysisScopeUnleasedSamples: number[] = []
+const analysisScopeRebuilds: number[] = []
+
+function compileMultiGraphOnce(): void {
+	const result = compileGraph(multiGraph, registry)
+	if (!result.ok) throw new Error(JSON.stringify(result.diagnostics))
+}
+
+/** One repair-loop repetition under a single retained lease. */
+function measureLeasedLoop(): void {
+	const lease = createCompilationContextLease()
+	try {
+		const started = performance.now()
+		for (let step = 0; step < analysisLoopSteps; step += 1) lease.run(() => { compileMultiGraphOnce() })
+		analysisScopeLeasedSamples.push(performance.now() - started)
+		analysisScopeRebuilds.push(lease.projectRebuildCount)
+	} finally {
+		lease.close()
+	}
+}
+
+/** The same loop with no lease, so every step builds its own project. */
+function measureUnleasedLoop(): void {
+	const started = performance.now()
+	for (let step = 0; step < analysisLoopSteps; step += 1) compileMultiGraphOnce()
+	analysisScopeUnleasedSamples.push(performance.now() - started)
+}
+
+for (let repetition = 0; repetition < iterations; repetition += 1) {
+	// Alternate first-run order so neither arm is measured against a colder or
+	// warmer JIT state than the other, and give each leased repetition a fresh
+	// lease so no repetition inherits the previous one's project.
+	if (repetition % 2 === 0) {
+		measureUnleasedLoop()
+		measureLeasedLoop()
+	} else {
+		measureLeasedLoop()
+		measureUnleasedLoop()
+	}
+}
+
+const analysisScopeLeasedStats = timingStats(analysisScopeLeasedSamples)
+const analysisScopeUnleasedStats = timingStats(analysisScopeUnleasedSamples)
+const analysisScope: AnalysisScopeArmSummary = {
+	iterations,
+	leasedLoopMilliseconds: analysisScopeLeasedStats,
+	unleasedLoopMilliseconds: analysisScopeUnleasedStats,
+	leaseImprovementPercent: improvementPercent(
+		analysisScopeUnleasedStats.medianMilliseconds,
+		analysisScopeLeasedStats.medianMilliseconds
+	),
+	leasedProjectRebuilds: analysisScopeRebuilds,
+	// Without a lease each step builds and discards its own project.
+	unleasedOperationCount: analysisLoopSteps
+}
+
 const warmStats = timingStats(warmSemantic.map(measurement => measurement.elapsedMilliseconds))
 const warmMedian = warmStats.medianMilliseconds
 const coldTypeScriptAnalysis = coldSemantic.baselineAnalysisMilliseconds + coldSemantic.candidateAnalysisMilliseconds
@@ -394,8 +477,9 @@ const semanticValidation = {
 }
 
 console.log(JSON.stringify({
-	schemaVersion: 4,
+	schemaVersion: 5,
 	iterations,
 	results,
-	semanticValidation
+	semanticValidation,
+	analysisScope
 }, null, 2))
