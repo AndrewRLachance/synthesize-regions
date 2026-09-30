@@ -73,7 +73,15 @@ This roadmap prioritizes correctness and deterministic LLM repair behavior befor
 
 ## 7. Reuse TypeScript analysis across a compilation session
 
-- [ ] Introduce a graph compilation/runner validation session with a reusable `ts-morph` project or compiler host.
+- [x] Introduce a reusable compilation scope that keeps one `ts-morph` project
+      across a graph compilation/runner repair loop. `createCompilationContextLease()`
+      is the package mechanism: it retains the project, releases every source file
+      between operations, and rebuilds on an explicitly requested configuration
+      change. Whether a scope exists and how long it lives stays with the runtime;
+      the package deliberately does not own a repair *session*.
+- [x] Route the nested region, expression-suffix, and semantic-target checks
+      through the active analysis scope so they no longer bypass analysis
+      ownership by building private projects.
 - [ ] Cache immutable template source discovery and marker analysis at template definition time.
 - [ ] Parse raw fragments once for syntax validation and security inspection.
 - [ ] Reuse semantic-validation project context across runner repair iterations.

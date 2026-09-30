@@ -38,6 +38,12 @@
       "owner": "synthesize-regions@0.6.2",
       "path": "src/templates/contractManifest.ts",
       "symbols": ["SYNTHESIZE_REGIONS_CONTRACT_MANIFEST"]
+    },
+    {
+      "id": "synthesize-regions-analysis-scope",
+      "owner": "synthesize-regions@0.6.2",
+      "path": "src/validation/analysisContext.ts",
+      "symbols": ["createCompilationContextLease", "runWithAnalysisContext", "withAnalysisSourceFile"]
     }
   ],
   "approximatedContracts": [],
@@ -123,6 +129,16 @@
       "ownedSymbols": ["collectExecutableTests", "collectNamedImports", "collectTopLevelDeclarations"],
       "adversarialTestIds": ["test/invariant-checker.test.ts#counts only exact executable test declarations", "test/invariant-checker.test.ts#distinguishes exported declarations and owner imports from text matches"],
       "residualAssumptions": []
+    },
+    {
+      "id": "SR-ANALYSIS-LEASE",
+      "claim": "Reusable analysis scope retains only a compiler project; every source file it creates is released between operations, and an explicitly requested configuration rebuilds the project instead of validating under the previous one.",
+      "authoritativeOwner": "synthesize-regions@0.6.2",
+      "enforcementBoundary": "src/validation/analysisContext.ts",
+      "contractVersion": "analysis-scope-1",
+      "ownedSymbols": ["createCompilationContextLease", "withAnalysisSourceFile"],
+      "adversarialTestIds": ["test/compilation-context-lease.test.ts#never lets a declaration reach a later operation", "test/compilation-context-lease.test.ts#rebuilds when a call explicitly requests a different tsconfig", "test/compilation-context-lease.test.ts#keeps a caller-omitted tsconfig from downgrading a bound project"],
+      "residualAssumptions": ["Reuse covers the public API surface that resolves the active analysis scope; captured artifact-set validation is hermetic and retains its own project owner."]
     }
   ]
 }

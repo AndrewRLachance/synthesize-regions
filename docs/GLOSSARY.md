@@ -37,6 +37,10 @@ producer templates.
 `description`, `format`, or `contentMediaType` that is preserved but does not
 constrain runtime values or compatibility.
 
+**Analysis scope** — The `ts-morph` project that owns TypeScript analysis for
+one or more operations. Without an explicit scope each top-level call builds a
+private one; see *compilation context lease* for reuse across calls.
+
 **Arity** — Whether a low-level marker accepts one replacement (`one`) or a
 non-empty list of replacements (`many`). A graph fragment-collection port is the
 higher-level mechanism for ordered variadic fragment inputs.
@@ -79,6 +83,12 @@ value and accept no value respectively.
 open so integrations can add producer-defined codes.
 
 ## C
+
+**Compilation context lease** — A caller-owned `CompilationContextLease` that
+keeps one analysis project across several top-level operations. It retains the
+project and nothing else: every source file it creates is released when `run()`
+returns, so no declaration crosses an operation boundary. It is not a session
+and holds no durable state. Distinct from *semantic program lease*.
 
 **Canonical schema** — A supported JSON Schema normalized into deterministic
 key and set ordering for comparison, caching, planner contracts, and digests.
@@ -474,6 +484,13 @@ artifact `fill` action.
 **Schema alias** — The deprecated standalone `schema` field on outputs,
 artifacts, and goals. `TypeDescriptor.schema` is canonical; dual declarations
 must be provably equivalent.
+
+**Semantic program lease** — The internal, authority-scoped owner that retains a
+captured candidate TypeScript program across artifact-set input and graph
+repairs. It is published on the `@internal` `./internal/semantic-program-owner`
+subpath for an integrating runtime, not through the public compilation API. It is
+distinct from *compilation context lease*, which owns scratch analysis rather
+than candidate validation.
 
 **Schema compatibility engine** — The canonical validation, normalization,
 value checking, caching, local-reference resolution, and conservative

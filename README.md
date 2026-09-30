@@ -1447,6 +1447,7 @@ import {
   compareTypeScriptTypes,
   compileArtifactSet,
   compileGraph,
+  createCompilationContextLease,
   createGraphRunner,
   createTemplateRegistry,
   createTemplateRegistryFromManifests,
@@ -1490,6 +1491,7 @@ import {
   type GraphPatchAction,
   type GraphRunnerAction,
   type GraphRunnerState,
+  type CompilationContextLease,
   type ReplacementMap,
   type StrictPartialSynthesisGraph,
   type TemplateCatalogView,
@@ -1542,6 +1544,7 @@ finalizeTemplateArtifact(ownedArtifact, inputs?, options?)
 fillTemplateArtifactWithCatalog(artifact, inputs, capturedCatalog, options?)
 finalizeTemplateArtifactWithCatalog(artifact, inputs, capturedCatalog, options?)
 createGraphRunner(registryOrTemplates, graph, options?)
+createCompilationContextLease(options?)
 applyGraphPatch(graph, action)
 compileArtifactSet(plan, registryOrTemplates, options?)
 assembleArtifactSetTargets(units, registryOrTemplates, options?)
@@ -1581,13 +1584,45 @@ Canonical behavior examples live under `test/fixtures/`, and
 `test/fixture-integration.test.ts` runs every fixture through
 `generateWithReplacements`.
 
+### Reusing analysis across a repair loop
+
+Each top-level compilation or generation call normally builds its own
+`ts-morph` project. A repair loop calls it once per iteration, so a caller that
+holds one project across several calls avoids rebuilding it each time:
+
+```ts
+const lease = createCompilationContextLease({ tsConfigFilePath: "tsconfig.json" });
+try {
+  for (const action of repairActions) {
+    const state = lease.run(() => runner.advance(action));
+    if (state.kind === "complete") break;
+  }
+} finally {
+  lease.close();
+}
+```
+
+The lease retains the project and nothing else. Every source file it creates is
+released when `run()` returns, so a declaration from one iteration cannot reach
+the next, and a failed iteration leaves no residue for the retry. `run()` may
+nest the same lease and rejects a different one. `projectRebuildCount` reports
+how many projects the lease has built; it rises when a call explicitly requests
+a different `tsConfigFilePath`, because validating under the previous
+configuration would be wrong.
+
+The lease is not a repair session: it holds no graph, artifact, or durable
+state. Deciding whether a reuse scope exists and how long it stays open belongs
+to the integrating runtime. It never exposes a TypeScript project, so callers
+receive no compiler objects and no path-based read authority.
+
 ## Development performance checks
 
 Run `npm run benchmark:compilation -- --iterations=5` for a read-only JSON
 report covering single- and multi-node graphs, artifact sets, cold and warm
 captured-workspace baseline analysis, candidate semantic analysis, consecutive
 candidate revisions with and without an explicitly owned incremental program,
-cache hits/misses, retained cache bytes, and peak RSS. The
+a multi-step graph-compilation loop with and without a compilation-context
+lease, cache hits/misses, retained cache bytes, and peak RSS. The
 command does not write benchmark results into the repository. Timing values are
 local acceptance evidence, not unit-test assertions.
 
@@ -1601,10 +1636,20 @@ Each retained repetition builds and discards its own program owner, so no
 repetition inherits the previous one's program and every repetition measures the
 same first-then-second revision transition.
 
+The `analysisScope` section reports the same interleaved treatment for a
+multi-step graph-compilation loop: the leased and unleased arms alternate which
+runs first, and each leased repetition opens and closes its own lease. Reuse is
+reported as a count (`leasedProjectRebuilds` is `1` per repetition when the
+project is reused, against `unleasedOperationCount` separate builds), so the
+mechanism is observable independently of any timing.
+
 Artifact-set semantic validation caches only successful immutable baseline
 analysis data. Exact captured file hashes, the effective workspace root and
 tsconfig, authorized project references, analysis mode, snapshot identity, and
 TypeScript identity all participate in the key. The baseline cache never retains
 generated candidate source or compiler objects. Runtime-core may separately
 install a private authority-scoped candidate-program owner across input/graph
-repairs; it is not part of the public compilation API. It is part of the agent runtime design.
+repairs. It is published on the `./internal/semantic-program-owner` subpath and
+is marked `@internal`, so it is reachable by an integrating runtime but is not
+part of the public compilation API. Its retention window is part of the agent
+runtime design; the package owns only the mechanism and its correctness.

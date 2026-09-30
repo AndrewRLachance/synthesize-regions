@@ -112,6 +112,7 @@ Authority is intentionally divided:
 | Captured project bytes, target ranges, project references, required roots, and import permissions | The caller |
 | Workspace Constraints evaluation | The `workspace-constraints` package |
 | Model workflow, durable state, approval, staging, filesystem mutation, and recovery | The integrating runtime |
+| Whether an analysis scope is reused, and for how long | The integrating runtime |
 
 The package's exact wire contracts are the exported TypeScript declarations,
 published JSON Schemas, `contract-manifest.json`, and the generated invariant
@@ -250,9 +251,41 @@ scratch source files are replaced and released within the same ownership
 boundary. This prevents diagnostics or declarations from a previous operation
 from leaking into a retry.
 
+Every analysis path resolves that ownership, including the nested region,
+expression-suffix, and semantic-target checks that previously built private
+projects. They reuse the active project and hold their own short-lived file
+beside the caller's scratch file, so a caller keeps the source file it is
+inspecting.
+
 Direct file APIs read the exact file path supplied by the caller. Artifact-set
 project validation uses the separate captured-project design described in
 Section 10 and does not fall back to live workspace source.
+
+### 7.5 Reusable analysis scope
+
+`createCompilationContextLease()` returns an opaque handle that keeps one
+analysis project across several top-level operations. It exists because a
+repair loop calls compilation once per iteration, and each of those calls would
+otherwise rebuild a project from scratch.
+
+A lease retains the project and nothing else. Every source file it creates is
+released when the enclosing `run()` returns, so a declaration from one iteration
+cannot reach the next. The lease is not a repair *session*: it holds no graph,
+artifact, or durable state, and the decision to keep one open for a unit of
+work, and how long it lives, belongs to the integrating runtime.
+
+`run()` accepts nesting the same lease and rejects a different one, so a
+caller-owned scope can never be silently interleaved. `close()` is
+irrevocable, and using a closed lease throws.
+
+The lease binds one `tsConfigFilePath`. A call that explicitly requests a
+different one rebuilds the project rather than validating under the previous
+compiler options; `projectRebuildCount` reports how many projects the lease has
+built. A call that omits the option never downgrades a bound project, which is
+what keeps catalog-level compilation paths from rebuilding on every call.
+
+The lease never exposes a TypeScript project. Callers receive no compiler
+objects and no path-based read authority.
 
 ## 8. Graph templates and catalogs
 
@@ -682,6 +715,12 @@ against a second revision inside one program-ownership arm, so the retained and
 unretained percentages answer the same question; the two arms are interleaved
 with alternating order and a fresh owner per repetition so neither ordering nor
 a previous repetition's program can bias the comparison.
+
+The analysis-scope arm applies the same interleaving to a multi-step repair
+loop, comparing a loop that keeps one lease open against the same loop with no
+lease. It reports the median and observed spread of both arms plus the number of
+projects each lease built, so reuse is visible as a count and not only as a
+timing. No wall-clock threshold gates the result.
 
 ## 15. Public contracts and packaging
 
