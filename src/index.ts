@@ -5,6 +5,7 @@ export * from "./markers.js";
 export * from "./regions.js";
 export * from "./replacements.js";
 export * from "./validation.js";
+export * from "./compilationContext.js";
 export * from "./securityPolicy.js";
 export * from "./generate.js";
 export * from "./templates.js";

@@ -39,6 +39,7 @@ interface BuiltContractIdentity {
 /** Built declaration modules selected by the workflow implementation inventory. */
 const DECLARATION_PATHS = [
 	'dist/index.d.ts',
+	'dist/compilationContext.d.ts',
 	'dist/templates.d.ts',
 	'dist/templates/contractIdentity.d.ts',
 	'dist/templates/capabilityClosure.d.ts',

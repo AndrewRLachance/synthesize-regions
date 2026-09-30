@@ -424,6 +424,7 @@ import {
 	compareJsonSchemas,
 	compareTypeDescriptors,
 	compareTypeScriptTypes,
+	createCompilationContextLease,
 	createTemplateRegistryFromManifests,
 	deepestGeneratedSourceSpan,
 	deriveTemplateCapabilityClosure,
@@ -459,6 +460,7 @@ import {
 	type GraphTemplateManifest,
 	type GraphRunnerAction,
 	type GraphRunnerState,
+	type CompilationContextLease,
 	type ImplementationTargetDiscoveryResult,
 	type CompletionShellManifest,
 	type UnresolvedValueTypeScriptAuthority,
@@ -532,6 +534,16 @@ const generatedTemplateCode: string = generateSourceTemplateWithReplacements(
 	'Value',
 	{ value: { kind: 'number', value: 42 } }
 ).code
+const compilationLease: CompilationContextLease = createCompilationContextLease()
+const leasedTemplateCode: string = compilationLease.run(() =>
+	generateSourceTemplateWithReplacements(
+		boundedSource,
+		'Value',
+		{ value: { kind: 'number', value: 7 } }
+	).code
+)
+const leaseProjectRebuildCount: number = compilationLease.projectRebuildCount
+compilationLease.close()
 const implementationDiscovery: ImplementationTargetDiscoveryResult = discoverImplementationTargets({
 	files: { 'src/packed-target.ts': 'export declare const packedTarget: { (): number };' },
 	enabledTargetKinds: ['declaredCallable']
@@ -619,6 +631,9 @@ void unknownDiagnosticIsTerminal
 void SYNTHESIS_DIAGNOSTIC_CLASSIFICATION_CATALOG
 void discoveredTemplate
 void generatedTemplateCode
+void leasedTemplateCode
+void leaseProjectRebuildCount
+void compilationLease
 void implementationDiscovery
 void completionShellManifest
 void completionShell
