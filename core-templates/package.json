@@ -1,0 +1,100 @@
+{
+	"name": "@synthesize-regions/core-templates",
+	"version": "0.1.0",
+	"description": "Curated, Effect v4, and Drizzle ORM v1 graph-template catalogs for synthesize-regions.",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./curated": {
+			"types": "./dist/catalogs/curated.d.ts",
+			"import": "./dist/catalogs/curated.js"
+		},
+		"./effect-v4": {
+			"types": "./dist/catalogs/effect-v4.d.ts",
+			"import": "./dist/catalogs/effect-v4.js"
+		},
+		"./effect-v4/authoring": {
+			"types": "./dist/authoring/effect-v4/index.d.ts",
+			"import": "./dist/authoring/effect-v4/index.js"
+		},
+		"./effect-v4/*": {
+			"types": "./dist/packs/effect-v4/*/index.d.ts",
+			"import": "./dist/packs/effect-v4/*/index.js"
+		},
+		"./base": {
+			"types": "./dist/packs/base/index.d.ts",
+			"import": "./dist/packs/base/index.js"
+		},
+		"./es-toolkit": {
+			"types": "./dist/packs/es-toolkit/index.d.ts",
+			"import": "./dist/packs/es-toolkit/index.js"
+		},
+		"./drizzle-orm/v1": {
+			"types": "./dist/packs/drizzle-orm/v1/index.d.ts",
+			"import": "./dist/packs/drizzle-orm/v1/index.js"
+		},
+		"./metadata/effect-v4.json": "./metadata/effect-v4-catalog-manifest.json",
+		"./metadata/effect-v4-replacements.json": "./metadata/effect-v4-template-replacements.json",
+		"./metadata/drizzle-orm-v1.json": "./metadata/drizzle-orm-v1-catalog-manifest.json"
+	},
+	"files": [
+		"dist",
+		"metadata",
+		"docs",
+		"README.md"
+	],
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"pretest": "npm run build",
+		"test": "vitest run --config vitest.config.ts",
+		"generate": "node --import tsx scripts/generate/generated.mts --write",
+		"generated:check": "node --import tsx scripts/generate/generated.mts --check",
+		"audit:semantic": "npm run audit --prefix tools/semantic-compile",
+		"test:package": "node scripts/validate/package-smoke.mjs",
+		"verify": "npm run generated:check && npm run typecheck && npm test && npm run build && npm run test:package",
+		"prepack": "npm run generated:check && npm run build"
+	},
+	"dependencies": {
+		"typescript": "5.9.3"
+	},
+	"peerDependencies": {
+		"@effect/openapi-generator": "4.0.0-rc.117",
+		"@effect/opentelemetry": "4.0.0-rc.117",
+		"@effect/platform-browser": "4.0.0-rc.117",
+		"@effect/platform-bun": "4.0.0-rc.117",
+		"@effect/platform-node": "4.0.0-rc.117",
+		"@effect/sql-pg": "4.0.0-rc.117",
+		"@effect/vitest": "4.0.0-rc.117",
+		"drizzle-orm": "1.0.0-rc.4",
+		"effect": "4.0.0-rc.117",
+		"es-toolkit": "^1.52.0",
+		"synthesize-regions": "^0.6.2",
+		"ts-pattern": "^5.9.0"
+	},
+	"peerDependenciesMeta": {
+		"@effect/openapi-generator": { "optional": true },
+		"@effect/opentelemetry": { "optional": true },
+		"@effect/platform-browser": { "optional": true },
+		"@effect/platform-bun": { "optional": true },
+		"@effect/platform-node": { "optional": true },
+		"@effect/sql-pg": { "optional": true },
+		"@effect/vitest": { "optional": true },
+		"drizzle-orm": { "optional": true },
+		"es-toolkit": { "optional": true },
+		"ts-pattern": { "optional": true }
+	},
+	"devDependencies": {
+		"@types/node": "^22.20.1",
+		"drizzle-orm": "1.0.0-rc.4",
+		"effect": "4.0.0-rc.117",
+		"synthesize-regions": "file:..",
+		"tsx": "^4.19.2",
+		"vitest": "^2.1.8"
+	}
+}

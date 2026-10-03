@@ -1,7 +1,7 @@
 import { writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
-import { coreTemplateManifests, createCoreTemplateRegistry } from '../core-templates/catalog.js'
-import type { GraphTemplateManifest, TemplateRegistry } from '../src/templates.js'
+import { coreTemplateManifests, createCoreTemplateRegistry } from '@synthesize-regions/core-templates'
+import type { GraphTemplateManifest, TemplateRegistry } from 'synthesize-regions'
 
 /** The curated catalog paired with the registry that validated it. */
 export interface MiningCatalog {

@@ -1,4 +1,4 @@
-import { compileGraph, type SynthesisNode, type TypeDescriptor } from '../src/index.js'
+import { compileGraph, type SynthesisNode, type TypeDescriptor } from 'synthesize-regions'
 import { assertOk, code, collection, fact, literal, raw, ref, step, writeOutput } from './shared.js'
 import { coreRegistry, projectRoot } from './shared.js'
 import { join } from 'node:path'

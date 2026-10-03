@@ -527,44 +527,34 @@ catalog atomically. The published
 `schemas/template-manifest.schema.json` is suitable for validating the JSON at
 an API boundary before calling the TypeScript API.
 
-## Effect sample catalogs
+## Companion template catalogs
 
-The `core-templates` directory includes a composable Effect catalog, currently
-pinned to `effect@4.0.0-rc.117`. The original
-`effect-ts.ts` contains the core 40 Effect constructors, combinators, generator
-statements, and runners. The extended application catalog is split by concern:
+Template content is owned by the independently versioned
+`@synthesize-regions/core-templates` companion package. It targets exactly
+`effect@4.0.0-rc.117` and consumes this package's public template contracts; it
+is not another engine layer.
 
-| Sample module | Models |
-| --- | ---: |
-| `effect-schema-templates.ts` | 7 |
-| `effect-service-layer-templates.ts` | 8 |
-| `effect-application-templates.ts` | 5 |
-| `effect-error-templates.ts` | 8 |
-| `effect-concurrency-templates.ts` | 7 |
-| `effect-schedule-templates.ts` | 7 |
-| `effect-resource-templates.ts` | 4 |
-| `effect-config-templates.ts` | 8 |
-| `effect-coordination-templates.ts` | 14 |
-| `effect-observability-templates.ts` | 7 |
-| `effect-stream-templates.ts` | 8 |
-| `effect-testing-templates.ts` | 5 |
-| `effect-workflow-templates.ts` | 10 |
+The default and `./curated` entry points preserve the deliberate 479-template
+catalog. `./effect-v4` exposes the complete 1,794-template canonical catalog
+and its registry constructor. Stable domain entry points such as
+`./effect-v4/http`, `./effect-v4/sql`, and `./effect-v4/ai` expose named
+definitions plus one combined domain array. `./base` and `./es-toolkit` expose
+the non-Effect packs. Leaf implementation modules are private.
 
-Each module exports its named definitions and one stable
-`effect…GraphTemplateInputs` array. Combine those arrays with
-`effectGraphTemplateInputs` when constructing a registry. The templates assume
-the matching Effect namespaces are in semantic scope; the application
-source-file template emits the standard imports. The Vitest declaration
-templates additionally assume an `it` binding from `@effect/vitest`.
+```ts
+import { createCoreTemplateRegistry } from '@synthesize-regions/core-templates'
+import {
+  createEffectV4CanonicalRegistry,
+  effectV4CanonicalGraphTemplateInputs
+} from '@synthesize-regions/core-templates/effect-v4'
+import { effectV4HttpGraphTemplateInputs } from '@synthesize-regions/core-templates/effect-v4/http'
+```
 
-The workflow module raises the core-plus-family catalog to 138 models. Its
-atomic templates compose schema validation, live/test service Layers,
-configuration, resilience, bounded traversal, scoped resources and workers,
-framework-neutral request handlers, validated ingestion Streams, and a complete
-ManagedRuntime application entry point. `ApplicationMain` accepts zero or more
-top-level declaration statements, one or more closed Layers, and an Effect whose
-requirements are supplied by the merged Layer. It always disposes the managed
-runtime after `runPromise` settles.
+Catalog assembly is explicit: the companion package registers every domain
+pack once and rejects duplicate `modelId` ownership. Its generated manifest,
+replacement metadata, and structural evidence are package-owned artifacts.
+See the [companion catalog architecture](../core-templates/docs/architecture.md)
+for its pack boundaries, generation rules, and Effect compatibility policy.
 
 Nominal descriptors keep Effect library families distinct at graph boundaries,
 while correlated placeholders propagate success, expected-error, requirement,

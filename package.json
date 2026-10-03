@@ -3,6 +3,9 @@
   "version": "0.6.2",
   "description": "Controlled TypeScript source-template replacement utility using ts-morph.",
   "type": "module",
+  "workspaces": [
+    "core-templates"
+  ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -76,7 +79,8 @@
     "test:package": "npm run schemas:check && npm run build && node --import tsx scripts/package-smoke.ts",
     "test:package:built": "node --import tsx scripts/package-smoke.ts",
     "prepack": "npm run schemas:check && npm run invariants:check && npm run contract-manifest:check && npm run build && node --import tsx scripts/generate-contract-snapshot.ts --check",
-    "verify": "npm run schemas:check && npm run invariants:check && npm run contract-manifest:check && npm run typecheck && npm run test:fast && npm run build && npm run test:package:built && npm run contracts:check:built",
+    "verify:library": "npm run schemas:check && npm run invariants:check && npm run contract-manifest:check && npm run typecheck && npm run test:fast && npm run build && npm run test:package:built && npm run contracts:check:built",
+    "verify": "npm run verify:library && npm run verify --workspace @synthesize-regions/core-templates",
     "samples:export": "node --import tsx scripts/export-mining-catalog.ts",
     "demo": "node --import tsx scripts/demo.ts"
   },

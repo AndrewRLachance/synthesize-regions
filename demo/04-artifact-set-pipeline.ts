@@ -5,19 +5,22 @@ import {
 	compileArtifactSet,
 	createArtifactSetWorkspaceSnapshotHash,
 	createTemplateRegistryFromManifests,
+	defineTemplate,
 	fragmentCollectionPort,
 	type ArtifactSetPlan,
 	type SynthesisGraph
-} from '../src/index.js'
-import { defineTemplate } from '../src/index.js'
-import { validateEditStarterGraph, validateEditTemplateManifests } from '../core-templates/validate-edit-templates.js'
+} from 'synthesize-regions'
+import {
+	validateEditStarterGraph,
+	validateEditTemplateManifests
+} from '../core-templates/test/fixtures/validate-edit-templates.js'
 import { assertOk, block, code, collection, fact, literal, raw, step, writeOutput } from './shared.js'
 import { coreRegistry, projectRoot } from './shared.js'
 
 export const id = '04-artifact-set-pipeline'
 export const title = 'Layer 4 - the artifact-set pipeline'
 
-const fixtureRoot = join(projectRoot, 'test/artifact-set-fixtures/abstract-reasoning-graph')
+const fixtureRoot = join(projectRoot, 'core-templates/test/fixtures/abstract-reasoning-graph')
 
 /** A source-file wrapper so any statement collection can become its own module. */
 const demoModuleSourceFile = defineTemplate({

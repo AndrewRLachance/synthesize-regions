@@ -1,0 +1,188 @@
+import {
+	fragmentCollectionPort,
+	fragmentPort,
+	literalPort,
+	rawCodePort,
+	unionPort
+} from 'synthesize-regions'
+import type {
+	InputPort,
+	OutputPort,
+	TemplateTypeParameterDefinition,
+	TypeDescriptor
+} from 'synthesize-regions'
+import type { GraphTemplateDefinitionInput } from 'synthesize-regions'
+import {
+	effectCallbackInput,
+	effectCallbackPolicy,
+	effectExpressionPolicy,
+	effectStructuralType,
+	effectValueInput
+} from '../../packs/effect-v4/core/effect-ts.js'
+
+export type AnyEffectFamilyTemplateDefinitionInput = GraphTemplateDefinitionInput<
+	string,
+	Record<string, InputPort>,
+	OutputPort,
+	Record<string, TemplateTypeParameterDefinition> | undefined
+>
+
+export const typeParameter = (description: string): TemplateTypeParameterDefinition => ({
+	description,
+	constraint: { ts: 'unknown' }
+})
+
+export const typeParameters = (
+	...entries: ReadonlyArray<readonly [string, string]>
+): Record<string, TemplateTypeParameterDefinition> =>
+	Object.fromEntries(entries.map(([name, description]) => [name, typeParameter(description)]))
+
+export const marker = (
+	kind: 'expression' | 'identifier' | 'statement' | 'string' | 'type' | 'sourceFile',
+	id: string,
+	fallback: string
+): string => `/** @TYPE ${kind} id=${id} **/${fallback}/** @END **/`
+
+export const expressionOutput = (description: string, type?: TypeDescriptor) => ({
+	kind: 'expression' as const,
+	...(type ? { type } : {}),
+	description
+})
+
+export const statementOutput = (description: string) => ({
+	kind: 'statement' as const,
+	description
+})
+
+export type TypeDescriptorWithTs = TypeDescriptor & { readonly ts: string }
+
+/**
+ * Canonical structural shape shared by every nominal phantom descriptor.
+ *
+ * `nominalType` is the descriptor form; this is the bare `ts` string used when a
+ * descriptor is nested inside another one, e.g. an Effect yielding a Fiber.
+ * Packs must import this instead of redefining the template.
+ */
+export const structuralTypeWithPhantoms = (phantoms: Readonly<Record<string, string>> = {}): string =>
+	`{ readonly pipe: () => unknown${Object.entries(phantoms)
+		.map(([name, type]) => `; readonly __${name}?: () => ${type}`)
+		.join('')} }`
+
+export const nominalType = (
+	nominal: string,
+	phantoms: Readonly<Record<string, string>> = {}
+): TypeDescriptorWithTs => ({
+	nominal,
+	ts: structuralTypeWithPhantoms(phantoms)
+})
+
+export const typedExpressionInput = (description: string, type: TypeDescriptor) => unionPort({
+	options: [
+		fragmentPort({ regionKind: 'expression', accepts: { outputKind: 'expression', type }, description }),
+		rawCodePort({ regionKind: 'expression', policy: effectExpressionPolicy, type, description })
+	],
+	description
+})
+
+export const callbackInput = effectCallbackInput
+export const valueInput = effectValueInput
+
+export const identifierInput = (description: string) => literalPort({
+	regionKind: 'identifier',
+	schema: { type: 'string', pattern: '^[$A-Za-z_][$A-Za-z0-9_]*$' },
+	description
+})
+
+export const stringInput = (description: string) => literalPort({
+	regionKind: 'string',
+	schema: { type: 'string', minLength: 1 },
+	description
+})
+
+export const typeCodeInput = (description: string) => rawCodePort({
+	regionKind: 'type',
+	policy: {
+		description: 'Self-contained TypeScript type expression. Module loading and ambient escape hatches are rejected.',
+		maxLength: 900,
+		allowNewlines: false,
+		forbiddenSubstrings: ['import', 'require', 'process', 'globalThis', 'Function', 'eval']
+	},
+	description
+})
+
+export const statementCollectionInput = (description: string, minItems = 1) => fragmentCollectionPort({
+	regionKind: 'statement',
+	accepts: { outputKind: 'statement' },
+	minItems,
+	separator: '\n',
+	description
+})
+
+export const rawCallbackInput = (description: string, type?: TypeDescriptor) => rawCodePort({
+	regionKind: 'expression',
+	policy: effectCallbackPolicy,
+	...(type ? { type } : {}),
+	description
+})
+
+export const schemaType = (
+	decoded = 'unknown',
+	encoded = 'unknown',
+	decodingServices = 'never',
+	encodingServices = decodingServices
+) =>
+	nominalType('effect/Schema', {
+		schemaDecoded: decoded,
+		schemaEncoded: encoded,
+		// Kept for compatibility with existing catalog constraints while v4 tracks
+		// decode / encode services independently.
+		schemaRequirements: `${decodingServices} | ${encodingServices}`,
+		schemaDecodingServices: decodingServices,
+		schemaEncodingServices: encodingServices
+	})
+
+export const schemaPropertySignatureType = (
+	decoded = 'unknown',
+	encoded = 'unknown',
+	decodingServices = 'never',
+	encodingServices = decodingServices
+) =>
+	nominalType('effect/SchemaAST.PropertySignature', {
+		schemaPropertyDecoded: decoded,
+		schemaPropertyEncoded: encoded,
+		schemaPropertyRequirements: `${decodingServices} | ${encodingServices}`,
+		schemaPropertyDecodingServices: decodingServices,
+		schemaPropertyEncodingServices: encodingServices
+	})
+
+export const effectReturningCallbackType = (
+	parameters: string,
+	success = 'unknown',
+	error = 'unknown',
+	requirements = 'unknown'
+): TypeDescriptorWithTs => ({ ts: `(${parameters}) => ${effectStructuralType(success, error, requirements)}` })
+
+export const tagType = (identifier = 'unknown', service = 'unknown') =>
+	nominalType('effect/Context.Key', { tagIdentifier: identifier, tagService: service })
+
+export const layerType = (provided = 'unknown', error = 'unknown', requirements = 'unknown') =>
+	nominalType('effect/Layer', { layerProvided: provided, layerError: error, layerRequirements: requirements })
+
+export const scheduleType = (output = 'unknown', input = 'unknown', requirements = 'never') =>
+	nominalType('effect/Schedule', { scheduleOutput: output, scheduleInput: input, scheduleRequirements: requirements })
+
+export const fiberType = (success = 'unknown', error = 'unknown') =>
+	nominalType('effect/Fiber', { fiberSuccess: success, fiberError: error })
+
+export const configType = (value = 'unknown') => nominalType('effect/Config', { configValue: value })
+export const refType = (value = 'unknown') => nominalType('effect/Ref', { refValue: value })
+export const deferredType = (success = 'unknown', error = 'unknown') =>
+	nominalType('effect/Deferred', { deferredSuccess: success, deferredError: error })
+export const queueType = (value = 'unknown') => nominalType('effect/Queue', { queueValue: value })
+export const pubSubType = (value = 'unknown') => nominalType('effect/PubSub', { pubSubValue: value })
+export const streamType = (success = 'unknown', error = 'unknown', requirements = 'unknown') =>
+	nominalType('effect/Stream', { streamSuccess: success, streamError: error, streamRequirements: requirements })
+export const metricType = (input = 'unknown', output = 'unknown') =>
+	nominalType('effect/Metric', { metricInput: input, metricOutput: output })
+export const managedRuntimeType = (requirements = 'unknown', error = 'unknown') =>
+	nominalType('effect/ManagedRuntime', { runtimeRequirements: requirements, runtimeError: error })

@@ -1,4 +1,4 @@
-import { generateWithReplacements, type ReplacementMap } from '../src/index.js'
+import { generateWithReplacements, type ReplacementMap } from 'synthesize-regions'
 import { block, code, coreRegistry, fact, step, writeOutput } from './shared.js'
 
 export const id = '01-marker-engine'

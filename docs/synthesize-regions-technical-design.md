@@ -83,7 +83,7 @@ The package is a synchronous library positioned between authored synthesis
 contracts and an external orchestrator:
 
 ```text
-template author                         candidate producer
+template author / companion catalog     candidate producer
   manifests + marked source               graph + literals/raw code/fills
              \                              /
               v                            v
@@ -108,6 +108,7 @@ Authority is intentionally divided:
 | --- | --- |
 | Marker grammar, region kinds, replacements, templates, graphs, artifacts, diagnostics, and artifact-set contracts | `synthesize-regions` |
 | Template membership and executable template source | The caller-selected, package-validated catalog snapshot |
+| Curated template content, Effect compatibility, domain-pack metadata, and catalog-specific verification | Caller-owned catalog packages such as `@synthesize-regions/core-templates` |
 | Candidate graph, literal values, raw code, and fills | The candidate producer, subject to package validation |
 | Captured project bytes, target ranges, project references, required roots, and import permissions | The caller |
 | Workspace Constraints evaluation | The `workspace-constraints` package |
@@ -172,6 +173,9 @@ The implementation is organized into five layers.
 Higher layers use lower layers rather than implementing separate source
 generation rules. In particular, a graph template ultimately invokes the same
 marker replacement and final syntax-validation pipeline as a direct caller.
+`@synthesize-regions/core-templates` sits outside these engine layers: it is a
+companion caller of the public template contracts and can version its content
+and Effect peer independently.
 
 ## 7. Source replacement engine
 
@@ -833,6 +837,10 @@ Package-owned supporting guides:
 - [Base Pattern Catalog](./base-patterns.md)
 - [Project Glossary](GLOSSARY.md)
 - [Phase 1-3 invariant ledger](./phase-1-3-invariants.md)
+
+Caller-owned companion catalogs:
+
+- [`@synthesize-regions/core-templates` architecture](../core-templates/docs/architecture.md)
 
 Cross-project documents copied into this package for integration review:
 

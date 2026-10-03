@@ -2,8 +2,8 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { createCoreTemplateRegistry } from '../core-templates/catalog.js'
-import type { SynthesisInput, TemplateRegistry } from '../src/index.js'
+import { createCoreTemplateRegistry } from '@synthesize-regions/core-templates'
+import type { SynthesisInput, TemplateRegistry } from 'synthesize-regions'
 
 export const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 export const outputRoot = join(projectRoot, 'demo-output')
@@ -12,7 +12,7 @@ const writtenFiles: string[] = []
 
 let registry: TemplateRegistry | undefined
 
-/** Build the curated 480-template registry once per demo run. */
+/** Build the curated 479-template registry once per demo run. */
 export function coreRegistry(): TemplateRegistry {
 	registry ??= createCoreTemplateRegistry()
 	return registry

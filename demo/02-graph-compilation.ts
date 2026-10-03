@@ -4,8 +4,8 @@ import {
 	defineTemplate,
 	type SynthesisNode,
 	type TypeDescriptor
-} from '../src/index.js'
-import { basePatternGraphTemplateInputs } from '../core-templates/e-samplesBasePatterns.js'
+} from 'synthesize-regions'
+import { basePatternGraphTemplateInputs } from '@synthesize-regions/core-templates/base'
 import { assertOk, block, code, collection, diagnosticLine, fact, raw, ref, step, writeOutput } from './shared.js'
 
 export const id = '02-graph-compilation'

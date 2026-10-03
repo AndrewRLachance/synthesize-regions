@@ -1,0 +1,3174 @@
+{
+	"drizzleOrmVersion": "1.0.0-rc.4",
+	"templateVersion": "1.0.0",
+	"catalog": "@synthesize-regions/core-templates/drizzle-orm/v1",
+	"generatedBy": "scripts/generate/generated.mts",
+	"summary": {
+		"templates": 244,
+		"uniqueModelIds": 244,
+		"countsByPack": {
+			"sql": 45,
+			"query": 50,
+			"relations": 14,
+			"schema": 122,
+			"runtime": 7,
+			"effect-schema": 6
+		}
+	},
+	"templates": [
+		{
+			"modelId": "DrizzleAlias",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_15ca9707d9ebf8948a8f5a5ce8b4cc21f3fc7dbb1d953f3c8c3edfe0dc80c8b4",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"alias",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleAnd",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_f3e9e9c43ff9254d6daa6ffdf52b64bd23933d7c7b73198cb3d1bd3749f8ba65",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"conditions"
+			]
+		},
+		{
+			"modelId": "DrizzleArrayContained",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_0e094d0d658ff5a307757285a5603e4a656d65ce33d4303f81860d38d4808af0",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleArrayContains",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_4ee8e83c4550e58159e3e9fc9c1ee99833e69f552fcdbab1e71d0879b15e870c",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleArrayOverlaps",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_272a75463580c8728778348197d1ecd128d5257290d2f31d66e1027ef96be87e",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleAsc",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_73a319d7491ef0959ebc5cd2fadfe88f38c734881947fc83d9d102563da13dff",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleAvg",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_2f8e59cc65b789ba2e455f8868739f1d205e199bbce5d5bb570db33411021fa3",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleAvgDistinct",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_4840f8d7506654b6f7cdedd50044653885402080f50a728a9b965525d1d5c163",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleBetween",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_8705902395a6363ab0f089e9d2a15bdb3d7ac02cbb89118991adcba6c649f505",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"lower",
+				"upper",
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleCamelCaseTable",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_ae9cba7ccd7a9f64a2949bcebd207b11361281cb1e3e25fd19ffdfad512a1c1b",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"columns",
+				"name"
+			]
+		},
+		{
+			"modelId": "DrizzleCheck",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_ad24b19f002749b59e9aea962e326fda3b15e73d320cdfd73bde320984e18a90",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"condition",
+				"name"
+			]
+		},
+		{
+			"modelId": "DrizzleCockroachBigint",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_087d3398c6833c5aa34278e1fffb8af8680fd30e9125618ef729496e488d2b4c",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"config"
+			]
+		},
+		{
+			"modelId": "DrizzleCockroachBool",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_e53aaf21a18b92a1b23a394a9ae716314d44b625f2cebdc41bf6aa30ae860e24",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleCockroachChar",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_95099e9855e6af1aa8b0103208adc694987ff9c5f804ccfbe82bdc47d4977d0a",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleCockroachDate",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_df0ebf960753f1c5b1a2270637198ddad344291cda0dd8109ed0521fa162fdbe",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleCockroachDecimal",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_e7b02ddb18f1e706457616f74e28e23375130d95d96b36f37e73d64e50c3b513",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"config"
+			]
+		},
+		{
+			"modelId": "DrizzleCockroachEnum",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_2922c3c5af24d91edc4db3d774a8c88e88e4ab6952933f3cad92954bbb9f3117",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"name",
+				"values"
+			]
+		},
+		{
+			"modelId": "DrizzleCockroachFloat",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_408f88ff9ea64ccdb8588d8b44d252482242d443bb8863d009dfa69cb29cd265",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleCockroachInet",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_eab78d1f789dc9c1718d92d056df720aa648c191c84aeabe3638f580708df09e",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleCockroachInt4",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_0bd8e6cafe34e2d6aa72680c357c4beda2321c407fa2846a02c0e83b0881728d",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleCockroachInterval",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_088de37f19b2ae9d7cbd3060cdf532f198298d840b49b770a96ccce756f90359",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleCockroachJsonb",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_d6ee1f0000f102a304b65dc0c92e0477e22349a2d918c5b3518a153ff7a30d5d",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleCockroachReal",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_84b799961f8adccec59fa6b1076cd535fa8c2450fb84edaeaa48c21f2eafab6c",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleCockroachSmallint",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_0e559f3fa0c53eb64617e8d14adbf22041d12dce3052a49e0c21c86dc356da11",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleCockroachString",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_17cc85a0b119fa9e19357dae0c59130f89d77448d96cca862442cc6fe4a4fa5b",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleCockroachTable",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_b37d03f7824f454ffad0aa968edfec29de5b1662db0ff80c693987104f14d5b8",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"columns",
+				"name"
+			]
+		},
+		{
+			"modelId": "DrizzleCockroachText",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_dac078b20f63c11fe0aba39b63ff2d2190b54f7d95eda24468fe4c4a9232ddb8",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleCockroachTime",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_d12d6e8e8f302dc2ec7316b5b4a6e65f5dc88f1c27a47d52f1dfab56c4f86666",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleCockroachTimestamp",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_e3a1729445d57eb7b8c15a104bc90df6f1e171d226c7d5303ce9a0913283bf59",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleCockroachUuid",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_5f9bee9d164a60d57f316b093c5f91fdd041787d5743610bf0da5fd5ed9512b3",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleCockroachVarchar",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_4b020f5af6439c7a7c60a943771bc4fb2b424af52d52d4af39d844287e518994",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleColumnDefault",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_00f02e5f0833377a0d7f944b1864626531e90a3b547df66f08b199cb55a51230",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source",
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleColumnDefaultFn",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_0187039ed41caa3ec6dcee067ac7dfa44de731f3881e169daeae0e2ffbf248fa",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"factory",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleColumnDefaultNow",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_98bd18fd3f6a3633f99357964f90ba6c8e6b51c2848fda963674da850d2c8554",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleColumnDefaultRandom",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_3efb48d2d3f93a2105909b00686364f4d70932d453d246e344852ca9559ce7b5",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleColumnGeneratedAlwaysAs",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_44dde7d6d5f0e2de6fce2f6671041bc74aabefb42529c9cbd431ad6ec6b0d3ad",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"expression",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleColumnGeneratedAlwaysIdentity",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_fd6d9a78cc7ca337dc63fe239e9b1cc23a3f7b066bef85202459db89b0a29b38",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"config",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleColumnNotNull",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_01a29c455c5f4b91b5c07d8adb3fb54c56716423434d0e2e284de58da7e8aa44",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleColumnOnUpdate",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_8667b5ce3655ba7e41c51d0341739eb0ec6cc4460a4aa6a25673e65267624360",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"factory",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleColumnPrimaryKey",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_04f6970cf35318e0a7ccd04a892971f9dc124a04188a0466644986203e1059cf",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleColumnReferences",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_d0025389508807ba6f8ef23e2cba9df16544d04b164579e51ba1d16f71040ae3",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"actions",
+				"foreignColumn",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleColumnType",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_5e40559feaeb9576a1697720e02eda4b3c13bef3cf0e0385e971e17cbbe0aeb6",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source",
+				"type"
+			]
+		},
+		{
+			"modelId": "DrizzleColumnUnique",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_ece3e92384749ee17daeb4a9a87586a59f74596e1fc1bdb8c158059299607745",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleComment",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_d1b55ddd58422dc473c6a6ca6c61a88550dd573fdfdb50cdab9b70fd8d90813f",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"comment",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleCompositePrimaryKey",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_607a774353df04289eeaab63c34c2310ea783131893e255a48a9dbf7d5d94f4d",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"columns"
+			]
+		},
+		{
+			"modelId": "DrizzleCount",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_916e785dc4092629a97bb1b17ecb02bea183adf32b55cd770eb2f43e424c3fb1",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleCountDistinct",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_aaaf6670bcbee5aed039f003a986a8cc98ad61db555df2430f06951a70015911",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleCrossJoin",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_11ebcef77e76f72ff51e448fdac4c80b7d8c87595fea6dfa54b16468799a0fbd",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source",
+				"table"
+			]
+		},
+		{
+			"modelId": "DrizzleCte",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_1b22df84100c4600d89a72100b50d316cd04672520db9947d6498695d4f8eee2",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"db",
+				"name",
+				"query"
+			]
+		},
+		{
+			"modelId": "DrizzleDatabase",
+			"version": "1.0.0",
+			"pack": "runtime",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_6f9bd13af7656ca3a32b6b36499333891ec12b157ed3dec7c5e86df40af0ac58",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"connection"
+			]
+		},
+		{
+			"modelId": "DrizzleDatabaseWithConfig",
+			"version": "1.0.0",
+			"pack": "runtime",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_0e67cbe88cabcd3fa27bf3a01275ed16aaa265eab3c6f08a1294691a0e22be30",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"config"
+			]
+		},
+		{
+			"modelId": "DrizzleDefineRelations",
+			"version": "1.0.0",
+			"pack": "relations",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_20fcae27246328753ef26992c39946faa918b622ab84b8a3c228f2f4dde4f4a1",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"callback",
+				"schema"
+			]
+		},
+		{
+			"modelId": "DrizzleDefineRelationsPart",
+			"version": "1.0.0",
+			"pack": "relations",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_ec10dead5a723d89f2de420bf844ac005817d514cfd8496e20de2075862fccb5",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"callback",
+				"schema"
+			]
+		},
+		{
+			"modelId": "DrizzleDelete",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_7ae8019a067369b9195f0336d5224d665418a987773ceb48eb01155e39485eb9",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"db",
+				"table"
+			]
+		},
+		{
+			"modelId": "DrizzleDesc",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_e09efb3379f155e588f1f8f1838edba83d8957ecf4a8a5cb5bf8ec469e0a4d1c",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleDynamicQuery",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_8b0415cdc169e71ef036ba94d704752587f9944ac0c265af0fa0621b5c41a749",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleEffectInsertSchema",
+			"version": "1.0.0",
+			"pack": "effect-schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_c945baf413820cc49eca5c3c4b6053e43304577c8d3e7342e979464501bc35ff",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"table"
+			]
+		},
+		{
+			"modelId": "DrizzleEffectInsertSchemaOverrides",
+			"version": "1.0.0",
+			"pack": "effect-schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_a225c56ad8ba3a6e84c5876502172149e886128387ea85b00ac92087390f3a62",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"overrides",
+				"table"
+			]
+		},
+		{
+			"modelId": "DrizzleEffectSelectSchema",
+			"version": "1.0.0",
+			"pack": "effect-schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_d2f78ba52fd34593103ef81eccead90491c85717546c05a548772d621ab2ad5b",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"table"
+			]
+		},
+		{
+			"modelId": "DrizzleEffectSelectSchemaOverrides",
+			"version": "1.0.0",
+			"pack": "effect-schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_1f2c8996bdbc6966598c37eaf5ed7233c0cb281809aaf18f713861bfe93b7646",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"overrides",
+				"table"
+			]
+		},
+		{
+			"modelId": "DrizzleEffectUpdateSchema",
+			"version": "1.0.0",
+			"pack": "effect-schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_533510b3377828592d71394183bcea047b9cc07485862df7596ada1d938e4a2e",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"table"
+			]
+		},
+		{
+			"modelId": "DrizzleEffectUpdateSchemaOverrides",
+			"version": "1.0.0",
+			"pack": "effect-schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_521a30140095dde25fa46ed443f093e433152661422791316b2d810cc39381f8",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"overrides",
+				"table"
+			]
+		},
+		{
+			"modelId": "DrizzleEq",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_3252e815215fd4c33763444280ad44cd1e5634d094e05fccb194233b67d8a71f",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleExcept",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_12b300d6b670aa3c9c1a6a73cd008717e7a4898fb62a1d2ef47d8edc62fd12a1",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleExceptAll",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_77fd12e9eb2cbb9301aed1f7bc7b0824c537133c9f9cb804b7987883cf461acc",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleExceptAllFunction",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_62bf012683e01492670c4ca3a3b95b2f6b26bd7e9818813be9488c047ac8d7a6",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleExceptFunction",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_665a75326c786b9ffbd31789669d42372294008a3f39f72839dbcec4bf168dd7",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleExecuteSql",
+			"version": "1.0.0",
+			"pack": "runtime",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_7f7776fe6d2bc9c4c05555b6447206d97c5b4153b07d797ce0391f7522a8d0b3",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"db",
+				"sql"
+			]
+		},
+		{
+			"modelId": "DrizzleExists",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_ba7205947e0b559e6296dc1cc1feb794930779bd6adfbcccd251acb2cac58296",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleForeignKey",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_3648906ac8233cfa303665ad4556debd391dca760330cfd9ac19a5a03c6989ff",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"config"
+			]
+		},
+		{
+			"modelId": "DrizzleFullJoin",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_1faf19a223f0863820f31dcec6c70efa66e59f71f82f4e662879f08811cf6cdd",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"on",
+				"source",
+				"table"
+			]
+		},
+		{
+			"modelId": "DrizzleGetColumns",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_ee03490ac5bb145c3cf42697d00ecd611c6c466bbedadf8171ae8e16b650015f",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"table"
+			]
+		},
+		{
+			"modelId": "DrizzleGroupBy",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_ccae5f4909c3134fc627c67ae89a527547d26b136d3f88966493a7720e645ae5",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source",
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleGt",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_0b50aabd53f4d7ff506eb35d64fc95a5890778053b68779d5b2fc02ef3d62a8a",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleGte",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_753afeb92ca93fca28a7298d7042a978d053a6d9538421b67efdb1e148ce8347",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleHaving",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_b6dcd19c2da9cf0b200254577f9372cdc5bf505f3557d7e0a6e41c67462e2267",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source",
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleIlike",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_43eaa4b1f5c4f306544e2c4dec6cc95c59a1fc049d11d5254172364317fcbe49",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleInArray",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_4ca631ccd470af60d34fba30785e01ebef49a445b2276939ff58525f272ffcb8",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"value",
+				"values"
+			]
+		},
+		{
+			"modelId": "DrizzleIndex",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_535b576084e54b8a82e5daa1a6a7a127f23d20b773a48bc1c065f83852fc8df3",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"columns",
+				"name"
+			]
+		},
+		{
+			"modelId": "DrizzleInnerJoin",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_49a0be51a35f915f48854a6dd347831c36ba47a8a4145fcce63a65791966616b",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"on",
+				"source",
+				"table"
+			]
+		},
+		{
+			"modelId": "DrizzleInsert",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_8aad5ff32e26dbe3031a07d475eae6664689a91626b0bb435bd79f530501c221",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"db",
+				"table"
+			]
+		},
+		{
+			"modelId": "DrizzleInsertSelect",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_4206418082fd2c296090d0b3abc204e8fccaa0f8323cde1753caadaa6aa406c4",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"query",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleInsertValues",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_77c1f2653eeb7c15524709408ecf2d1e9d9af6b9a4c5ad4e170085b736101791",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source",
+				"values"
+			]
+		},
+		{
+			"modelId": "DrizzleIntersect",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_717985e27541288e0025c566357e522a1645472cc12b186712b23a08c8fb5c8d",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleIntersectAll",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_bb3d045a2ab1d876f9df486d6ae436f0a7a0ca532ed07c4ad6ec806d3854ed07",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleIntersectAllFunction",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_bc1b9b813d28e74b2a1ba58444454ce54ec1f630241edc1850e94a572ff29d7e",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleIntersectFunction",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_d88ae333daaa84c6b7477b7231d1c27cf36413b9d7fc25ed6e4bd441060b2719",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleIsNotNull",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_2800288d1c8bd0a21b903876ee1c5afbecc28f19d19214a769c58f3f4c82be85",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleIsNull",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_487e0db6d065337aa57ec8294e2350bd2c79b7a8aef68bb258b3214d698c3d4b",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleLeftJoin",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_914722315fb39b6436093a810d852726c84262b81c6e4abd58db05521e8531f3",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"on",
+				"source",
+				"table"
+			]
+		},
+		{
+			"modelId": "DrizzleLike",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_c549585f5d5aae245ad919d55c1e8d01a8bbd4b6accf10f3c1bc5bbb65dc586e",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleLimit",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_47898ab3b4f5d7f42985df0f5476f5eb9e23f54155348c12ee4947a85ca84881",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"limit",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleLt",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_ece04e137f9c6381a08ffe26809d73f35f0ba806b1e9bf551bbc65b781db042f",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleLte",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_697680579b68d91051c142ebd773d472405c71a737d11073f604951105fa72a8",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleMax",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_6015ccbf59ae321844208faecf318bfcf224c20edb903a7ed40a62c540816126",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleMin",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_72b9087891ac9a6ddef97a21c9429325d61d1f98661370abf8b4aad659062e08",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleMssqlBigint",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_55f1a8cf0a725c3404a8bf30fa9b598cc6bf95ace8cad1f5222f45d0a01a4618",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"config"
+			]
+		},
+		{
+			"modelId": "DrizzleMssqlBinary",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_4f3bb5cb5afb01a1387728e5662c77318305e994b21a759cf811905d38d252e3",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMssqlBit",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_55d8a83c0c1b6c0b801a11ab20221bd63a2129c7ebc726cca03d9cd16af7f784",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMssqlChar",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_a01ab29e9d46f4112e619e5b41ebd90b15c1c726a48eda591e93429033f52a68",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMssqlDate",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_1e55bf705309bedbde240138dd1f7f93dd240b1daea27eadd5608a376410ab9e",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMssqlDatetime",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_8076991f5a59cf3bbf4b082c08f7f825600617ed9c5f758066920314c30f528d",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMssqlDatetime2",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_d05a55a60cb8f2a46ba16b8689e56064ace614ca651aadceb070d2e81e688ef2",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMssqlDatetimeoffset",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_044fbf9b2290f221904372e868c195bff73baff86718a74f2577bccc0e5cba3d",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMssqlDecimal",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_5a3e1baa14d01ea3cae1d32eee154f952d78729f8a0f5e3b911851bbf10d7653",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"config"
+			]
+		},
+		{
+			"modelId": "DrizzleMssqlFloat",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_e9ec3d632616b4425ea323d7e08310e0426716986318e2a83f9cb7e608dcedc5",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMssqlInt",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_efda6329754efdad5eb6ecd239f91b6aad5522ff40dc7ae2a8cae9e319195fc3",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMssqlNchar",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_00e84516008da0042ab2ffb41ff05efabce348c5fc9944c415864e570371a082",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMssqlNtext",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_3eef7095b20b65259dd4006542b56d43e94f9f8ea3fdabbc91b20be0b768b5b8",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMssqlNumeric",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_6c53bf42cb7dd7aa01b4e4aad7b642b9675278725b44a9af0e13664c2f3f57c6",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"config"
+			]
+		},
+		{
+			"modelId": "DrizzleMssqlNvarchar",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_6a2439d4b0cee78decfe7dd3e0772834fd0c5349187385b49e65f2c914f0fba2",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMssqlReal",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_a890820570edadaadd4a6f7bfcdcd945a04f690a72e12e5133a5cacaa9524e95",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMssqlTable",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_f7a690491d09e27064d4b7ad1790645743eb6d4e5c9b5a3c382d60eabae27f75",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"columns",
+				"name"
+			]
+		},
+		{
+			"modelId": "DrizzleMssqlText",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_df54a66a78a25e8f6f799694a250475097e9194ab27166cf77eaa739fa718c52",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMssqlTime",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_375e23665c5fe804a29c144325d99a8d2c7a79d7b2e5b9fd57d7c237f5410cbf",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMssqlVarbinary",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_7209aed994aad9bf604a7d51c8d0df18653768a09bf7717676d4ac5e9acd91fd",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMssqlVarchar",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_42244b7745e16ea37acf08686d361aedfe29e45a5da41b7e2a1b9d08a4ce0896",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMysqlBigint",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_cfb27bf79b11b1cbfdf1419cb115c9c7cce66fe919584716376f1db6e5cd262d",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"config"
+			]
+		},
+		{
+			"modelId": "DrizzleMysqlBoolean",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_6f225626154e0150c2f2433580276f2bbd552f0ce7a797e3351f7a09c9cdb185",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMysqlChar",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_d6e0fdbb196e166995cf90bddbf32edf3f32792541764d01a8b4faef1d3aa856",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMysqlColumnAutoIncrement",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_29c8eff542835152dfdd7e4307c593e52a6862bf64d18349cce276a5d409372b",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleMysqlDate",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_a39709607667b755e266e5aebc8358828729a24a82d032c5e774c0cc4bccaa69",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMysqlDatetime",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_c4fe6b5e0b8a05a2b66d58063a4f0c8adf053f2d7d12aef5cc1bb9427e189997",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMysqlDecimal",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_91a546a1a7d958e90dcc3c657dc661499b50a57163c1a4a6631964d2e633a528",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"config"
+			]
+		},
+		{
+			"modelId": "DrizzleMysqlDouble",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_64f9096f31911ff28247166a4430227c126f8a3c40d127d1afc737f348270dbd",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMysqlFloat",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_7ece26f9afc551839007ff35660730235ec07ccc39f1ce1eead006facd2933d8",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMysqlInt",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_f5ca1e76d84e046aefb1b86c0f103532358684e81ba2de0df6640dd7675c45cc",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMysqlJson",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_7472deb46c13ca8bfad55d7b59408798cf4fcfdd52907e4f1994cd8c373a4990",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMysqlMediumint",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_b26953c8a50ee92f376c67e34df138d404a8e7c78d749726f351cecb625de03d",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMysqlSerial",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_7a15a95f64e7cb31b65c7b8f38de9e415986e9df0094aafb9b8aed78bdbdc7e5",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMysqlSmallint",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_1da998b57bb5334dd0a6ed4d7eb9cadb086d6342cffab7513912c9a3a12a4d9b",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMysqlTable",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_795dab1ee9e52623e3163967682b4f3297b6cd50beea7cd38466dca4fbced7b8",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"columns",
+				"name"
+			]
+		},
+		{
+			"modelId": "DrizzleMysqlTableWithConfig",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_636ed172fd64394f480c7b1bdea927a1250ad8ee9d34a23a285c025b29e9c11b",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"columns",
+				"config",
+				"name"
+			]
+		},
+		{
+			"modelId": "DrizzleMysqlText",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_724c15665c39ed8795e4c873138e128574b6ffb26852785ab0d60c8f8e4243fe",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMysqlTime",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_bd09ce2ee556f69c0b76b129fa08b65641f5eccf14af98d7f617d42a1b73dc4f",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMysqlTimestamp",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_db1f4ec5c54faed689a827e989ffbc7e9218b0c9b4525188d3c8a9e871b32c32",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMysqlTinyint",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_3c28f7342a90fa244cf6f885137bbb4ce2ba75cb5930998e2a0be530e17f4806",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMysqlVarchar",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_f31a8469099c8d9ab1b3880b0efd92dc163f813065a78ca42282423bd391a766",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleMysqlYear",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_4a52537e3cafbb7b6f53146e7b18912d2847778f038553372cb6a3e0fd322cf5",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleNe",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_e9a59c6d6136e9e6b0828744c952441226529566674e4c7a97277f0b003945c4",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleNestedTransaction",
+			"version": "1.0.0",
+			"pack": "runtime",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_518b685c9f969fe72891e0110bf44012c79cedc2b3e5b6a5ff6483c9cbf78892",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"body",
+				"tx"
+			]
+		},
+		{
+			"modelId": "DrizzleNot",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_419375a258b7c8917d7264d491265a3f8bf36f3326dc265086cd4aed40f506e5",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleNotBetween",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_14576dc66432dfd1ff360e5b33b151e25856e9743e4e7b3458b65c7ae49942c3",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"lower",
+				"upper",
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleNotExists",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_05f1d99082fad5a39a869b26fd9b6fc3cb935cfcbea0a615a3997fff09dd6b6f",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleNotIlike",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_1a6628ef2e50d021c5986d18fe129c422e16230aec77db5b071a5a9cc31876e0",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleNotInArray",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_b4320712fa50a2a784b93b7f82e6be2231ecc27e913b7cd575b97694c37fb25f",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"value",
+				"values"
+			]
+		},
+		{
+			"modelId": "DrizzleNotLike",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_ff5f5667716acbc3a31ef8161466243a5872c44ab3bd86af0b21d777ebab10a1",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleOffset",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_26f2c82c0051d97dc8c5dea14e3d0da1f3ae366e91024d24a63f7c5ed91b5832",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"offset",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleOnConflictDoNothing",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_30f1ca86b3984a449db96032aaf2011cdc452f6433bcfe52e3ee5721ee92fb51",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"config",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleOnConflictDoUpdate",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_d2aa712da2c0c7735e412d033873bccf4a252a30a5de0b3535e540a9b40da086",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"config",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleOnDuplicateKeyUpdate",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_44167deda6ac703de9c2221a36b37a51cd2f75e27fdcddb32887ba9970ef3731",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"config",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleOr",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_0e35604149269aadf357b9897dac605d89b94eeeece794697bb92915d4387ff3",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"conditions"
+			]
+		},
+		{
+			"modelId": "DrizzleOrderBy",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_ef65ba67e9c3d54af7ea29a973e3d462e0823982d15231632de6befae5a19950",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source",
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzlePgBigint",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_11e178fc5414ac9f5592c219384e9d9a5b67b33e9dbaf83922a66ccc52e0c0ac",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"config"
+			]
+		},
+		{
+			"modelId": "DrizzlePgBigserial",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_83fd5c704072fd7c3a4f9376304d4a63c6a8aaa4c40934b993354285f9871a91",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzlePgBoolean",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_23b92f369572690ebbdd651232820cae7bbf6140ff2285451d39e294ca54a999",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzlePgChar",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_b873fa7c2ee76c544c2f234003b87437decda2326ec1db15564cb27459155598",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzlePgColumnArray",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_02f75e6f343129f1cd4ed0f586a9c02cd9187d4102c12728d7557ce97d330655",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"dimensions",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzlePgDate",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_7d66d9e34946beb4dddc56cde279b3fcfa84dc6da741ebf9c7a289fca459f9c0",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzlePgDoublePrecision",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_8cb1e4b3b2592b1e783b9ed38d634a27c6febde438a525267bcda243b99ca402",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzlePgEnum",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_5bee71a393f0e2e7b8b8f9cdde2ac75053ea4e70291c67aa518e6169702f7467",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"name",
+				"values"
+			]
+		},
+		{
+			"modelId": "DrizzlePgInteger",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_4b7650cc7284c20e372f7e8497eb78f9974ccd80ea261140f0abd8dd3faeff09",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzlePgInterval",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_da94f0674005cb38b98980999b9c9a03f37b7be685e09a29a461dcea52ae2796",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzlePgJson",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_a8b12436405851355c71c2e5122c796d99139d774124ed80ae9900fc8d147596",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzlePgJsonb",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_c59fff055f80f9012c4b862eba69cf95e721913c73348ae948910dceae4e1a39",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzlePgMaterializedView",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_2b7ac583031f23e5effb2337a790019e71bfdcc8bcc46d95f8cb93a1dd10d88b",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"name",
+				"query"
+			]
+		},
+		{
+			"modelId": "DrizzlePgNumeric",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_10805a2e10bcc6f3b5c62201b066876bc5c9c510566f03fabb6ce364f4d102dd",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzlePgReal",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_1d26a780f3152d5828a190f54094048457e1b04e92ea697f8f3c74628f7347c1",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzlePgSchema",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_1bcc2ace79a1f7ab067b1c2a6fb3b280d91242cdfe091f95d89ea76f26a7f2ef",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"name"
+			]
+		},
+		{
+			"modelId": "DrizzlePgSchemaTable",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_bc538bdfd2e4fcbf8c1b039bba14a50a2304f3c826454f77b9c511c589e96964",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"columns",
+				"name",
+				"schema"
+			]
+		},
+		{
+			"modelId": "DrizzlePgSerial",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_7a250cf1ac08b1284a521712bc3bd23de9eb39428411fbf6d4b2aa36fc12e0cc",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzlePgSmallint",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_aaad06bc23c3ba3688606f696a3178a924f034abce2539a1dac8ad021c717a77",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzlePgTable",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_76215140ee0e86013725e70937396f2e0fd38581ebe3977379c49d8d412f489c",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"columns",
+				"name"
+			]
+		},
+		{
+			"modelId": "DrizzlePgTableWithConfig",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_6b2835bbbff07657c167dd520c4c78bd35239ea6479f6fcabd7cb8e6c8f9dee5",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"columns",
+				"config",
+				"name"
+			]
+		},
+		{
+			"modelId": "DrizzlePgTableWithRls",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_dc39d67994f4fafcf578cc87fba260bfab3e469f608d516b5437c05ebc786395",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"columns",
+				"name"
+			]
+		},
+		{
+			"modelId": "DrizzlePgText",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_d2ec724fb6edd8a2d570c437153fb21cc7697568be8a584e2ffab49371f57faf",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzlePgTime",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_68bdae1a130c912476529b9711ad5f93a21b251c7b3d47b5e7f3631666734bf5",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzlePgTimestamp",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_75f8bb859b06718c7dfca29f9f4f5322f1bf93170c03d04fad11528cdf3d6112",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzlePgUuid",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_f26f8b8e6026f360f7f4eb8ec240db924550ba078cbb7686fe250320f29b7d71",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzlePgVarchar",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_9cdacb3b99cbdbeff2acfa2e4db5b264970e399f3cbbebacbaa38322c86ef44f",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzlePgView",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_637b9d44bb2fad78283f36c6a02cc8054c30b20f2f6cd704f40d2f3dc0853d4b",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"name",
+				"query"
+			]
+		},
+		{
+			"modelId": "DrizzlePrepare",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_713ea48b2a2a53beebdc6ccb7895610a2480cb22695b7c0abfc3a072fccb7906",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzlePreparedExecute",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_5de7fb0e17010e90fdad25ecbc3d956f13204ebaeb3d499f0dc1fc016ea6cf13",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzlePreparedExecuteParams",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_673d6498a1e78a802b8f7365b87e909f40d117a2567bbbf4599dd95faf876a45",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"params",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzlePrepareNamed",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_9517a1a15f287b576c13c145b29a2eb9939b8b9e08e42d44afa34097eeae47b7",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"name",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleQueryAs",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_2ec753e479ce448885f1e8f6c1a29aaa25e9c5ae735b822024e9dd93b6b6f994",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"alias",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleQueryToSql",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_d4ed9097db9980de3b523bbf6091dddd16a2b610c651038a12110d4dac70543b",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleRelationMany",
+			"version": "1.0.0",
+			"pack": "relations",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_c30e9385c0e830debec9c4fa531a768184911da3b1e384111ad8f2a0cc9d84cc",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"r",
+				"target"
+			]
+		},
+		{
+			"modelId": "DrizzleRelationManyConfig",
+			"version": "1.0.0",
+			"pack": "relations",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_d040cdfab7a0736241ecce9a03129759ddbdf458d0ff7efd0deb1e4825e37b7e",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"config",
+				"r",
+				"target"
+			]
+		},
+		{
+			"modelId": "DrizzleRelationOne",
+			"version": "1.0.0",
+			"pack": "relations",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_6c37f55c58d2139c0bde840b2b28172fd27f354ec4ab2e7704c688d2fa4b7f07",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"config",
+				"r",
+				"target"
+			]
+		},
+		{
+			"modelId": "DrizzleRelationOneImplicit",
+			"version": "1.0.0",
+			"pack": "relations",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_bd197bde87e083af2b4fdc6a03dab02d522c88b52fd33aa50c0e2a25da6b9a6a",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"r",
+				"target"
+			]
+		},
+		{
+			"modelId": "DrizzleRelationThrough",
+			"version": "1.0.0",
+			"pack": "relations",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_d00584b9f9b34e70420a89d8e24f80e92161ed818bd4f8e509a9ee21550f4da9",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"column",
+				"joinColumn"
+			]
+		},
+		{
+			"modelId": "DrizzleReturning",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_7e30648ccbeaafbc7abfe396e5bfcb9575b6bdbf6a6ff0b2a6ae4bd315243f65",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleReturningFields",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_84d096c513ee88c3b5c2c4b92502dce9e11f282f08d884f473dd2c3867e42bf5",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"fields",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleRightJoin",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_68457ba0d8e4623d569c68e733a7c8c7b6eedd842359031790f5f507f58aed16",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"on",
+				"source",
+				"table"
+			]
+		},
+		{
+			"modelId": "DrizzleRqbColumns",
+			"version": "1.0.0",
+			"pack": "relations",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_40f7543aa7ce4e3d401fe7bc8f7bd86dde7dfcbc551d508091926602fbd9419e",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"columns"
+			]
+		},
+		{
+			"modelId": "DrizzleRqbFindFirst",
+			"version": "1.0.0",
+			"pack": "relations",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_0fb27bcc8df03be4b639e3c1fbc2feda691507626bc477ac58e3a3fdbe33be4d",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"config",
+				"db",
+				"table"
+			]
+		},
+		{
+			"modelId": "DrizzleRqbFindMany",
+			"version": "1.0.0",
+			"pack": "relations",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_b6d99c1ae960a2f32edfd111fbf15d892afa926f74b5367b5a5877c185977c18",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"config",
+				"db",
+				"table"
+			]
+		},
+		{
+			"modelId": "DrizzleRqbOrderBy",
+			"version": "1.0.0",
+			"pack": "relations",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_cee48fe4ba625017688265053e3d1932396bfa7ca9b063fa60a8db255cef5955",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"orderBy"
+			]
+		},
+		{
+			"modelId": "DrizzleRqbWhereColumn",
+			"version": "1.0.0",
+			"pack": "relations",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_1c64d396e690a06d1330140dee0a82ff231b5441bb854302758d0ab310a03a30",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"column",
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleRqbWhereOperator",
+			"version": "1.0.0",
+			"pack": "relations",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_74d436459b01582c2ec74e659910b3d4237369613409100845aaadb4e85f7b05",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"column",
+				"operator",
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleRqbWith",
+			"version": "1.0.0",
+			"pack": "relations",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_5282cbad464db7d65901da8945427e7c52085fdca09a876446af029ef034f66b",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"relations"
+			]
+		},
+		{
+			"modelId": "DrizzleSelect",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_ee10c1b39e3e9e53d6d516cbc419e7d537f1ef9706e7739ce8097b35fe440784",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"db"
+			]
+		},
+		{
+			"modelId": "DrizzleSelectDistinct",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_e9f4d8cd1757728ab464104b49875e8ea25e1c7705812a5832a7defcc5d0fbc5",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"db"
+			]
+		},
+		{
+			"modelId": "DrizzleSelectDistinctFields",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_8760b4396978d8bdc46a3bb79d039431e996994359c22411d4d39bc3b3747c0d",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"db",
+				"fields"
+			]
+		},
+		{
+			"modelId": "DrizzleSelectFields",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_a07b7b19e94deee9d3c9e58785ec6a720acd93b0a7950d1727f98d16266d8ddc",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"db",
+				"fields"
+			]
+		},
+		{
+			"modelId": "DrizzleSelectFrom",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_60e5aed04ad384d7f886c4dabf13a31bdbeb5f8295a71a0283cf971c1e6df1ec",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source",
+				"table"
+			]
+		},
+		{
+			"modelId": "DrizzleSnakeCaseTable",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_8f1ef6cd42f6930e8dd87cfed55bf2bb2c3d775b1d06dc826bc4826232784930",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"columns",
+				"name"
+			]
+		},
+		{
+			"modelId": "DrizzleSqlAppend",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_5121e8c735d613454e2a8f7004a98db0a07102891e68312cfc6cd37f778991ab",
+			"outputKind": "statement",
+			"typeParameters": [],
+			"inputIds": [
+				"chunk",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleSqlAs",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_0e4a0d783a43ca46fa3a82ffb0e279d168428275f62f9948f32fe47494c8e91b",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"alias",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleSqlEmpty",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_b5ccc97771e7028df0687fc9b3521e873a728fa25247f012b6d07aebded839bc",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleSqlFromList",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_500f2fdc7e9e384ef1b91b26e05c84df4a07de6a299c2d0f4c6eb70f8d924071",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"chunks"
+			]
+		},
+		{
+			"modelId": "DrizzleSqliteBlob",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_e6d4eda987a3592abcc0c3d980ec5a95918ade056e9e460732d0eeaf327b5208",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleSqliteBlobConfig",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_0f1e258bb9e0624ea529fa608dffaea2831c656e7049c7c83fa46ec8ce9d4d05",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"config"
+			]
+		},
+		{
+			"modelId": "DrizzleSqliteColumnAutoIncrementPrimaryKey",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_00be41b5832debc7b226f9742a3a5209e32aa2b048e74917e33676dbd895f774",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleSqliteInteger",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_d244b21691a95ee55f6916632d363c9ce7d2a1630e36a8f8267d96643178ce8d",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleSqliteIntegerMode",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_df55e917fcbb170a28b263d91a88b26dfcca3b5ef6ca52e6e16d3d06fb0f7f1f",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"config"
+			]
+		},
+		{
+			"modelId": "DrizzleSqliteNumeric",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_ed5c19727b7de39f5589f9ae3edcc893deb536131e2fdfad1e663ffde6a79f1c",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleSqliteReal",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_01c5e60e33adf52c4f608775c29d8492deb4966b78dd7665c35633d4ee48786e",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleSqliteTable",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_77f3c22a33da3992f370975bad4c175dff89b334f7944627fdbdee9cc57b9474",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"columns",
+				"name"
+			]
+		},
+		{
+			"modelId": "DrizzleSqliteTableWithConfig",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_146283308631ace806cc6059fd8d05cc9fb5de7b61486330e5743bf95cd765d5",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"columns",
+				"config",
+				"name"
+			]
+		},
+		{
+			"modelId": "DrizzleSqliteText",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_02b06a9382ea54d2c2fd2a0ea984c51d72b0ac24f4a7fbc573f848f3906e826a",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": []
+		},
+		{
+			"modelId": "DrizzleSqliteTextConfig",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_f654244625c1411ff22505107e1ccc537489393de980d1727ed77c47fbc0711e",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"config"
+			]
+		},
+		{
+			"modelId": "DrizzleSqlJoin",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_d91a8f57f0491be56c1426247cc2eb3c3b80e1b1e126126d52c46624cb249dfc",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"chunks",
+				"separator"
+			]
+		},
+		{
+			"modelId": "DrizzleSqlMapWith",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_255dce9f1b5ec60d54f88ccd96443f694b43354aa72b48c32412e14b2bbe1887",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"decoder",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleSqlPlaceholder",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_73a15e4ad50f21383bd14ca718504c36d5156e817be335805a7d423fba931292",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"name"
+			]
+		},
+		{
+			"modelId": "DrizzleSqlRaw",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_3559b4c8515409397c23df5551c153168c0b1b046e662ce4dbe9eda311b5511f",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"text"
+			]
+		},
+		{
+			"modelId": "DrizzleSqlTyped",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_75ecd10519943c6393cca950dc842814d4d8c78a10ad202c68652ae64e98e1d4",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"resultType",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleSum",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_a0931e2bcf5a053746c378f6e17061abb715b1f4d01c647307d8ba3af62db26b",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleSumDistinct",
+			"version": "1.0.0",
+			"pack": "sql",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_d5cb4795b25f7eba4a93fffb36225ba56c3336f73c0e27dadbff957dae6503fe",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleTransaction",
+			"version": "1.0.0",
+			"pack": "runtime",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_38633f189f37726c80c36414b4a3d12a63a8037db2c55ffec0efdc5fb518f405",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"body",
+				"db"
+			]
+		},
+		{
+			"modelId": "DrizzleTransactionConfig",
+			"version": "1.0.0",
+			"pack": "runtime",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_2ada47a5433913f97c00666c8f4030f28cd986ddabc6ade5c787813a6f9a1365",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"body",
+				"config",
+				"db"
+			]
+		},
+		{
+			"modelId": "DrizzleTransactionRollback",
+			"version": "1.0.0",
+			"pack": "runtime",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_67d006549375d8fdb020e9240eb19aa301d01ad8183147d9f18204eaba125daa",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"tx"
+			]
+		},
+		{
+			"modelId": "DrizzleUnion",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_5986b4e250d92472e175927a1fe3a73f5142a19e0e28c408b6e1c42e6558b429",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleUnionAll",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_5f2c885b670366b632e8075fa4a09c15ba812774b3bfd6ce0a5e0bf06822f3ef",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleUnionAllFunction",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_37b09e019bde0b563ad16bcf0a90f4963788e66ad4a6006a77d001a5e288ddd1",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleUnionFunction",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_254a7cdb4b2a597876d7da0d503b13d3b1f4278845543667fa0acb7d44423cd5",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"left",
+				"right"
+			]
+		},
+		{
+			"modelId": "DrizzleUniqueConstraint",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_b626b7f794a23eafd5ffbb3e686ad2402ee8ed1bbf5e57b83284d5dcae178512",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"columns",
+				"name"
+			]
+		},
+		{
+			"modelId": "DrizzleUniqueIndex",
+			"version": "1.0.0",
+			"pack": "schema",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_c8df0ef7504d5d4a3160b7eff8a042cb7632bc8257fb7153df240986dd325933",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"columns",
+				"name"
+			]
+		},
+		{
+			"modelId": "DrizzleUpdate",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_7ef894cf36a0bf5d199a1dcca45309190c31e8d5a802b5f693adab44b3b3fb49",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"db",
+				"table"
+			]
+		},
+		{
+			"modelId": "DrizzleUpdateFrom",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_ce2807fd247afef47e58dee23d7956ceec213a50003de79e8d8d8475bb2bfe74",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"from",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleUpdateSet",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_ba759fc0f8b428a79e45e92e65d59b3ce3045aa1236307d56424c58bf781647d",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source",
+				"values"
+			]
+		},
+		{
+			"modelId": "DrizzleWhere",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_b2eb72a941250c4af8f75a3b9166559f5ddfc585b09a80d5ddc317f689af9920",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"source",
+				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleWithCte",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_cfb7c9c0788243888d814694d9ea729a9e1b073cbac0deb14d32fb1f3834f050",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"ctes",
+				"db"
+			]
+		}
+	]
+}

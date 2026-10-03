@@ -1,26 +1,17 @@
 # synthesize-regions
 
-Related packages will be shared soon, I just wanted to share this core component to inspire others NOW.
+Curated template content lives in the independently versioned companion
+workspace [`@synthesize-regions/core-templates`](./core-templates/README.md).
+The engine remains the contract and validation authority; callers opt into the
+479-template curated catalog, the complete 1,794-template Effect v4 catalog,
+the standalone 244-template Drizzle ORM v1 catalog, or individual domain packs:
 
-Most relevant templates are under:
-- `core-templates/e-samplesBasePatterns.ts`        
-- `core-templates/effect-concurrency-templates.ts` 
-- `core-templates/effect-coordination-templates.ts` 
-- `core-templates/effect-es-toolkit-templates.ts`    
-- `core-templates/effect-resource-templates.ts` 
-- `core-templates/effect-schema-templates.ts`        
-- `core-templates/effect-stream-v4-templates.ts` 
-- `core-templates/effect-v4-testing-foundational-templates.ts` 
-- `core-templates/effect-workflow-templates.ts`
-- `core-templates/effect-application-templates.ts` 
-- `core-templates/effect-config-templates.ts`      
-- `core-templates/effect-error-management-v4-templates.ts`        
-- `core-templates/effect-observability-v4-templates.ts` 
-- `core-templates/effect-schedule-templates.ts` 
-- `core-templates/effect-service-layer-templates.ts` 
-- `core-templates/effect-template-helpers.ts` 
-- `core-templates/effect-ts.ts`                
-- `core-templates/es-toolkit-templates.ts`
+```ts
+import { createCoreTemplateRegistry } from '@synthesize-regions/core-templates'
+import { effectV4HttpGraphTemplateInputs } from '@synthesize-regions/core-templates/effect-v4/http'
+import { createEffectV4CanonicalRegistry } from '@synthesize-regions/core-templates/effect-v4'
+import { createDrizzleOrmV1Registry } from '@synthesize-regions/core-templates/drizzle-orm/v1'
+```
 
 Controlled TypeScript source-template replacement built on
 [`ts-morph`](https://ts-morph.com/).
@@ -83,6 +74,15 @@ TypeScript/JavaScript analysis input must remain in the verified text view.
 
 ```bash
 npm install synthesize-regions
+```
+
+Install the optional catalog companion separately when you need its curated,
+Effect v4, or Drizzle ORM v1 packs:
+
+```bash
+npm install @synthesize-regions/core-templates effect@4.0.0-rc.117
+# For the Drizzle pack:
+npm install @synthesize-regions/core-templates drizzle-orm@1.0.0-rc.4
 ```
 
 This package is ESM-only and exports TypeScript declarations from `dist`.
@@ -1014,8 +1014,9 @@ carry `contractDigest`, `manifestDigest`, `workspaceSnapshotHash`,
 those identities. The plan, compilation-result, and static-validation-result
 wire contracts are published as JSON Schemas.
 
-The [`core-templates/validate-edit-templates.ts`](core-templates/validate-edit-templates.ts)
-catalog demonstrates a complete `sourceFile` wrapper around
+The package test fixture
+[`validate-edit-templates.ts`](core-templates/test/fixtures/validate-edit-templates.ts)
+demonstrates a complete `sourceFile` wrapper around
 `AbstractReasoningGraph`. Its seven member-category
 ports are optional collections: omitting a category means zero members, while a
 present collection may reference multiple structurally enforced helper

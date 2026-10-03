@@ -1,0 +1,16 @@
+{
+	"effectVersion": "4.0.0-rc.117",
+	"scope": "canonical catalog ownership, marker integrity, and generated metadata agreement",
+	"generatedBy": "scripts/generate/generated.mts",
+	"summary": {
+		"packs": 35,
+		"canonicalTemplates": 1794,
+		"curatedTemplates": 479,
+		"uniqueModelIds": 1794,
+		"manifestEntries": 1794,
+		"aiTemplates": 15,
+		"markers": 3183,
+		"failures": 0
+	},
+	"failures": []
+}

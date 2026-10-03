@@ -1,4 +1,4 @@
-import { coreTemplateFamilies, coreTemplateManifests } from '../core-templates/catalog.js'
+import { coreTemplateFamilies, coreTemplateManifests } from '@synthesize-regions/core-templates'
 import { block, code, coreRegistry, fact, step, tableHeader, writeOutput, row } from './shared.js'
 
 export const id = '05-catalog-inventory'
