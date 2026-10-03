@@ -4,14 +4,14 @@
 	"catalog": "@synthesize-regions/core-templates/drizzle-orm/v1",
 	"generatedBy": "scripts/generate/generated.mts",
 	"summary": {
-		"templates": 244,
-		"uniqueModelIds": 244,
+		"templates": 253,
+		"uniqueModelIds": 253,
 		"countsByPack": {
 			"sql": 45,
-			"query": 50,
+			"query": 54,
 			"relations": 14,
 			"schema": 122,
-			"runtime": 7,
+			"runtime": 12,
 			"effect-schema": 6
 		}
 	},
@@ -122,6 +122,20 @@
 			"typeParameters": [],
 			"inputIds": [
 				"value"
+			]
+		},
+		{
+			"modelId": "DrizzleBatch",
+			"version": "1.0.0",
+			"pack": "runtime",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_52692f4e357b38f234b6b9fb84323db511f1866d710f972da0de9b56cf42d46d",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"db",
+				"queries"
 			]
 		},
 		{
@@ -667,6 +681,35 @@
 			"typeParameters": [],
 			"inputIds": [
 				"config"
+			]
+		},
+		{
+			"modelId": "DrizzleDbCount",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_4ed54021f2191cf24709750060f74b9f76b2d9edb0297450ee1107218649ff7e",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"db",
+				"source"
+			]
+		},
+		{
+			"modelId": "DrizzleDbCountWhere",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_a15189706eea9e14ed9b0e938299e95cb5c3edba56159742544fb62a5d831583",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"db",
+				"filter",
+				"source"
 			]
 		},
 		{
@@ -2471,6 +2514,32 @@
 			]
 		},
 		{
+			"modelId": "DrizzleReplicaList",
+			"version": "1.0.0",
+			"pack": "runtime",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_4c4e31aded1a4b23fd89fec0b27a74b89337114fdff61c71d7e837009353a6a5",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"db"
+			]
+		},
+		{
+			"modelId": "DrizzleReplicaPrimary",
+			"version": "1.0.0",
+			"pack": "runtime",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_de8a2f6dc33a0c154e575ebd7c2b4c560be4f8410fa223993d76d62422e6637e",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"db"
+			]
+		},
+		{
 			"modelId": "DrizzleReturning",
 			"version": "1.0.0",
 			"pack": "query",
@@ -2648,6 +2717,35 @@
 			"inputIds": [
 				"db",
 				"fields"
+			]
+		},
+		{
+			"modelId": "DrizzleSelectDistinctOn",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_0fead7c4043d4925d92ba50461a9e614f01c5937f5dc6e17459e564b5b706ebe",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"db",
+				"on"
+			]
+		},
+		{
+			"modelId": "DrizzleSelectDistinctOnFields",
+			"version": "1.0.0",
+			"pack": "query",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_b34cae4dac307ab64f0ad5c64b991de2ad40104919a65a6bda13d1b791045abb",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"db",
+				"fields",
+				"on"
 			]
 		},
 		{
@@ -3168,6 +3266,35 @@
 			"inputIds": [
 				"ctes",
 				"db"
+			]
+		},
+		{
+			"modelId": "DrizzleWithReplicas",
+			"version": "1.0.0",
+			"pack": "runtime",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_7f40f63d46af0f03757b2799e8dfb524972d34f60b8f3b7df28dcc04734a9894",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"primary",
+				"replicas"
+			]
+		},
+		{
+			"modelId": "DrizzleWithReplicasSelector",
+			"version": "1.0.0",
+			"pack": "runtime",
+			"sourceModule": "src/packs/drizzle-orm/v1",
+			"exportName": "drizzleOrmV1GraphTemplateInputs",
+			"manifestDigest": "t4_27ac0aedf7c2dd8a1ffe18fac83f7024e44c9116fe6acdfa27c645a973b66ff8",
+			"outputKind": "expression",
+			"typeParameters": [],
+			"inputIds": [
+				"primary",
+				"replicas",
+				"selector"
 			]
 		}
 	]

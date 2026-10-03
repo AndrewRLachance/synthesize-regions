@@ -1,6 +1,6 @@
 # Drizzle ORM v1 template catalog
 
-This standalone 244-template catalog targets `drizzle-orm@1.0.0-rc.4`. Import
+This standalone 253-template catalog targets `drizzle-orm@1.0.0-rc.4`. Import
 it from `@synthesize-regions/core-templates/drizzle-orm/v1`; it is not part of
 the curated or Effect-v4 catalogs. Its generated catalog metadata is exported
 as `@synthesize-regions/core-templates/metadata/drizzle-orm-v1.json`.
@@ -30,3 +30,8 @@ The generated fragments assume the required Drizzle symbols are already imported
 ## Composition philosophy
 
 Templates are small graph nodes rather than whole application snippets. Query construction is staged (`select` → `from` → `where` → `orderBy` etc.), schema columns are staged through builder modifiers (`notNull`, `primaryKey`, `default`, `references`, etc.), and RQBv2 relation/query configuration remains object-composable so existing base object/merge templates can assemble larger configs.
+
+Database-entry query utilities such as PostgreSQL `selectDistinctOn()` and
+`$count()` belong to the query pack. Driver-specific `batch()` and
+`withReplicas()` operations belong to the runtime pack; `$replicas` is only
+available on dialect replica wrappers that expose that property.

@@ -10,20 +10,35 @@ import {
 
 const expectedPacks = [
 	['sql', 45],
-	['query', 50],
+	['query', 54],
 	['relations', 14],
 	['schema', 122],
-	['runtime', 7],
+	['runtime', 12],
 	['effect-schema', 6]
 ] as const
 
 describe('Drizzle ORM v1 catalog', () => {
-	it('owns 244 unique templates in six explicit packs', () => {
+	it('owns 253 unique templates in six explicit packs', () => {
 		expect(drizzleOrmV1TemplatePacks.map((pack) => [pack.id, pack.templates.length])).toEqual(expectedPacks)
-		expect(drizzleOrmV1GraphTemplateInputs).toHaveLength(244)
-		expect(new Set(drizzleOrmV1GraphTemplateInputs.map((template) => template.modelId)).size).toBe(244)
+		expect(drizzleOrmV1GraphTemplateInputs).toHaveLength(253)
+		expect(new Set(drizzleOrmV1GraphTemplateInputs.map((template) => template.modelId)).size).toBe(253)
 		expect(drizzleOrmV1GraphTemplateInputs.every((template) => template.version === '1.0.0')).toBe(true)
-		expect(createDrizzleOrmV1Registry().list()).toHaveLength(244)
+		expect(createDrizzleOrmV1Registry().list()).toHaveLength(253)
+		expect(drizzleOrmV1TemplatePacks.find((pack) => pack.id === 'query')?.templates.map((template) => template.modelId))
+			.toEqual(expect.arrayContaining([
+				'DrizzleSelectDistinctOn',
+				'DrizzleSelectDistinctOnFields',
+				'DrizzleDbCount',
+				'DrizzleDbCountWhere'
+			]))
+		expect(drizzleOrmV1TemplatePacks.find((pack) => pack.id === 'runtime')?.templates.map((template) => template.modelId))
+			.toEqual(expect.arrayContaining([
+				'DrizzleBatch',
+				'DrizzleWithReplicas',
+				'DrizzleWithReplicasSelector',
+				'DrizzleReplicaPrimary',
+				'DrizzleReplicaList'
+			]))
 	})
 
 	it('does not change or collide with the Effect v4 canonical catalog', () => {
@@ -48,8 +63,8 @@ describe('Drizzle ORM v1 catalog', () => {
 		expect(manifest.drizzleOrmVersion).toBe('1.0.0-rc.4')
 		expect(manifest.templateVersion).toBe('1.0.0')
 		expect(manifest.summary).toEqual({
-			templates: 244,
-			uniqueModelIds: 244,
+			templates: 253,
+			uniqueModelIds: 253,
 			countsByPack: Object.fromEntries(expectedPacks)
 		})
 		expect(manifest.templates.map(({ modelId, manifestDigest }) => ({ modelId, manifestDigest }))).toEqual(live)

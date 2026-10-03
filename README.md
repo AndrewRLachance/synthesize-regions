@@ -4,7 +4,7 @@ Curated template content lives in the independently versioned companion
 workspace [`@synthesize-regions/core-templates`](./core-templates/README.md).
 The engine remains the contract and validation authority; callers opt into the
 479-template curated catalog, the complete 1,794-template Effect v4 catalog,
-the standalone 244-template Drizzle ORM v1 catalog, or individual domain packs:
+the standalone 253-template Drizzle ORM v1 catalog, or individual domain packs:
 
 ```ts
 import { createCoreTemplateRegistry } from '@synthesize-regions/core-templates'

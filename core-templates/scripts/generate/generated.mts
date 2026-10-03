@@ -174,17 +174,17 @@ if (curated.length !== 479) failures.push(`expected 479 curated templates, found
 if (new Set(curated.map((template) => template.modelId)).size !== curated.length) failures.push('curated modelIds are not unique')
 
 const drizzleIds = drizzleOrmV1GraphTemplateInputs.map((template) => template.modelId)
-if (drizzleIds.length !== 244) drizzleFailures.push(`expected 244 Drizzle ORM v1 templates, found ${drizzleIds.length}`)
+if (drizzleIds.length !== 253) drizzleFailures.push(`expected 253 Drizzle ORM v1 templates, found ${drizzleIds.length}`)
 if (new Set(drizzleIds).size !== drizzleIds.length) drizzleFailures.push('Drizzle ORM v1 modelIds are not unique')
 if (drizzleIds.some((modelId) => ids.includes(modelId))) drizzleFailures.push('Drizzle ORM v1 modelIds overlap the Effect v4 canonical catalog')
 if (drizzleOrmV1GraphTemplateInputs.some((template) => template.version !== '1.0.0')) drizzleFailures.push('Drizzle ORM v1 templates must use template version 1.0.0')
 
 const expectedDrizzleCounts: Readonly<Record<string, number>> = {
 	sql: 45,
-	query: 50,
+	query: 54,
 	relations: 14,
 	schema: 122,
-	runtime: 7,
+	runtime: 12,
 	'effect-schema': 6
 }
 for (const pack of drizzleOrmV1TemplatePacks) {

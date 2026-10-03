@@ -13,9 +13,11 @@ import { drizzleEffectSchemaGraphTemplateInputs } from './drizzle-effect-schema-
 
 export * from './drizzle-sql-templates.js'
 export * from './drizzle-query-templates.js'
+export * from './drizzle-query-utility-templates.js'
 export * from './drizzle-relations-templates.js'
 export * from './drizzle-schema-templates.js'
 export * from './drizzle-runtime-templates.js'
+export * from './drizzle-batch-replica-templates.js'
 export * from './drizzle-effect-schema-templates.js'
 
 /** One explicitly owned slice of the Drizzle ORM v1 catalog. */

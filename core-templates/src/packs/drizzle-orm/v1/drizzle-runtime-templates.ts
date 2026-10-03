@@ -1,4 +1,5 @@
 import { defineTemplate } from '../../../authoring/define-template.js'
+import { drizzleBatchReplicaGraphTemplateInputs } from './drizzle-batch-replica-templates.js'
 import {
 	type AnyDrizzleTemplateDefinitionInput,
 	callbackInput,
@@ -74,5 +75,6 @@ export const drizzleRuntimeGraphTemplateInputs = [
 	DrizzleTransactionConfigTemplate,
 	DrizzleNestedTransactionTemplate,
 	DrizzleTransactionRollbackTemplate,
-	DrizzleExecuteSqlTemplate
+	DrizzleExecuteSqlTemplate,
+	...drizzleBatchReplicaGraphTemplateInputs
 ] satisfies ReadonlyArray<AnyDrizzleTemplateDefinitionInput>

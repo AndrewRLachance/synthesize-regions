@@ -1,4 +1,5 @@
 import { defineTemplate } from '../../../authoring/define-template.js'
+import { drizzleQueryUtilityGraphTemplateInputs } from './drizzle-query-utility-templates.js'
 import {
 	type AnyDrizzleTemplateDefinitionInput,
 	databaseInput,
@@ -329,4 +330,5 @@ export const drizzleQueryGraphTemplateInputs = [
 	DrizzleIntersectAllFunctionTemplate,
 	DrizzleExceptFunctionTemplate,
 	DrizzleExceptAllFunctionTemplate,
+	...drizzleQueryUtilityGraphTemplateInputs
 ] satisfies ReadonlyArray<AnyDrizzleTemplateDefinitionInput>

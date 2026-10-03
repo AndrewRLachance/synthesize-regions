@@ -2,7 +2,7 @@
 
 Companion graph-template catalogs for `synthesize-regions`, including a small
 curated catalog, a complete catalog targeting `effect@4.0.0-rc.117`, and a
-standalone 244-template catalog targeting `drizzle-orm@1.0.0-rc.4`.
+standalone 253-template catalog targeting `drizzle-orm@1.0.0-rc.4`.
 
 ```ts
 import { createCoreTemplateRegistry } from '@synthesize-regions/core-templates'

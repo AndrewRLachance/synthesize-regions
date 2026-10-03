@@ -14,7 +14,7 @@ and catalog-specific verification.
 - `./effect-v4/<domain>` exposes named definitions and one combined domain
   array. Leaf source modules are private.
 - `./base` and `./es-toolkit` expose non-Effect packs.
-- `./drizzle-orm/v1` exposes a standalone 244-template Drizzle ORM v1 catalog,
+- `./drizzle-orm/v1` exposes a standalone 253-template Drizzle ORM v1 catalog,
   its explicit pack registry, and a registry constructor.
 - `./metadata/effect-v4.json` and
   `./metadata/effect-v4-replacements.json` expose publishable catalog metadata.
@@ -51,7 +51,7 @@ bytes to a temporary directory and compares them with the checked-in outputs.
 The check covers counts, unique ownership, marker-to-port integrity,
 replacement targets, source paths, and AI-pack inclusion.
 The same generator derives the Drizzle manifest from the live pack and checks
-its 244 unique IDs, pack counts, versions, marker integrity, and lack of model-ID
+its 253 unique IDs, pack counts, versions, marker integrity, and lack of model-ID
 collisions with the Effect catalog.
 
 Large or diagnostic-only products belong under ignored `.artifacts/`. The

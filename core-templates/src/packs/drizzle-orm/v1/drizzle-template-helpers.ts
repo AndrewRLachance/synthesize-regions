@@ -155,9 +155,13 @@ export const objectInput = (description: string) => unionPort({
 	description
 })
 
-export const arrayInput = (description: string) => unionPort({
+export const arrayInput = (description: string, minItems = 0) => unionPort({
 	options: [
-		literalPort({ regionKind: 'expression', schema: { type: 'array' }, description }),
+		literalPort({
+			regionKind: 'expression',
+			schema: { type: 'array', ...(minItems > 0 ? { minItems } : {}) },
+			description
+		}),
 		fragmentPort({ regionKind: 'expression', accepts: { outputKind: 'expression' }, description }),
 		rawCodePort({ regionKind: 'expression', policy: drizzleExpressionPolicy, description })
 	],
