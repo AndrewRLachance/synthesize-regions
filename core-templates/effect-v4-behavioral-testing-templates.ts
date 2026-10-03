@@ -140,7 +140,7 @@ export const CircuitBreakerOpensTestTemplate = defineTemplate({
 		isOpenError: callbackInput('Predicate identifying the configured open-circuit rejection.', { ts: '(error: unknown) => boolean' })
 	},
 	output: statementOutput('Circuit-breaker open-state behavioral test.'),
-	source: `it.effect(${marker('string', 'name', '"opens the circuit"')}, () => Effect.provide(Effect.gen(function* () {\n\tconst breaker = yield* ${marker('expression', 'service', 'CircuitBreaker')}\n\tyield* Effect.forEach(\n\t\tArray.from({ length: ${marker('expression', 'tripAttempts', '3')} }),\n\t\t() => Effect.catch(breaker.protect(Effect.fail(${marker('expression', 'sourceFailure', '"boom"')})), () => Effect.void)\n\t)\n\tconst rejected = yield* Effect.catch(\n\t\tEffect.as(breaker.protect(Effect.void), false),\n\t\terror => Effect.succeed((${marker('expression', 'isOpenError', '() => true')})(error))\n\t)\n\tassert.ok(rejected)\n}), ${marker('expression', 'layer', 'Layer.empty')}))`
+	source: `it.effect(${marker('string', 'name', '"opens the circuit"')}, () => Effect.provide(Effect.gen(function* () {\n\tconst breaker = yield* ${marker('expression', 'service', 'CircuitBreaker')}\n\tyield* Effect.forEach(\n\t\tArray.from({ length: ${marker('expression', 'tripAttempts', '3')} }),\n\t\t() => Effect.catch(breaker.protect(Effect.fail(${marker('expression', 'sourceFailure', '"boom"')})), () => Effect.void)\n\t)\n\tconst rejected = yield* Effect.catch(\n\t\tEffect.as(breaker.protect(Effect.void), false),\n\t\terror => Effect.succeed((${marker('expression', 'isOpenError', '(_error: unknown) => true')})(error))\n\t)\n\tassert.ok(rejected)\n}), ${marker('expression', 'layer', 'Layer.empty')}))`
 })
 
 export const CircuitBreakerRecoversAfterResetTestTemplate = defineTemplate({
@@ -240,7 +240,7 @@ export const PubSubFanoutTestTemplate = defineTemplate({
 		value: valueInput('Value published to both subscribers.', { ts: '{{A}}' })
 	},
 	output: statementOutput('PubSub fan-out behavioral test.'),
-	source: `it.effect(${marker('string', 'name', '"fans out pubsub messages"')}, () => Effect.gen(function* () {\n\tconst published = ${marker('expression', 'value', '"event"')}\n\tconst pubsub = yield* PubSub.unbounded<unknown>()\n\tconst left = yield* PubSub.subscribe(pubsub)\n\tconst right = yield* PubSub.subscribe(pubsub)\n\tyield* PubSub.publish(pubsub, published)\n\tassert.deepStrictEqual(yield* Queue.take(left), published)\n\tassert.deepStrictEqual(yield* Queue.take(right), published)\n}))`
+	source: `it.effect(${marker('string', 'name', '"fans out pubsub messages"')}, () => Effect.gen(function* () {\n\tconst published = ${marker('expression', 'value', '"event"')}\n\tconst pubsub = yield* PubSub.unbounded<unknown>()\n\tconst left = yield* PubSub.subscribe(pubsub)\n\tconst right = yield* PubSub.subscribe(pubsub)\n\tyield* PubSub.publish(pubsub, published)\n\tassert.deepStrictEqual(yield* PubSub.take(left), published)\n\tassert.deepStrictEqual(yield* PubSub.take(right), published)\n}))`
 })
 
 export const StreamPipelineFailureTestTemplate = defineTemplate({

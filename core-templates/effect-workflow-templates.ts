@@ -166,7 +166,7 @@ export const ResilientClientCallTemplate = defineTemplate({
 		'Resilient client-call Effect.',
 		effectType('{{A}} | {{B}}', '{{EOut}} | {{E2}}', '{{R}} | {{R2}}')
 	),
-	source: `Effect.retry(Effect.timeout(${marker('expression', 'call', 'Effect.void')}, ${marker('expression', 'timeout', '1000')}), Schedule.jittered(Schedule.max([Schedule.exponential(${marker('expression', 'baseDelay', '100')}, ${marker('expression', 'factor', '2')}), Schedule.recurs(${marker('expression', 'retries', '3')})]))).pipe(Effect.catchTag(${marker('string', 'tag', '"ClientError"')}, ${marker('expression', 'recover', '() => Effect.void')}))`
+	source: `Effect.retry(Effect.timeout(${marker('expression', 'call', 'Effect.fail({ _tag: "ClientError" as const })')}, ${marker('expression', 'timeout', '1000')}), Schedule.jittered(Schedule.max([Schedule.exponential(${marker('expression', 'baseDelay', '100')}, ${marker('expression', 'factor', '2')}), Schedule.recurs(${marker('expression', 'retries', '3')})]))).pipe(Effect.catchTag(${marker('string', 'tag', '"ClientError"')}, ${marker('expression', 'recover', '() => Effect.void')}))`
 })
 
 export const BoundedParallelTraverseTemplate = defineTemplate({
@@ -308,7 +308,7 @@ export const StreamIngestionPipelineTemplate = defineTemplate({
 		'Schema-validated ingestion Stream.',
 		streamType('{{A}}', '{{ESource}} | unknown', '{{RSource}} | {{RSchema}}')
 	),
-	source: `Stream.mapEffect(${marker('expression', 'stream', 'Stream.empty')}, Schema.decodeUnknownEffect(${marker('expression', 'schema', 'Schema.Unknown')}))`
+	source: `Stream.mapEffect(${marker('expression', 'stream', 'Stream.empty')}, (value) => Schema.decodeUnknownEffect(${marker('expression', 'schema', 'Schema.Unknown')})(value))`
 })
 
 export const ApplicationMainTemplate = defineTemplate({

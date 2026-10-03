@@ -1,4 +1,5 @@
-import { defineTemplate, fragmentCollectionPort } from '../src/templates.js'
+import { fragmentCollectionPort } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import { effectSourceInput, effectType, effectValueInput } from './effect-ts.js'
 import {
 	type AnyEffectFamilyTemplateDefinitionInput,
@@ -38,7 +39,7 @@ const schemaInput = (
 
 
 const schemaFilterType = (value = 'unknown') =>
-	nominalType('effect/SchemaFilter', { schemaFilterValue: value })
+	nominalType('effect/SchemaAST.Filter', { schemaFilterValue: value })
 
 
 const optionType = (value: string): { ts: string } => ({
@@ -353,7 +354,7 @@ export const SchemaLiteralTemplate = defineTemplate({
 		value: effectValueInput('Literal value.', { ts: '{{A}}' })
 	},
 	output: expressionOutput('Literal schema.', schemaType('{{A}}', '{{A}}', 'never', 'never')),
-	source: `Schema.Literal(${marker('expression', 'value', 'null')})`
+	source: `Schema.Literal(${marker('expression', 'value', '"a"')})`
 })
 
 export const SchemaLiteralsTemplate = defineTemplate({
@@ -916,7 +917,7 @@ export const SchemaMakeOptionTemplate = defineTemplate({
 		value: valueInput('Constructor input for the schema Type.')
 	},
 	output: expressionOutput('Optional constructed value.', optionType('{{A}}')),
-	source: `${marker('expression', 'schema', 'Schema.Unknown')}.makeOption(${marker('expression', 'value', 'undefined')})`
+	source: `SchemaParser.makeOption(${marker('expression', 'schema', 'Schema.Unknown')})(${marker('expression', 'value', 'undefined')})`
 })
 
 export const SchemaMakeEffectTemplate = defineTemplate({
@@ -929,7 +930,7 @@ export const SchemaMakeEffectTemplate = defineTemplate({
 		value: valueInput('Constructor input for the schema Type.')
 	},
 	output: expressionOutput('Effectful constructor result.', effectType('{{A}}', schemaError, 'unknown')),
-	source: `${marker('expression', 'schema', 'Schema.Unknown')}.makeEffect(${marker('expression', 'value', 'undefined')})`
+	source: `SchemaParser.makeEffect(${marker('expression', 'schema', 'Schema.Unknown')})(${marker('expression', 'value', 'undefined')})`
 })
 
 
@@ -1209,13 +1210,13 @@ export const SchemaToFormatterTemplate = defineTemplate({
 export const SchemaToArbitraryTemplate = defineTemplate({
 	modelId: 'SchemaToArbitrary',
 	version: VERSION,
-	description: 'Derives a fast-check Arbitrary for values of a schema Type.',
+	description: 'Derives an Arbitrary for values of a schema Type.',
 	typeParameters: typeParameters(['A', 'Generated value type.']),
 	inputs: {
 		schema: schemaInput('Schema used to derive an Arbitrary.', '{{A}}')
 	},
-	output: expressionOutput('fast-check Arbitrary.', nominalType('fast-check/Arbitrary', { arbitraryValue: '{{A}}' })),
-	source: `Schema.toArbitrary(${marker('expression', 'schema', 'Schema.Unknown')})`
+	output: expressionOutput('Arbitrary.', nominalType('effect/unstable/arbitrary/Arbitrary', { arbitraryValue: '{{A}}' })),
+	source: `Arbitrary.schema(${marker('expression', 'schema', 'Schema.Unknown')})`
 })
 
 export const SchemaOverrideToEquivalenceTemplate = defineTemplate({
@@ -1248,17 +1249,17 @@ export const SchemaOverrideToFormatterTemplate = defineTemplate({
 	source: `${marker('expression', 'schema', 'Schema.Unknown')}.pipe(Schema.overrideToFormatter(${marker('expression', 'factory', '() => String')}))`
 })
 
-export const SchemaToArbitraryLazyTemplate = defineTemplate({
-	modelId: 'SchemaToArbitraryLazy',
-	version: VERSION,
-	description: 'Derives an Arbitrary factory whose caller supplies the fast-check module.',
-	typeParameters: typeParameters(['A', 'Generated value type.']),
-	inputs: {
-		schema: schemaInput('Schema used to derive a lazy Arbitrary factory.', '{{A}}')
-	},
-	output: expressionOutput('Lazy fast-check Arbitrary factory.', { ts: '(fastCheck: unknown) => unknown' }),
-	source: `Schema.toArbitraryLazy(${marker('expression', 'schema', 'Schema.Unknown')})`
-})
+/**
+ * `SchemaToArbitraryLazy` was removed.
+ *
+ * It called `Schema.toArbitraryLazy`, which does not exist in Effect v4: the
+ * pinned package has no lazy schema-to-Arbitrary factory at all, only
+ * `Arbitrary.schema` in `effect/unstable/arbitrary`. A template that generated
+ * a call to a non-existent API would be worse than no template, so the
+ * definition is dropped here and the removal is recorded in
+ * `effect-v4-template-replacements.json` with `SchemaToArbitrary` as its
+ * surviving sibling.
+ */
 
 export const SchemaIssueFormatterDefaultTemplate = defineTemplate({
 	modelId: 'SchemaIssueFormatterDefault',
@@ -1332,7 +1333,7 @@ export const SchemaOptionFromNullishOrTemplate = defineTemplate({
 		options: valueInput('Options such as onNoneEncoding.')
 	},
 	output: expressionOutput('Nullish-to-Option schema.', schemaType('unknown', '{{I}} | null | undefined', '{{RD}}', '{{RE}}')),
-	source: `Schema.OptionFromNullishOr(${marker('expression', 'value', 'Schema.Unknown')}, ${marker('expression', 'options', '{}')})`
+	source: `Schema.OptionFromNullishOr(${marker('expression', 'value', 'Schema.Unknown')}, ${marker('expression', 'options', '{ onNoneEncoding: null }')})`
 })
 
 export const SchemaResultTemplate = defineTemplate({
@@ -1556,7 +1557,6 @@ export const effectSchemaGraphTemplateInputs = [
 	SchemaToArbitraryTemplate,
 	SchemaOverrideToEquivalenceTemplate,
 	SchemaOverrideToFormatterTemplate,
-	SchemaToArbitraryLazyTemplate,
 	SchemaIssueFormatterDefaultTemplate,
 	SchemaIssueFormatterStandardSchemaV1Template,
 	SchemaOptionTemplate,

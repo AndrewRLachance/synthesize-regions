@@ -1,4 +1,4 @@
-import { defineTemplate } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import { effectDurationInput, effectSourceInput, effectType, effectValueInput } from './effect-ts.js'
 import {
 	type AnyEffectFamilyTemplateDefinitionInput,
@@ -56,7 +56,7 @@ export const DurableCallbackAndAwaitTemplate = defineTemplate({
 	typeParameters: typeParameters(['A','Callback result type.'],['E','Callback failure type.'],['R','Token publication requirements.'],['RD','Deferred schema requirements.']),
 	inputs: { deferred: durableDeferredInput('Durable callback wait point.','{{A}}','{{E}}'), publishToken: callbackInput('Effectful external token publisher.', effectReturningCallbackType(`token: ${durableDeferredTokenType().ts}`,'void','never','{{R}}')) },
 	output: expressionOutput('Externally completed durable wait Effect.', effectType('{{A}}','{{E}}',`${workflowEngineRequirement} | ${workflowInstanceRequirement} | {{R}} | {{RD}}`)),
-	source: `Effect.gen(function* () { const deferred = ${marker('expression','deferred','Callback')}; const token = yield* DurableDeferred.token(deferred); yield* (${marker('expression','publishToken','() => Effect.void')})(token); return yield* DurableDeferred.await(deferred) })`
+	source: `Effect.gen(function* () { const deferred = ${marker('expression','deferred','Callback')}; const token = yield* DurableDeferred.token(deferred); yield* (${marker('expression','publishToken','(_token: unknown) => Effect.void')})(token); return yield* DurableDeferred.await(deferred) })`
 })
 
 export const DurableApprovalWorkflowStepTemplate = defineTemplate({
@@ -64,7 +64,7 @@ export const DurableApprovalWorkflowStepTemplate = defineTemplate({
 	typeParameters: typeParameters(['R','Token publication requirements.'],['A','Approved result type.'],['E','Branch error type.'],['R2','Branch requirements.']),
 	inputs: { deferred: durableDeferredInput('Boolean approval deferred.','boolean','never'), publishToken: callbackInput('External token publisher.', effectReturningCallbackType(`token: ${durableDeferredTokenType().ts}`,'void','never','{{R}}')), onApproved: effectSourceInput('Approved branch.', effectType('{{A}}','{{E}}','{{R2}}')), onRejected: effectSourceInput('Rejected branch.', effectType('{{A}}','{{E}}','{{R2}}')) },
 	output: expressionOutput('Durable approval-gated Effect.', effectType('{{A}}','{{E}}',`${workflowEngineRequirement} | ${workflowInstanceRequirement} | {{R}} | {{R2}}`)),
-	source: `Effect.gen(function* () { const approval = ${marker('expression','deferred','Approval')}; const token = yield* DurableDeferred.token(approval); yield* (${marker('expression','publishToken','() => Effect.void')})(token); const approved = yield* DurableDeferred.await(approval); return yield* (approved ? ${marker('expression','onApproved','Effect.void')} : ${marker('expression','onRejected','Effect.void')}) })`
+	source: `Effect.gen(function* () { const approval = ${marker('expression','deferred','Approval')}; const token = yield* DurableDeferred.token(approval); yield* (${marker('expression','publishToken','(_token: unknown) => Effect.void')})(token); const approved = yield* DurableDeferred.await(approval); return yield* (approved ? ${marker('expression','onApproved','Effect.void')} : ${marker('expression','onRejected','Effect.void')}) })`
 })
 
 export const DurableDelayThenEffectTemplate = defineTemplate({

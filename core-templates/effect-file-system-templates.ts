@@ -243,13 +243,12 @@ export const FileSystemReadFileTemplate = defineTemplate({
 	version: '1.0.0',
 	description: 'Reads a file as bytes.',
 	inputs: {
-		path: platformPathInput(),
-		options: effectValueInput('Optional file-read options.', { ts: 'unknown' })
+		path: platformPathInput()
 	},
 	output: expressionOutput('Binary file-read Effect.', fsEffect('Uint8Array')),
 	source: `Effect.gen(function* () {
 	const fs = yield* FileSystem.FileSystem
-	return yield* fs.readFile(${marker('expression', 'path', '"/tmp/file.bin"')}, ${marker('expression', 'options', 'undefined')})
+	return yield* fs.readFile(${marker('expression', 'path', '"/tmp/file.bin"')})
 })`
 })
 

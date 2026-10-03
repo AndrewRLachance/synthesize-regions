@@ -1,4 +1,5 @@
-import { defineTemplate, fragmentCollectionPort } from '../src/templates.js'
+import { fragmentCollectionPort } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import { effectSourceInput, effectType } from './effect-ts.js'
 import {
 	type AnyEffectFamilyTemplateDefinitionInput,
@@ -35,7 +36,7 @@ const contextInput = (description: string, services = 'unknown') =>
 const optionType = (value = 'unknown') =>
 	nominalType('effect/Option', { optionValue: value })
 
-const memoMapType = () => nominalType('effect/LayerMemoMap')
+const memoMapType = () => nominalType('effect/LayerMap')
 const scopeType = () => nominalType('effect/Scope')
 
 const layerReturningCallbackType = (parameters: string, provided = 'unknown', error = 'unknown', requirements = 'unknown') => ({
@@ -339,7 +340,7 @@ export const LayerBuildWithMemoMapTemplate = defineTemplate({
 		scope: typedExpressionInput('Scope that owns the built Layer resources.', scopeType())
 	},
 	output: expressionOutput('Effect that builds the Layer into a Context.', effectType(contextType('{{P}}').ts, '{{E}}', '{{R}}')),
-	source: `Layer.buildWithMemoMap(${marker('expression', 'layer', 'Layer.empty')}, ${marker('expression', 'memoMap', 'Layer.makeMemoMap')}, ${marker('expression', 'scope', 'undefined')})`
+	source: `Layer.buildWithMemoMap(${marker('expression', 'layer', 'Layer.empty')}, ${marker('expression', 'memoMap', '(undefined as any)')}, ${marker('expression', 'scope', 'undefined')})`
 })
 
 export const effectV4RequirementsGraphTemplateInputs = [

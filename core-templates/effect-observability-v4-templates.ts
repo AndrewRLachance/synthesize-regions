@@ -1,4 +1,4 @@
-import { defineTemplate } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import { effectDurationInput, effectSourceInput, effectType, effectValueInput } from './effect-ts.js'
 import {
 	type AnyEffectFamilyTemplateDefinitionInput,
@@ -266,7 +266,7 @@ export const EffectTrackSuccessesTemplate = defineTemplate({
 		metric: metricInput('Metric updated from successful values.', '{{A}}', '{{State}}')
 	},
 	output: expressionOutput('Metric-tracked Effect.', effectType('{{A}}', '{{E}}', '{{R}}')),
-	source: `Effect.trackSuccesses(${marker('expression', 'source', 'Effect.void')}, ${marker('expression', 'metric', 'Metric.counter("count")')})`
+	source: `Effect.trackSuccesses(${marker('expression', 'source', 'Effect.succeed(1)')}, ${marker('expression', 'metric', 'Metric.counter("count")')})`
 })
 
 export const EffectTrackDurationTemplate = defineTemplate({

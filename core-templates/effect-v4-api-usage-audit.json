@@ -1,0 +1,123 @@
+{
+	"summary": {
+		"templatesChecked": 1779,
+		"referencesChecked": 2625,
+		"pinnedModules": 493,
+		"missingMembers": 0,
+		"templatesWithMissingMembers": 0,
+		"unresolvedRoots": 8,
+		"needsSemanticCompile": 13,
+		"fallbackMissingMembers": 0
+	},
+	"findings": [],
+	"unresolvedRoots": [
+		{
+			"root": "OpenApiGenerator",
+			"references": 8,
+			"templateCount": 7
+		},
+		{
+			"root": "NodeClusterHttp",
+			"references": 4,
+			"templateCount": 4
+		},
+		{
+			"root": "NodeClusterSocket",
+			"references": 2,
+			"templateCount": 2
+		},
+		{
+			"root": "BunServices",
+			"references": 1,
+			"templateCount": 1
+		},
+		{
+			"root": "NodeFileSystem",
+			"references": 1,
+			"templateCount": 1
+		},
+		{
+			"root": "NodeRuntime",
+			"references": 1,
+			"templateCount": 1
+		},
+		{
+			"root": "NodeServices",
+			"references": 1,
+			"templateCount": 1
+		},
+		{
+			"root": "NodeTerminal",
+			"references": 1,
+			"templateCount": 1
+		}
+	],
+	"needsSemanticCompile": [
+		{
+			"root": "OpenApiGenerator",
+			"references": 13,
+			"templateCount": 11
+		},
+		{
+			"root": "BunRuntime",
+			"references": 3,
+			"templateCount": 3
+		},
+		{
+			"root": "NodeRuntime",
+			"references": 3,
+			"templateCount": 3
+		},
+		{
+			"root": "Resource",
+			"references": 3,
+			"templateCount": 3
+		},
+		{
+			"root": "BunServices",
+			"references": 2,
+			"templateCount": 2
+		},
+		{
+			"root": "NodeClusterHttp",
+			"references": 2,
+			"templateCount": 2
+		},
+		{
+			"root": "NodeClusterSocket",
+			"references": 2,
+			"templateCount": 2
+		},
+		{
+			"root": "NodeServices",
+			"references": 2,
+			"templateCount": 2
+		},
+		{
+			"root": "BrowserRuntime",
+			"references": 1,
+			"templateCount": 1
+		},
+		{
+			"root": "NodeSdk",
+			"references": 1,
+			"templateCount": 1
+		},
+		{
+			"root": "OtelMetrics",
+			"references": 1,
+			"templateCount": 1
+		},
+		{
+			"root": "PgClient",
+			"references": 1,
+			"templateCount": 1
+		},
+		{
+			"root": "WebSdk",
+			"references": 1,
+			"templateCount": 1
+		}
+	],
+	"fallbackFindings": []
+}

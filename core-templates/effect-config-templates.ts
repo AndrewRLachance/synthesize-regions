@@ -1,4 +1,4 @@
-import { defineTemplate } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import { effectType, effectValueInput } from './effect-ts.js'
 import {
 	type AnyEffectFamilyTemplateDefinitionInput,
@@ -17,7 +17,8 @@ import {
 	configProviderType,
 	durationType,
 	optionType,
-	redactedType
+	redactedType,
+	urlType
 } from './effect-data-type-template-helpers.js'
 
 const configInput = (description: string, value = 'unknown') =>
@@ -27,9 +28,16 @@ const providerInput = (description: string) =>
 const optionalName = (description: string) =>
 	effectValueInput(description, { ts: 'string | undefined' })
 
+/** `effect/LogLevel`'s `LogLevel` is a string literal union, not a global. */
+const logLevelType = '"All" | "Fatal" | "Error" | "Warn" | "Info" | "Debug" | "Trace" | "None"'
+
+/**
+ * Effect v4 spells the `Config` constructors in PascalCase (`Config.String`), and
+ * `Config.mapOrFail` became `Config.mapEffect`.
+ */
 const primitiveConfig = (
 	modelId: string,
-	method: 'string' | 'nonEmptyString' | 'finite' | 'int' | 'port' | 'boolean' | 'duration' | 'date' | 'url' | 'logLevel' | 'redacted',
+	method: 'String' | 'NonEmptyString' | 'Finite' | 'Int' | 'Port' | 'Boolean' | 'Duration' | 'Date' | 'URL' | 'LogLevel' | 'Redacted',
 	valueType: string
 ) => defineTemplate({
 	modelId,
@@ -40,24 +48,24 @@ const primitiveConfig = (
 	source: `Config.${method}(${marker('expression', 'name', 'undefined')})`
 })
 
-export const ConfigStringTemplate = primitiveConfig('ConfigString', 'string', 'string')
-export const ConfigNonEmptyStringTemplate = primitiveConfig('ConfigNonEmptyString', 'nonEmptyString', 'string')
-export const ConfigFiniteTemplate = primitiveConfig('ConfigFinite', 'finite', 'number')
-export const ConfigIntTemplate = primitiveConfig('ConfigInt', 'int', 'number')
-export const ConfigPortTemplate = primitiveConfig('ConfigPort', 'port', 'number')
-export const ConfigBooleanTemplate = primitiveConfig('ConfigBoolean', 'boolean', 'boolean')
-export const ConfigDurationTemplate = primitiveConfig('ConfigDuration', 'duration', durationType().ts)
-export const ConfigDateTemplate = primitiveConfig('ConfigDate', 'date', 'Date')
-export const ConfigUrlTemplate = primitiveConfig('ConfigUrl', 'url', 'unknown')
-export const ConfigLogLevelTemplate = primitiveConfig('ConfigLogLevel', 'logLevel', 'unknown')
-export const ConfigRedactedTemplate = primitiveConfig('ConfigRedacted', 'redacted', redactedType('string').ts)
+export const ConfigStringTemplate = primitiveConfig('ConfigString', 'String', 'string')
+export const ConfigNonEmptyStringTemplate = primitiveConfig('ConfigNonEmptyString', 'NonEmptyString', 'string')
+export const ConfigFiniteTemplate = primitiveConfig('ConfigFinite', 'Finite', 'number')
+export const ConfigIntTemplate = primitiveConfig('ConfigInt', 'Int', 'number')
+export const ConfigPortTemplate = primitiveConfig('ConfigPort', 'Port', 'number')
+export const ConfigBooleanTemplate = primitiveConfig('ConfigBoolean', 'Boolean', 'boolean')
+export const ConfigDurationTemplate = primitiveConfig('ConfigDuration', 'Duration', durationType().ts)
+export const ConfigDateTemplate = primitiveConfig('ConfigDate', 'Date', 'Date')
+export const ConfigUrlTemplate = primitiveConfig('ConfigUrl', 'URL', urlType)
+export const ConfigLogLevelTemplate = primitiveConfig('ConfigLogLevel', 'LogLevel', logLevelType)
+export const ConfigRedactedTemplate = primitiveConfig('ConfigRedacted', 'Redacted', redactedType('string').ts)
 
 export const ConfigLiteralTemplate = defineTemplate({
 	modelId: 'ConfigLiteral', version: '1.0.0', description: 'Creates a Config that accepts one literal value.',
 	typeParameters: typeParameters(['A', 'Literal value type.']),
 	inputs: { value: effectValueInput('Accepted literal.', { ts: '{{A}}' }), name: optionalName('Optional configuration key name.') },
 	output: expressionOutput('Literal Config.', configType('{{A}}')),
-	source: `Config.literal(${marker('expression', 'value', 'undefined')}, ${marker('expression', 'name', 'undefined')})`
+	source: `Config.Literal(${marker('expression', 'value', 'undefined')}, ${marker('expression', 'name', 'undefined')})`
 })
 
 export const ConfigLiteralsTemplate = defineTemplate({
@@ -65,7 +73,7 @@ export const ConfigLiteralsTemplate = defineTemplate({
 	typeParameters: typeParameters(['A', 'Literal union type.']),
 	inputs: { values: valueInput('Readonly array of accepted literals.', { ts: 'ReadonlyArray<{{A}}>' }), name: optionalName('Optional configuration key name.') },
 	output: expressionOutput('Literal-union Config.', configType('{{A}}')),
-	source: `Config.literals(${marker('expression', 'values', '[]')}, ${marker('expression', 'name', 'undefined')})`
+	source: `Config.Literals(${marker('expression', 'values', '[]')}, ${marker('expression', 'name', 'undefined')})`
 })
 
 export const ConfigSchemaTemplate = defineTemplate({
@@ -119,7 +127,7 @@ export const ConfigUnwrapTemplate = defineTemplate({
 	typeParameters: typeParameters(['A', 'Unwrapped configuration value type.']),
 	inputs: { wrapped: valueInput('Config or nested record of Config values.') },
 	output: expressionOutput('Unwrapped Config.', configType('{{A}}')),
-	source: `Config.unwrap(${marker('expression', 'wrapped', '{}')})`
+	source: `Config.unwrap(${marker('expression', 'wrapped', '(undefined as never)')})`
 })
 
 export const ConfigWithDefaultTemplate = defineTemplate({
@@ -159,7 +167,7 @@ export const ConfigMapOrFailTemplate = defineTemplate({
 	typeParameters: typeParameters(['A', 'Input value type.'], ['B', 'Mapped value type.']),
 	inputs: { config: configInput('Source Config.', '{{A}}'), transform: callbackInput('Effectful transform.', effectReturningCallbackType('value: {{A}}', '{{B}}', 'unknown', 'never')) },
 	output: expressionOutput('Effectfully mapped Config.', configType('{{B}}')),
-	source: `Config.mapOrFail(${marker('expression', 'config', 'Config.String()')}, ${marker('expression', 'transform', 'value => Effect.succeed(value)')})`
+	source: `Config.mapEffect(${marker('expression', 'config', 'Config.String()')}, ${marker('expression', 'transform', 'value => Effect.succeed(value)')})`
 })
 
 export const ConfigParseTemplate = defineTemplate({

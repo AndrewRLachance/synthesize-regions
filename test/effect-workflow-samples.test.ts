@@ -106,8 +106,8 @@ describe('Effect workflow template catalog', () => {
 			'StreamIngestionPipeline',
 			'ApplicationMain'
 		])
-		expect(existingEffectTemplates).toHaveLength(389)
-		expect(new Set([...existingEffectTemplates, ...effectWorkflowGraphTemplateInputs].map(template => template.modelId)).size).toBe(399)
+		expect(existingEffectTemplates).toHaveLength(388)
+		expect(new Set([...existingEffectTemplates, ...effectWorkflowGraphTemplateInputs].map(template => template.modelId)).size).toBe(398)
 		expect(() => createTemplateRegistry([...existingEffectTemplates, ...effectWorkflowGraphTemplateInputs])).not.toThrow()
 	})
 
@@ -154,7 +154,7 @@ describe('Effect workflow template catalog', () => {
 		[
 			'StreamIngestionPipeline',
 			{ stream: raw('source'), schema: raw('ItemSchema') },
-			'Stream.mapEffect(source, Schema.decodeUnknownEffect(ItemSchema))'
+			'Stream.mapEffect(source, (value) => Schema.decodeUnknownEffect(ItemSchema)(value))'
 		]
 	] as const)('compiles %s to its exact workflow', (templateId, inputs, expected) => {
 		expectCode(templateId, inputs, expected)

@@ -1,4 +1,4 @@
-import { defineTemplate } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import type { TypeDescriptor } from '../src/templates.js'
 import {
 	type AnyEffectFamilyTemplateDefinitionInput,
@@ -64,7 +64,7 @@ export const EquivalenceMapInputTemplate = defineTemplate({
 		project: callbackInput('Projection used before comparison.', { ts: '(value: {{A}}) => {{B}}' })
 	},
 	output: expressionOutput('Derived Equivalence.', equivalenceType('{{A}}')),
-	source: `Equivalence.mapInput(${marker('expression', 'base', 'Equivalence.String')}, ${marker('expression', 'project', 'value => value')})`
+	source: `Equivalence.mapInput(${marker('expression', 'base', 'Equivalence.String')}, ${marker('expression', 'project', 'value => String(value)')})`
 })
 
 export const EquivalenceCompareTemplate = defineTemplate({
@@ -109,7 +109,7 @@ export const OrderMapInputTemplate = defineTemplate({
 		project: callbackInput('Projection used before comparison.', { ts: '(value: {{A}}) => {{B}}' })
 	},
 	output: expressionOutput('Derived Order.', orderType('{{A}}')),
-	source: `Order.mapInput(${marker('expression', 'base', 'Order.String')}, ${marker('expression', 'project', 'value => value')})`
+	source: `Order.mapInput(${marker('expression', 'base', 'Order.String')}, ${marker('expression', 'project', 'value => String(value)')})`
 })
 
 export const OrderCombineTemplate = defineTemplate({
@@ -153,6 +153,10 @@ export const ArraySortWithOrderTemplate = defineTemplate({
 	modelId: 'ArraySortWithOrder',
 	version: '1.0.0',
 	description: 'Sorts an array with Effect Array.sort without mutating the input array.',
+	importRequirements: [
+		{ schemaVersion: 1, moduleSpecifier: 'effect', importKind: 'named', importedName: 'Array', localName: 'Array', typeOnly: false },
+		{ schemaVersion: 1, moduleSpecifier: 'effect', importKind: 'named', importedName: 'Order', localName: 'Order', typeOnly: false }
+	],
 	typeParameters: typeParameters(['A', 'Array element type.']),
 	inputs: {
 		array: valueInput('Array to sort.', { ts: 'ReadonlyArray<{{A}}>' }),

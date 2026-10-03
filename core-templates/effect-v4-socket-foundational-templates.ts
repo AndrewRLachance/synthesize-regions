@@ -1,4 +1,4 @@
-import { defineTemplate } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import {
 	effectSourceInput,
 	effectType,
@@ -23,6 +23,7 @@ import {
 	socketAddressType,
 	socketCloseEventType,
 	socketErrorType,
+	socketFallback,
 	socketInput,
 	socketReaderInput,
 	socketReaderType,
@@ -57,14 +58,14 @@ export const SocketMakeTemplate = defineTemplate({
 		writer: effectSourceInput('Scoped writer acquisition.', effectType(socketWriterType().ts, 'never', socketScopeRequirement))
 	},
 	output: expressionOutput('Socket value.', socketType()),
-	source: `Socket.make({ reader: ${marker('expression', 'reader', 'Effect.fail(new Socket.SocketError({ reason: new Socket.SocketOpenError({ kind: "Unknown", cause: undefined }) }))')}, writer: ${marker('expression', 'writer', 'Effect.succeed({ write: () => Effect.void, writeAll: () => Effect.void })')} })`
+	source: `Socket.make({ reader: ${marker('expression', 'reader', 'Effect.fail(new Socket.SocketError({ reason: new Socket.SocketOpenError({ kind: "Unknown", cause: undefined }) }))')}, writer: ${marker('expression', 'writer', 'Effect.succeed({ write: (_chunk: unknown) => Effect.void, writeAll: (_chunks: unknown) => Effect.void })')} })`
 })
 
 export const SocketReaderTemplate = defineTemplate({
 	modelId: 'SocketReader', version: VERSION, description: 'Acquires the pull-based reader for a Socket. Reader lifetime is owned by Scope.',
 	inputs: { socket: socketInput('Socket whose reader is acquired.') },
 	output: expressionOutput('Scoped Socket reader acquisition.', effectType(socketReaderType().ts, socketErrorType, socketScopeRequirement)),
-	source: `${marker('expression', 'socket', 'Socket.Socket.of({})')}.reader`
+	source: `${marker('expression', 'socket', socketFallback)}.reader`
 })
 
 export const SocketReaderBytesTemplate = defineTemplate({
@@ -75,7 +76,7 @@ export const SocketReaderBytesTemplate = defineTemplate({
 		socketErrorType,
 		socketScopeRequirement
 	)),
-	source: `Socket.readerBytes(${marker('expression', 'socket', 'Socket.Socket.of({})')})`
+	source: `Socket.readerBytes(${marker('expression', 'socket', socketFallback)})`
 })
 
 export const SocketReaderStringTemplate = defineTemplate({
@@ -89,7 +90,7 @@ export const SocketReaderStringTemplate = defineTemplate({
 		socketErrorType,
 		socketScopeRequirement
 	)),
-	source: `Socket.readerString(${marker('expression', 'socket', 'Socket.Socket.of({})')}, ${marker('expression', 'encoding', 'undefined')})`
+	source: `Socket.readerString(${marker('expression', 'socket', socketFallback)}, ${marker('expression', 'encoding', 'undefined')})`
 })
 
 export const SocketReaderPullTemplate = defineTemplate({
@@ -97,7 +98,7 @@ export const SocketReaderPullTemplate = defineTemplate({
 	typeParameters: typeParameters(['A', 'Reader frame type.']),
 	inputs: { reader: socketReaderInput('Acquired Socket reader.', '{{A}}') },
 	output: expressionOutput('Next Socket frame batch Effect.', effectType(nonEmptyReadonlyArrayTs('{{A}}'), socketErrorType, 'never')),
-	source: `${marker('expression', 'reader', '{ pull: Effect.fail(undefined), upgrade: () => Effect.void }')}.pull`
+	source: `${marker('expression', 'reader', '{ pull: Effect.die(undefined), upgrade: (_options: unknown) => Effect.void }')}.pull`
 })
 
 export const SocketReaderUpgradeTlsTemplate = defineTemplate({
@@ -107,14 +108,14 @@ export const SocketReaderUpgradeTlsTemplate = defineTemplate({
 		options: valueInput('TLS upgrade options.')
 	},
 	output: expressionOutput('TLS upgrade Effect.', effectType('void', socketErrorType, 'never')),
-	source: `${marker('expression', 'reader', '{ pull: Effect.fail(undefined), upgrade: () => Effect.void }')}.upgrade(${marker('expression', 'options', '{}')})`
+	source: `${marker('expression', 'reader', '{ pull: Effect.die(undefined), upgrade: (_options: unknown) => Effect.void }')}.upgrade(${marker('expression', 'options', '{}')})`
 })
 
 export const SocketWriterTemplate = defineTemplate({
 	modelId: 'SocketWriter', version: VERSION, description: 'Acquires the scoped writer for a Socket. Writes suspend while disconnected until a connection becomes available.',
 	inputs: { socket: socketInput('Socket whose writer is acquired.') },
 	output: expressionOutput('Scoped Socket writer acquisition.', effectType(socketWriterType().ts, 'never', socketScopeRequirement)),
-	source: `${marker('expression', 'socket', 'Socket.Socket.of({})')}.writer`
+	source: `${marker('expression', 'socket', socketFallback)}.writer`
 })
 
 export const SocketWriterWriteTemplate = defineTemplate({
@@ -124,7 +125,7 @@ export const SocketWriterWriteTemplate = defineTemplate({
 		frame: valueInput('Frame or CloseEvent.', { ts: writableFrameType })
 	},
 	output: expressionOutput('Socket write Effect.', effectType('void', socketErrorType, 'never')),
-	source: `${marker('expression', 'writer', '{ write: () => Effect.void, writeAll: () => Effect.void }')}.write(${marker('expression', 'frame', '"message"')})`
+	source: `${marker('expression', 'writer', '{ write: (_chunk: unknown) => Effect.void, writeAll: (_chunks: unknown) => Effect.void }')}.write(${marker('expression', 'frame', '"message"')})`
 })
 
 export const SocketWriterWriteAllTemplate = defineTemplate({
@@ -134,7 +135,7 @@ export const SocketWriterWriteAllTemplate = defineTemplate({
 		frames: valueInput('Non-empty frame batch.', { ts: nonEmptyReadonlyArrayTs(frameType) })
 	},
 	output: expressionOutput('Batched Socket write Effect.', effectType('void', socketErrorType, 'never')),
-	source: `${marker('expression', 'writer', '{ write: () => Effect.void, writeAll: () => Effect.void }')}.writeAll(${marker('expression', 'frames', '["message"]')})`
+	source: `${marker('expression', 'writer', '{ write: (_chunk: unknown) => Effect.void, writeAll: (_chunks: unknown) => Effect.void }')}.writeAll(${marker('expression', 'frames', '["message"]')})`
 })
 
 export const SocketCloseEventTemplate = defineTemplate({
@@ -173,7 +174,7 @@ export const SocketToChannelTemplate = defineTemplate({
 		'unknown',
 		'never'
 	)),
-	source: `Socket.toChannel(${marker('expression', 'socket', 'Socket.Socket.of({})')})`
+	source: `Socket.toChannel(${marker('expression', 'socket', socketFallback)})`
 })
 
 export const SocketToChannelStringTemplate = defineTemplate({
@@ -191,14 +192,14 @@ export const SocketToChannelStringTemplate = defineTemplate({
 		'unknown',
 		'never'
 	)),
-	source: `Socket.toChannelString<never>(${marker('expression', 'socket', 'Socket.Socket.of({})')}, ${marker('expression', 'encoding', 'undefined')})`
+	source: `Socket.toChannelString<never>(${marker('expression', 'socket', socketFallback)}, ${marker('expression', 'encoding', 'undefined')})`
 })
 
 export const SocketToStreamTemplate = defineTemplate({
 	modelId: 'SocketToStream', version: VERSION, description: 'Converts a Socket into a read-only backpressured binary Stream.',
 	inputs: { socket: socketInput('Socket adapted to a Stream.') },
 	output: expressionOutput('Backpressured binary Socket Stream.', streamType('Uint8Array', socketErrorType, 'never')),
-	source: `Socket.toStream(${marker('expression', 'socket', 'Socket.Socket.of({})')})`
+	source: `Socket.toStream(${marker('expression', 'socket', socketFallback)})`
 })
 
 export const SocketMakeChannelTemplate = defineTemplate({
@@ -271,7 +272,7 @@ export const SocketFromWebSocketTemplate = defineTemplate({
 		options: valueInput('Open timeout and high-water-mark options.', { ts: fromWebSocketOptionsType })
 	},
 	output: expressionOutput('Socket construction Effect.', effectType(socketType().ts, 'never', '{{R}}')),
-	source: `Socket.fromWebSocket(${marker('expression', 'acquire', 'Effect.fail(undefined)')}, ${marker('expression', 'options', '{}')})`
+	source: `Socket.fromWebSocket(${marker('expression', 'acquire', 'Effect.die(undefined)')}, ${marker('expression', 'options', '{}')})`
 })
 
 export const SocketFromTransformStreamTemplate = defineTemplate({
@@ -281,7 +282,7 @@ export const SocketFromTransformStreamTemplate = defineTemplate({
 		acquire: effectSourceInput('Scoped InputTransformStream acquisition.', effectType(inputTransformStreamType().ts, socketErrorType, `{{R}} | ${socketScopeRequirement}`))
 	},
 	output: expressionOutput('Transform-stream-backed Socket construction Effect.', effectType(socketType().ts, 'never', '{{R}}')),
-	source: `Socket.fromTransformStream(${marker('expression', 'acquire', 'Effect.fail(undefined)')})`
+	source: `Socket.fromTransformStream(${marker('expression', 'acquire', 'Effect.die(undefined)')})`
 })
 
 export const SocketServerTcpAddressTemplate = defineTemplate({

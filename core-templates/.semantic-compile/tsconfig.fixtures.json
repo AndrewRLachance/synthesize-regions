@@ -1,0 +1,34 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "ES2022",
+		"moduleResolution": "Bundler",
+		"lib": [
+			"ES2022"
+		],
+		"strict": true,
+		"noEmit": true,
+		"skipLibCheck": true,
+		"exactOptionalPropertyTypes": true,
+		"noUncheckedIndexedAccess": false,
+		"noImplicitOverride": true,
+		"forceConsistentCasingInFileNames": true
+	},
+	"include": [
+		"fixtures/AiLanguageModelService.ts",
+		"fixtures/AiGenerateText.ts",
+		"fixtures/AiGenerateTextWithToolkit.ts",
+		"fixtures/AiGenerateObject.ts",
+		"fixtures/AiStreamText.ts",
+		"fixtures/AiModelMake.ts",
+		"fixtures/AiModelWithFallback.ts",
+		"fixtures/AiToolMake.ts",
+		"fixtures/AiToolkitMake.ts",
+		"fixtures/AiToolkitToLayer.ts",
+		"fixtures/AiChatMake.ts",
+		"fixtures/AiChatGenerateText.ts",
+		"fixtures/AiEmbeddingModelEmbed.ts",
+		"fixtures/AiTokenizerCount.ts",
+		"fixtures/AiErrorRecovery.ts"
+	]
+}

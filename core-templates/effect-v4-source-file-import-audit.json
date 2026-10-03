@@ -1,0 +1,3368 @@
+{
+	"summary": {
+		"sourceFileTemplates": 33,
+		"parseErrors": 0,
+		"missingImports": 0,
+		"unimportedTypeRoots": 0,
+		"obsoleteImports": 0,
+		"aliasConflicts": 0,
+		"unusedImports": 349,
+		"externalImports": 27,
+		"importStatements": 93
+	},
+	"roots": [
+		{
+			"modelId": "EffectNodeMainSourceFile",
+			"module": "effect-application-templates",
+			"parses": true,
+			"imports": [
+				"Config <= effect",
+				"Context <= effect",
+				"Deferred <= effect",
+				"Effect <= effect",
+				"Fiber <= effect",
+				"Layer <= effect",
+				"ManagedRuntime <= effect",
+				"Metric <= effect",
+				"Option <= effect",
+				"PubSub <= effect",
+				"Queue <= effect",
+				"Ref <= effect",
+				"Schedule <= effect",
+				"Schema <= effect",
+				"Stream <= effect"
+			],
+			"referencedRoots": [
+				"Effect"
+			]
+		},
+		{
+			"modelId": "NodeApplicationAssemblySourceFile",
+			"module": "effect-v4-application-assembly-template-catalog",
+			"parses": true,
+			"imports": [
+				"Context <= effect",
+				"Deferred <= effect",
+				"Effect <= effect",
+				"Latch <= effect",
+				"Layer <= effect",
+				"ManagedRuntime <= effect",
+				"Metric <= effect",
+				"Schedule <= effect",
+				"Schema <= effect",
+				"NodeRuntime <= @effect/platform-node",
+				"NodeServices <= @effect/platform-node"
+			],
+			"referencedRoots": [
+				"Effect",
+				"NodeRuntime"
+			]
+		},
+		{
+			"modelId": "BunApplicationAssemblySourceFile",
+			"module": "effect-v4-application-assembly-template-catalog",
+			"parses": true,
+			"imports": [
+				"Context <= effect",
+				"Deferred <= effect",
+				"Effect <= effect",
+				"Latch <= effect",
+				"Layer <= effect",
+				"ManagedRuntime <= effect",
+				"Metric <= effect",
+				"Schedule <= effect",
+				"Schema <= effect",
+				"BunRuntime <= @effect/platform-bun",
+				"BunServices <= @effect/platform-bun"
+			],
+			"referencedRoots": [
+				"BunRuntime",
+				"Effect"
+			]
+		},
+		{
+			"modelId": "BrowserApplicationAssemblySourceFile",
+			"module": "effect-v4-application-assembly-template-catalog",
+			"parses": true,
+			"imports": [
+				"Context <= effect",
+				"Deferred <= effect",
+				"Effect <= effect",
+				"Latch <= effect",
+				"Layer <= effect",
+				"ManagedRuntime <= effect",
+				"Metric <= effect",
+				"Schedule <= effect",
+				"Schema <= effect",
+				"BrowserRuntime <= @effect/platform-browser"
+			],
+			"referencedRoots": [
+				"BrowserRuntime",
+				"Effect"
+			]
+		},
+		{
+			"modelId": "ManagedRuntimeApplicationSourceFile",
+			"module": "effect-v4-application-assembly-template-catalog",
+			"parses": true,
+			"imports": [
+				"Context <= effect",
+				"Effect <= effect",
+				"Layer <= effect",
+				"ManagedRuntime <= effect",
+				"Schema <= effect"
+			],
+			"referencedRoots": [
+				"Layer",
+				"ManagedRuntime"
+			]
+		},
+		{
+			"modelId": "NodeChildProcessSourceFile",
+			"module": "effect-v4-child-process-os-integration-template-catalog",
+			"parses": true,
+			"imports": [
+				"Context <= effect",
+				"Effect <= effect",
+				"Layer <= effect",
+				"Schema <= effect",
+				"Sink <= effect",
+				"Stream <= effect",
+				"ChildProcess <= effect/unstable/process",
+				"ChildProcessSpawner <= effect/unstable/process",
+				"NodeRuntime <= @effect/platform-node",
+				"NodeServices <= @effect/platform-node"
+			],
+			"referencedRoots": [
+				"Effect",
+				"NodeRuntime"
+			]
+		},
+		{
+			"modelId": "BunChildProcessSourceFile",
+			"module": "effect-v4-child-process-os-integration-template-catalog",
+			"parses": true,
+			"imports": [
+				"Context <= effect",
+				"Effect <= effect",
+				"Layer <= effect",
+				"Schema <= effect",
+				"Sink <= effect",
+				"Stream <= effect",
+				"ChildProcess <= effect/unstable/process",
+				"ChildProcessSpawner <= effect/unstable/process",
+				"BunRuntime <= @effect/platform-bun",
+				"BunServices <= @effect/platform-bun"
+			],
+			"referencedRoots": [
+				"BunRuntime",
+				"Effect"
+			]
+		},
+		{
+			"modelId": "NodeCliChildProcessSourceFile",
+			"module": "effect-v4-child-process-os-integration-template-catalog",
+			"parses": true,
+			"imports": [
+				"Config <= effect",
+				"Context <= effect",
+				"Effect <= effect",
+				"Layer <= effect",
+				"Redacted <= effect",
+				"Schema <= effect",
+				"Sink <= effect",
+				"Stream <= effect",
+				"Argument <= effect/unstable/cli",
+				"Command <= effect/unstable/cli",
+				"Flag <= effect/unstable/cli",
+				"Prompt <= effect/unstable/cli",
+				"ChildProcess <= effect/unstable/process",
+				"ChildProcessSpawner <= effect/unstable/process",
+				"NodeRuntime <= @effect/platform-node",
+				"NodeServices <= @effect/platform-node"
+			],
+			"referencedRoots": [
+				"Effect",
+				"NodeRuntime"
+			]
+		},
+		{
+			"modelId": "NodeCliApplicationSourceFile",
+			"module": "effect-v4-cli-command-application-template-catalog",
+			"parses": true,
+			"imports": [
+				"Config <= effect",
+				"Context <= effect",
+				"Effect <= effect",
+				"FileSystem <= effect",
+				"Layer <= effect",
+				"Path <= effect",
+				"Redacted <= effect",
+				"Schema <= effect",
+				"Stdio <= effect",
+				"Terminal <= effect",
+				"Argument <= effect/unstable/cli",
+				"CliError <= effect/unstable/cli",
+				"CliOutput <= effect/unstable/cli",
+				"Command <= effect/unstable/cli",
+				"Flag <= effect/unstable/cli",
+				"GlobalFlag <= effect/unstable/cli",
+				"Prompt <= effect/unstable/cli",
+				"ChildProcessSpawner <= effect/unstable/process",
+				"NodeRuntime <= @effect/platform-node",
+				"NodeServices <= @effect/platform-node"
+			],
+			"referencedRoots": [
+				"Effect",
+				"NodeRuntime"
+			]
+		},
+		{
+			"modelId": "BunCliApplicationSourceFile",
+			"module": "effect-v4-cli-command-application-template-catalog",
+			"parses": true,
+			"imports": [
+				"Config <= effect",
+				"Context <= effect",
+				"Effect <= effect",
+				"FileSystem <= effect",
+				"Layer <= effect",
+				"Path <= effect",
+				"Redacted <= effect",
+				"Schema <= effect",
+				"Stdio <= effect",
+				"Terminal <= effect",
+				"Argument <= effect/unstable/cli",
+				"CliError <= effect/unstable/cli",
+				"CliOutput <= effect/unstable/cli",
+				"Command <= effect/unstable/cli",
+				"Flag <= effect/unstable/cli",
+				"GlobalFlag <= effect/unstable/cli",
+				"Prompt <= effect/unstable/cli",
+				"ChildProcessSpawner <= effect/unstable/process",
+				"BunRuntime <= @effect/platform-bun",
+				"BunServices <= @effect/platform-bun"
+			],
+			"referencedRoots": [
+				"BunRuntime",
+				"Effect"
+			]
+		},
+		{
+			"modelId": "CliTestSourceFile",
+			"module": "effect-v4-cli-command-application-template-catalog",
+			"parses": true,
+			"imports": [
+				"Effect <= effect",
+				"FileSystem <= effect",
+				"Layer <= effect",
+				"Path <= effect",
+				"Stdio <= effect",
+				"Terminal <= effect",
+				"Argument <= effect/unstable/cli",
+				"Command <= effect/unstable/cli",
+				"Flag <= effect/unstable/cli",
+				"Prompt <= effect/unstable/cli",
+				"ChildProcessSpawner <= effect/unstable/process"
+			],
+			"referencedRoots": []
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"module": "effect-v4-cluster-distributed-service-template-catalog",
+			"parses": true,
+			"imports": [
+				"Context <= effect",
+				"Effect <= effect",
+				"Layer <= effect",
+				"Schedule <= effect",
+				"Schema <= effect",
+				"Stream <= effect",
+				"ClusterSchema <= effect/unstable/cluster",
+				"Entity <= effect/unstable/cluster",
+				"EntityAddress <= effect/unstable/cluster",
+				"EntityProxy <= effect/unstable/cluster",
+				"EntityProxyServer <= effect/unstable/cluster",
+				"MessageStorage <= effect/unstable/cluster",
+				"Runner <= effect/unstable/cluster",
+				"RunnerAddress <= effect/unstable/cluster",
+				"RunnerStorage <= effect/unstable/cluster",
+				"Sharding <= effect/unstable/cluster",
+				"SingleRunner <= effect/unstable/cluster",
+				"SocketRunner <= effect/unstable/cluster",
+				"SqlMessageStorage <= effect/unstable/cluster",
+				"SqlRunnerStorage <= effect/unstable/cluster",
+				"HttpApi <= effect/unstable/httpapi",
+				"HttpApiBuilder <= effect/unstable/httpapi",
+				"Rpc <= effect/unstable/rpc",
+				"RpcGroup <= effect/unstable/rpc",
+				"RpcServer <= effect/unstable/rpc",
+				"NodeClusterHttp <= @effect/platform-node",
+				"NodeClusterSocket <= @effect/platform-node"
+			],
+			"referencedRoots": [
+				"Effect"
+			]
+		},
+		{
+			"modelId": "DurableWorkflowSourceFile",
+			"module": "effect-v4-durable-background-workflow-template-catalog",
+			"parses": true,
+			"imports": [
+				"Cron <= effect",
+				"Effect <= effect",
+				"Layer <= effect",
+				"Option <= effect",
+				"Schedule <= effect",
+				"Schema <= effect",
+				"Activity <= effect/unstable/workflow",
+				"DurableClock <= effect/unstable/workflow",
+				"DurableDeferred <= effect/unstable/workflow",
+				"DurableQueue <= effect/unstable/workflow",
+				"Workflow <= effect/unstable/workflow",
+				"WorkflowEngine <= effect/unstable/workflow",
+				"WorkflowProxy <= effect/unstable/workflow",
+				"WorkflowProxyServer <= effect/unstable/workflow",
+				"ClusterCron <= effect/unstable/cluster",
+				"ClusterWorkflowEngine <= effect/unstable/cluster"
+			],
+			"referencedRoots": []
+		},
+		{
+			"modelId": "OfflineFirstBrowserSourceFile",
+			"module": "effect-v4-eventlog-offline-first-templates",
+			"parses": true,
+			"imports": [
+				"Context <= effect",
+				"Effect <= effect",
+				"Layer <= effect",
+				"Schedule <= effect",
+				"Schema <= effect",
+				"Stream <= effect",
+				"Event <= effect/unstable/eventlog",
+				"EventGroup <= effect/unstable/eventlog",
+				"EventJournal <= effect/unstable/eventlog",
+				"EventLog <= effect/unstable/eventlog",
+				"EventLogRemote <= effect/unstable/eventlog",
+				"KeyValueStore <= effect/unstable/persistence",
+				"PersistedQueue <= effect/unstable/persistence",
+				"Reactivity <= effect/unstable/reactivity"
+			],
+			"referencedRoots": [
+				"Layer"
+			]
+		},
+		{
+			"modelId": "EventLogPersistenceServerSourceFile",
+			"module": "effect-v4-eventlog-offline-first-templates",
+			"parses": true,
+			"imports": [
+				"Context <= effect",
+				"Effect <= effect",
+				"Layer <= effect",
+				"Schedule <= effect",
+				"Schema <= effect",
+				"Stream <= effect",
+				"EventLogServer <= effect/unstable/eventlog",
+				"KeyValueStore <= effect/unstable/persistence",
+				"PersistedQueue <= effect/unstable/persistence",
+				"RpcServer <= effect/unstable/rpc"
+			],
+			"referencedRoots": [
+				"Layer"
+			]
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"module": "effect-v4-expanded-with-application-assembly-template-catalog",
+			"parses": true,
+			"imports": [
+				"Clock <= effect",
+				"Console <= effect",
+				"Context <= effect",
+				"Deferred <= effect",
+				"Duration <= effect",
+				"Effect <= effect",
+				"Exit <= effect",
+				"Fiber <= effect",
+				"Layer <= effect",
+				"Option <= effect",
+				"PubSub <= effect",
+				"Queue <= effect",
+				"Random <= effect",
+				"Ref <= effect",
+				"Result <= effect",
+				"Schedule <= effect",
+				"Stream <= effect",
+				"TestClock <= effect/testing",
+				"TestConsole <= effect/testing",
+				"assert <= @effect/vitest",
+				"describe <= @effect/vitest",
+				"it <= @effect/vitest",
+				"layer <= @effect/vitest"
+			],
+			"referencedRoots": [
+				"Effect",
+				"it"
+			]
+		},
+		{
+			"modelId": "EffectSqlSourceFile",
+			"module": "effect-v4-expanded-with-application-assembly-template-catalog",
+			"parses": true,
+			"imports": [
+				"Effect <= effect",
+				"Layer <= effect",
+				"Option <= effect",
+				"Schedule <= effect",
+				"Schema <= effect",
+				"Stream <= effect",
+				"Migrator <= effect/unstable/sql",
+				"SqlClient <= effect/unstable/sql",
+				"SqlError <= effect/unstable/sql",
+				"SqlModel <= effect/unstable/sql",
+				"SqlResolver <= effect/unstable/sql",
+				"SqlSchema <= effect/unstable/sql",
+				"Statement <= effect/unstable/sql",
+				"PgClient <= @effect/sql-pg"
+			],
+			"referencedRoots": [
+				"Effect"
+			]
+		},
+		{
+			"modelId": "RpcServiceBoundarySourceFile",
+			"module": "effect-v4-expanded-with-application-assembly-template-catalog",
+			"parses": true,
+			"imports": [
+				"Effect <= effect",
+				"Layer <= effect",
+				"Schedule <= effect",
+				"Schema <= effect",
+				"Stream <= effect",
+				"HttpClient <= effect/unstable/http",
+				"HttpRouter <= effect/unstable/http",
+				"Socket <= effect/unstable/socket",
+				"SocketServer <= effect/unstable/socket",
+				"Rpc <= effect/unstable/rpc",
+				"RpcClient <= effect/unstable/rpc",
+				"RpcGroup <= effect/unstable/rpc",
+				"RpcMiddleware <= effect/unstable/rpc",
+				"RpcSerialization <= effect/unstable/rpc",
+				"RpcServer <= effect/unstable/rpc"
+			],
+			"referencedRoots": [
+				"Rpc"
+			]
+		},
+		{
+			"modelId": "EffectTransactionSourceFile",
+			"module": "effect-v4-expanded-with-application-assembly-template-catalog",
+			"parses": true,
+			"imports": [
+				"Effect <= effect",
+				"TxDeferred <= effect",
+				"TxPubSub <= effect",
+				"TxQueue <= effect",
+				"TxRef <= effect",
+				"TxSemaphore <= effect",
+				"TxSubscriptionRef <= effect"
+			],
+			"referencedRoots": []
+		},
+		{
+			"modelId": "SocketStreamingBoundarySourceFile",
+			"module": "effect-v4-expanded-with-application-assembly-template-catalog",
+			"parses": true,
+			"imports": [
+				"Effect <= effect",
+				"Layer <= effect",
+				"PubSub <= effect",
+				"Queue <= effect",
+				"Schedule <= effect",
+				"Schema <= effect",
+				"Stream <= effect",
+				"Socket <= effect/unstable/socket",
+				"SocketServer <= effect/unstable/socket"
+			],
+			"referencedRoots": [
+				"Effect"
+			]
+		},
+		{
+			"modelId": "HttpApiContractSourceFile",
+			"module": "effect-v4-expanded-with-child-process-os-integration-template-catalog",
+			"parses": true,
+			"imports": [
+				"Schema <= effect",
+				"HttpApi <= effect/unstable/httpapi",
+				"HttpApiEndpoint <= effect/unstable/httpapi",
+				"HttpApiGroup <= effect/unstable/httpapi",
+				"HttpApiMiddleware <= effect/unstable/httpapi",
+				"HttpApiSchema <= effect/unstable/httpapi",
+				"HttpApiSecurity <= effect/unstable/httpapi",
+				"OpenApi <= effect/unstable/httpapi"
+			],
+			"referencedRoots": [
+				"HttpApi"
+			]
+		},
+		{
+			"modelId": "HttpApiServerSourceFile",
+			"module": "effect-v4-expanded-with-child-process-os-integration-template-catalog",
+			"parses": true,
+			"imports": [
+				"Effect <= effect",
+				"Layer <= effect",
+				"Schema <= effect",
+				"HttpRouter <= effect/unstable/http",
+				"HttpServer <= effect/unstable/http",
+				"HttpServerRequest <= effect/unstable/http",
+				"HttpServerResponse <= effect/unstable/http",
+				"HttpApiBuilder <= effect/unstable/httpapi",
+				"HttpApiMiddleware <= effect/unstable/httpapi",
+				"HttpApiSwagger <= effect/unstable/httpapi",
+				"OpenApi <= effect/unstable/httpapi"
+			],
+			"referencedRoots": [
+				"Layer"
+			]
+		},
+		{
+			"modelId": "HttpApiClientSourceFile",
+			"module": "effect-v4-expanded-with-child-process-os-integration-template-catalog",
+			"parses": true,
+			"imports": [
+				"Effect <= effect",
+				"Layer <= effect",
+				"Schema <= effect",
+				"HttpClient <= effect/unstable/http",
+				"HttpClientRequest <= effect/unstable/http",
+				"HttpApiClient <= effect/unstable/httpapi",
+				"HttpApiMiddleware <= effect/unstable/httpapi"
+			],
+			"referencedRoots": [
+				"Layer"
+			]
+		},
+		{
+			"modelId": "OtlpProductionObservabilitySourceFile",
+			"module": "effect-v4-expanded-with-child-process-os-integration-template-catalog",
+			"parses": true,
+			"imports": [
+				"Effect <= effect",
+				"Layer <= effect",
+				"FetchHttpClient <= effect/unstable/http",
+				"HttpMiddleware <= effect/unstable/http",
+				"Otlp <= effect/unstable/observability",
+				"OtlpExporter <= effect/unstable/observability",
+				"OtlpLogger <= effect/unstable/observability",
+				"OtlpMetrics <= effect/unstable/observability",
+				"OtlpResource <= effect/unstable/observability",
+				"OtlpSerialization <= effect/unstable/observability",
+				"OtlpTracer <= effect/unstable/observability",
+				"PrometheusMetrics <= effect/unstable/observability"
+			],
+			"referencedRoots": [
+				"Layer"
+			]
+		},
+		{
+			"modelId": "OpenTelemetryBridgeSourceFile",
+			"module": "effect-v4-expanded-with-child-process-os-integration-template-catalog",
+			"parses": true,
+			"imports": [
+				"Effect <= effect",
+				"Layer <= effect",
+				"NodeSdk <= @effect/opentelemetry",
+				"OtelMetrics <= @effect/opentelemetry",
+				"Resource <= @effect/opentelemetry",
+				"WebSdk <= @effect/opentelemetry"
+			],
+			"referencedRoots": [
+				"Resource"
+			]
+		},
+		{
+			"modelId": "OpenApiGeneratorBuildSourceFile",
+			"module": "effect-v4-expanded-with-child-process-os-integration-template-catalog",
+			"parses": true,
+			"imports": [
+				"Effect <= effect",
+				"Layer <= effect",
+				"FileSystem <= effect",
+				"OpenApi <= effect/unstable/httpapi",
+				"OpenApiGenerator <= @effect/openapi-generator/OpenApiGenerator"
+			],
+			"referencedRoots": [
+				"Effect"
+			]
+		},
+		{
+			"modelId": "OpenApiGeneratedClientAdapterSourceFile",
+			"module": "effect-v4-expanded-with-child-process-os-integration-template-catalog",
+			"parses": true,
+			"imports": [
+				"Context <= effect",
+				"Effect <= effect",
+				"Layer <= effect",
+				"Schedule <= effect",
+				"HttpClient <= effect/unstable/http"
+			],
+			"referencedRoots": []
+		},
+		{
+			"modelId": "OpenApiGeneratedHttpApiServerSourceFile",
+			"module": "effect-v4-expanded-with-child-process-os-integration-template-catalog",
+			"parses": true,
+			"imports": [
+				"Effect <= effect",
+				"Layer <= effect",
+				"HttpRouter <= effect/unstable/http",
+				"HttpApiBuilder <= effect/unstable/httpapi",
+				"HttpApiSwagger <= effect/unstable/httpapi"
+			],
+			"referencedRoots": []
+		},
+		{
+			"modelId": "OpenApiGeneratedIntegrationTestSourceFile",
+			"module": "effect-v4-expanded-with-child-process-os-integration-template-catalog",
+			"parses": true,
+			"imports": [
+				"Effect <= effect",
+				"Layer <= effect",
+				"HttpClient <= effect/unstable/http",
+				"it <= @effect/vitest"
+			],
+			"referencedRoots": []
+		},
+		{
+			"modelId": "SecurityServerSourceFile",
+			"module": "effect-v4-expanded-with-security-cross-boundary-template-catalog",
+			"parses": true,
+			"imports": [
+				"Config <= effect",
+				"Context <= effect",
+				"Effect <= effect",
+				"Layer <= effect",
+				"Redacted <= effect",
+				"Ref <= effect",
+				"Schema <= effect",
+				"Cookies <= effect/unstable/http",
+				"Headers <= effect/unstable/http",
+				"HttpClient <= effect/unstable/http",
+				"HttpClientRequest <= effect/unstable/http",
+				"HttpMiddleware <= effect/unstable/http",
+				"HttpServerResponse <= effect/unstable/http",
+				"HttpApiBuilder <= effect/unstable/httpapi",
+				"HttpApiMiddleware <= effect/unstable/httpapi",
+				"HttpApiSecurity <= effect/unstable/httpapi",
+				"OpenApi <= effect/unstable/httpapi"
+			],
+			"referencedRoots": [
+				"Layer"
+			]
+		},
+		{
+			"modelId": "SecurityClientSourceFile",
+			"module": "effect-v4-expanded-with-security-cross-boundary-template-catalog",
+			"parses": true,
+			"imports": [
+				"Config <= effect",
+				"Context <= effect",
+				"Effect <= effect",
+				"Layer <= effect",
+				"Redacted <= effect",
+				"Ref <= effect",
+				"Cookies <= effect/unstable/http",
+				"Headers <= effect/unstable/http",
+				"HttpClient <= effect/unstable/http",
+				"HttpClientRequest <= effect/unstable/http",
+				"HttpApiMiddleware <= effect/unstable/httpapi"
+			],
+			"referencedRoots": [
+				"Layer"
+			]
+		},
+		{
+			"modelId": "SecurityCliSourceFile",
+			"module": "effect-v4-expanded-with-security-cross-boundary-template-catalog",
+			"parses": true,
+			"imports": [
+				"Config <= effect",
+				"Effect <= effect",
+				"Layer <= effect",
+				"Redacted <= effect",
+				"Stream <= effect",
+				"Prompt <= effect/unstable/cli",
+				"HttpClientRequest <= effect/unstable/http",
+				"ChildProcess <= effect/unstable/process"
+			],
+			"referencedRoots": [
+				"Config"
+			]
+		},
+		{
+			"modelId": "ApplicationMain",
+			"module": "effect-workflow-templates",
+			"parses": true,
+			"imports": [
+				"Config <= effect",
+				"Context <= effect",
+				"Deferred <= effect",
+				"Effect <= effect",
+				"Fiber <= effect",
+				"Layer <= effect",
+				"ManagedRuntime <= effect",
+				"Metric <= effect",
+				"Option <= effect",
+				"PubSub <= effect",
+				"Queue <= effect",
+				"Ref <= effect",
+				"Schedule <= effect",
+				"Schema <= effect",
+				"Stream <= effect"
+			],
+			"referencedRoots": [
+				"ApplicationRuntime",
+				"Effect",
+				"Layer",
+				"ManagedRuntime"
+			]
+		}
+	],
+	"findings": [
+		{
+			"modelId": "BrowserApplicationAssemblySourceFile",
+			"kind": "external-import",
+			"detail": "`BrowserRuntime` comes from `@effect/platform-browser`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "BrowserRuntime",
+			"specifier": "@effect/platform-browser"
+		},
+		{
+			"modelId": "BunApplicationAssemblySourceFile",
+			"kind": "external-import",
+			"detail": "`BunRuntime` comes from `@effect/platform-bun`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "BunRuntime",
+			"specifier": "@effect/platform-bun"
+		},
+		{
+			"modelId": "BunApplicationAssemblySourceFile",
+			"kind": "external-import",
+			"detail": "`BunServices` comes from `@effect/platform-bun`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "BunServices",
+			"specifier": "@effect/platform-bun"
+		},
+		{
+			"modelId": "BunChildProcessSourceFile",
+			"kind": "external-import",
+			"detail": "`BunRuntime` comes from `@effect/platform-bun`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "BunRuntime",
+			"specifier": "@effect/platform-bun"
+		},
+		{
+			"modelId": "BunChildProcessSourceFile",
+			"kind": "external-import",
+			"detail": "`BunServices` comes from `@effect/platform-bun`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "BunServices",
+			"specifier": "@effect/platform-bun"
+		},
+		{
+			"modelId": "BunCliApplicationSourceFile",
+			"kind": "external-import",
+			"detail": "`BunRuntime` comes from `@effect/platform-bun`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "BunRuntime",
+			"specifier": "@effect/platform-bun"
+		},
+		{
+			"modelId": "BunCliApplicationSourceFile",
+			"kind": "external-import",
+			"detail": "`BunServices` comes from `@effect/platform-bun`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "BunServices",
+			"specifier": "@effect/platform-bun"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "external-import",
+			"detail": "`NodeClusterHttp` comes from `@effect/platform-node`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "NodeClusterHttp",
+			"specifier": "@effect/platform-node"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "external-import",
+			"detail": "`NodeClusterSocket` comes from `@effect/platform-node`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "NodeClusterSocket",
+			"specifier": "@effect/platform-node"
+		},
+		{
+			"modelId": "EffectSqlSourceFile",
+			"kind": "external-import",
+			"detail": "`PgClient` comes from `@effect/sql-pg`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "PgClient",
+			"specifier": "@effect/sql-pg"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "external-import",
+			"detail": "`assert` comes from `@effect/vitest`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "assert",
+			"specifier": "@effect/vitest"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "external-import",
+			"detail": "`describe` comes from `@effect/vitest`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "describe",
+			"specifier": "@effect/vitest"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "external-import",
+			"detail": "`it` comes from `@effect/vitest`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "it",
+			"specifier": "@effect/vitest"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "external-import",
+			"detail": "`layer` comes from `@effect/vitest`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "layer",
+			"specifier": "@effect/vitest"
+		},
+		{
+			"modelId": "NodeApplicationAssemblySourceFile",
+			"kind": "external-import",
+			"detail": "`NodeRuntime` comes from `@effect/platform-node`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "NodeRuntime",
+			"specifier": "@effect/platform-node"
+		},
+		{
+			"modelId": "NodeApplicationAssemblySourceFile",
+			"kind": "external-import",
+			"detail": "`NodeServices` comes from `@effect/platform-node`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "NodeServices",
+			"specifier": "@effect/platform-node"
+		},
+		{
+			"modelId": "NodeChildProcessSourceFile",
+			"kind": "external-import",
+			"detail": "`NodeRuntime` comes from `@effect/platform-node`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "NodeRuntime",
+			"specifier": "@effect/platform-node"
+		},
+		{
+			"modelId": "NodeChildProcessSourceFile",
+			"kind": "external-import",
+			"detail": "`NodeServices` comes from `@effect/platform-node`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "NodeServices",
+			"specifier": "@effect/platform-node"
+		},
+		{
+			"modelId": "NodeCliApplicationSourceFile",
+			"kind": "external-import",
+			"detail": "`NodeRuntime` comes from `@effect/platform-node`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "NodeRuntime",
+			"specifier": "@effect/platform-node"
+		},
+		{
+			"modelId": "NodeCliApplicationSourceFile",
+			"kind": "external-import",
+			"detail": "`NodeServices` comes from `@effect/platform-node`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "NodeServices",
+			"specifier": "@effect/platform-node"
+		},
+		{
+			"modelId": "NodeCliChildProcessSourceFile",
+			"kind": "external-import",
+			"detail": "`NodeRuntime` comes from `@effect/platform-node`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "NodeRuntime",
+			"specifier": "@effect/platform-node"
+		},
+		{
+			"modelId": "NodeCliChildProcessSourceFile",
+			"kind": "external-import",
+			"detail": "`NodeServices` comes from `@effect/platform-node`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "NodeServices",
+			"specifier": "@effect/platform-node"
+		},
+		{
+			"modelId": "OpenApiGeneratedIntegrationTestSourceFile",
+			"kind": "external-import",
+			"detail": "`it` comes from `@effect/vitest`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "it",
+			"specifier": "@effect/vitest"
+		},
+		{
+			"modelId": "OpenTelemetryBridgeSourceFile",
+			"kind": "external-import",
+			"detail": "`NodeSdk` comes from `@effect/opentelemetry`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "NodeSdk",
+			"specifier": "@effect/opentelemetry"
+		},
+		{
+			"modelId": "OpenTelemetryBridgeSourceFile",
+			"kind": "external-import",
+			"detail": "`OtelMetrics` comes from `@effect/opentelemetry`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "OtelMetrics",
+			"specifier": "@effect/opentelemetry"
+		},
+		{
+			"modelId": "OpenTelemetryBridgeSourceFile",
+			"kind": "external-import",
+			"detail": "`Resource` comes from `@effect/opentelemetry`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "Resource",
+			"specifier": "@effect/opentelemetry"
+		},
+		{
+			"modelId": "OpenTelemetryBridgeSourceFile",
+			"kind": "external-import",
+			"detail": "`WebSdk` comes from `@effect/opentelemetry`, which is not installed in this workspace and cannot be verified here",
+			"symbol": "WebSdk",
+			"specifier": "@effect/opentelemetry"
+		},
+		{
+			"modelId": "ApplicationMain",
+			"kind": "unused-import",
+			"detail": "`Config` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Config",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "ApplicationMain",
+			"kind": "unused-import",
+			"detail": "`Context` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Context",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "ApplicationMain",
+			"kind": "unused-import",
+			"detail": "`Deferred` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Deferred",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "ApplicationMain",
+			"kind": "unused-import",
+			"detail": "`Fiber` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Fiber",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "ApplicationMain",
+			"kind": "unused-import",
+			"detail": "`Metric` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Metric",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "ApplicationMain",
+			"kind": "unused-import",
+			"detail": "`Option` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Option",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "ApplicationMain",
+			"kind": "unused-import",
+			"detail": "`PubSub` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "PubSub",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "ApplicationMain",
+			"kind": "unused-import",
+			"detail": "`Queue` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Queue",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "ApplicationMain",
+			"kind": "unused-import",
+			"detail": "`Ref` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Ref",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "ApplicationMain",
+			"kind": "unused-import",
+			"detail": "`Schedule` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schedule",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "ApplicationMain",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "ApplicationMain",
+			"kind": "unused-import",
+			"detail": "`Stream` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Stream",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BrowserApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`Context` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Context",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BrowserApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`Deferred` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Deferred",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BrowserApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`Latch` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Latch",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BrowserApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BrowserApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`ManagedRuntime` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "ManagedRuntime",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BrowserApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`Metric` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Metric",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BrowserApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`Schedule` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schedule",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BrowserApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`BunServices` is imported from `@effect/platform-bun` but not referenced by the template's own content",
+			"symbol": "BunServices",
+			"specifier": "@effect/platform-bun"
+		},
+		{
+			"modelId": "BunApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`Context` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Context",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`Deferred` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Deferred",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`Latch` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Latch",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`ManagedRuntime` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "ManagedRuntime",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`Metric` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Metric",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`Schedule` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schedule",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`BunServices` is imported from `@effect/platform-bun` but not referenced by the template's own content",
+			"symbol": "BunServices",
+			"specifier": "@effect/platform-bun"
+		},
+		{
+			"modelId": "BunChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`ChildProcess` is imported from `effect/unstable/process` but not referenced by the template's own content",
+			"symbol": "ChildProcess",
+			"specifier": "effect/unstable/process"
+		},
+		{
+			"modelId": "BunChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`ChildProcessSpawner` is imported from `effect/unstable/process` but not referenced by the template's own content",
+			"symbol": "ChildProcessSpawner",
+			"specifier": "effect/unstable/process"
+		},
+		{
+			"modelId": "BunChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`Context` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Context",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`Sink` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Sink",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`Stream` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Stream",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Argument` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "Argument",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "BunCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`BunServices` is imported from `@effect/platform-bun` but not referenced by the template's own content",
+			"symbol": "BunServices",
+			"specifier": "@effect/platform-bun"
+		},
+		{
+			"modelId": "BunCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`ChildProcessSpawner` is imported from `effect/unstable/process` but not referenced by the template's own content",
+			"symbol": "ChildProcessSpawner",
+			"specifier": "effect/unstable/process"
+		},
+		{
+			"modelId": "BunCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`CliError` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "CliError",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "BunCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`CliOutput` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "CliOutput",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "BunCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Command` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "Command",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "BunCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Config` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Config",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Context` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Context",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`FileSystem` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "FileSystem",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Flag` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "Flag",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "BunCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`GlobalFlag` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "GlobalFlag",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "BunCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Path` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Path",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Prompt` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "Prompt",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "BunCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Redacted` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Redacted",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Stdio` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Stdio",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "BunCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Terminal` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Terminal",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "CliTestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Argument` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "Argument",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "CliTestSourceFile",
+			"kind": "unused-import",
+			"detail": "`ChildProcessSpawner` is imported from `effect/unstable/process` but not referenced by the template's own content",
+			"symbol": "ChildProcessSpawner",
+			"specifier": "effect/unstable/process"
+		},
+		{
+			"modelId": "CliTestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Command` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "Command",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "CliTestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Effect` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Effect",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "CliTestSourceFile",
+			"kind": "unused-import",
+			"detail": "`FileSystem` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "FileSystem",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "CliTestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Flag` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "Flag",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "CliTestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "CliTestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Path` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Path",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "CliTestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Prompt` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "Prompt",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "CliTestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Stdio` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Stdio",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "CliTestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Terminal` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Terminal",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`ClusterSchema` is imported from `effect/unstable/cluster` but not referenced by the template's own content",
+			"symbol": "ClusterSchema",
+			"specifier": "effect/unstable/cluster"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`Context` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Context",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`Entity` is imported from `effect/unstable/cluster` but not referenced by the template's own content",
+			"symbol": "Entity",
+			"specifier": "effect/unstable/cluster"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`EntityAddress` is imported from `effect/unstable/cluster` but not referenced by the template's own content",
+			"symbol": "EntityAddress",
+			"specifier": "effect/unstable/cluster"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`EntityProxy` is imported from `effect/unstable/cluster` but not referenced by the template's own content",
+			"symbol": "EntityProxy",
+			"specifier": "effect/unstable/cluster"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`EntityProxyServer` is imported from `effect/unstable/cluster` but not referenced by the template's own content",
+			"symbol": "EntityProxyServer",
+			"specifier": "effect/unstable/cluster"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpApi` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "HttpApi",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpApiBuilder` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "HttpApiBuilder",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`MessageStorage` is imported from `effect/unstable/cluster` but not referenced by the template's own content",
+			"symbol": "MessageStorage",
+			"specifier": "effect/unstable/cluster"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`NodeClusterHttp` is imported from `@effect/platform-node` but not referenced by the template's own content",
+			"symbol": "NodeClusterHttp",
+			"specifier": "@effect/platform-node"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`NodeClusterSocket` is imported from `@effect/platform-node` but not referenced by the template's own content",
+			"symbol": "NodeClusterSocket",
+			"specifier": "@effect/platform-node"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`Rpc` is imported from `effect/unstable/rpc` but not referenced by the template's own content",
+			"symbol": "Rpc",
+			"specifier": "effect/unstable/rpc"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`RpcGroup` is imported from `effect/unstable/rpc` but not referenced by the template's own content",
+			"symbol": "RpcGroup",
+			"specifier": "effect/unstable/rpc"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`RpcServer` is imported from `effect/unstable/rpc` but not referenced by the template's own content",
+			"symbol": "RpcServer",
+			"specifier": "effect/unstable/rpc"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`Runner` is imported from `effect/unstable/cluster` but not referenced by the template's own content",
+			"symbol": "Runner",
+			"specifier": "effect/unstable/cluster"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`RunnerAddress` is imported from `effect/unstable/cluster` but not referenced by the template's own content",
+			"symbol": "RunnerAddress",
+			"specifier": "effect/unstable/cluster"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`RunnerStorage` is imported from `effect/unstable/cluster` but not referenced by the template's own content",
+			"symbol": "RunnerStorage",
+			"specifier": "effect/unstable/cluster"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schedule` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schedule",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`Sharding` is imported from `effect/unstable/cluster` but not referenced by the template's own content",
+			"symbol": "Sharding",
+			"specifier": "effect/unstable/cluster"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`SingleRunner` is imported from `effect/unstable/cluster` but not referenced by the template's own content",
+			"symbol": "SingleRunner",
+			"specifier": "effect/unstable/cluster"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`SocketRunner` is imported from `effect/unstable/cluster` but not referenced by the template's own content",
+			"symbol": "SocketRunner",
+			"specifier": "effect/unstable/cluster"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`SqlMessageStorage` is imported from `effect/unstable/cluster` but not referenced by the template's own content",
+			"symbol": "SqlMessageStorage",
+			"specifier": "effect/unstable/cluster"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`SqlRunnerStorage` is imported from `effect/unstable/cluster` but not referenced by the template's own content",
+			"symbol": "SqlRunnerStorage",
+			"specifier": "effect/unstable/cluster"
+		},
+		{
+			"modelId": "ClusterDistributedSourceFile",
+			"kind": "unused-import",
+			"detail": "`Stream` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Stream",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "DurableWorkflowSourceFile",
+			"kind": "unused-import",
+			"detail": "`Activity` is imported from `effect/unstable/workflow` but not referenced by the template's own content",
+			"symbol": "Activity",
+			"specifier": "effect/unstable/workflow"
+		},
+		{
+			"modelId": "DurableWorkflowSourceFile",
+			"kind": "unused-import",
+			"detail": "`ClusterCron` is imported from `effect/unstable/cluster` but not referenced by the template's own content",
+			"symbol": "ClusterCron",
+			"specifier": "effect/unstable/cluster"
+		},
+		{
+			"modelId": "DurableWorkflowSourceFile",
+			"kind": "unused-import",
+			"detail": "`ClusterWorkflowEngine` is imported from `effect/unstable/cluster` but not referenced by the template's own content",
+			"symbol": "ClusterWorkflowEngine",
+			"specifier": "effect/unstable/cluster"
+		},
+		{
+			"modelId": "DurableWorkflowSourceFile",
+			"kind": "unused-import",
+			"detail": "`Cron` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Cron",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "DurableWorkflowSourceFile",
+			"kind": "unused-import",
+			"detail": "`DurableClock` is imported from `effect/unstable/workflow` but not referenced by the template's own content",
+			"symbol": "DurableClock",
+			"specifier": "effect/unstable/workflow"
+		},
+		{
+			"modelId": "DurableWorkflowSourceFile",
+			"kind": "unused-import",
+			"detail": "`DurableDeferred` is imported from `effect/unstable/workflow` but not referenced by the template's own content",
+			"symbol": "DurableDeferred",
+			"specifier": "effect/unstable/workflow"
+		},
+		{
+			"modelId": "DurableWorkflowSourceFile",
+			"kind": "unused-import",
+			"detail": "`DurableQueue` is imported from `effect/unstable/workflow` but not referenced by the template's own content",
+			"symbol": "DurableQueue",
+			"specifier": "effect/unstable/workflow"
+		},
+		{
+			"modelId": "DurableWorkflowSourceFile",
+			"kind": "unused-import",
+			"detail": "`Effect` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Effect",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "DurableWorkflowSourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "DurableWorkflowSourceFile",
+			"kind": "unused-import",
+			"detail": "`Option` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Option",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "DurableWorkflowSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schedule` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schedule",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "DurableWorkflowSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "DurableWorkflowSourceFile",
+			"kind": "unused-import",
+			"detail": "`Workflow` is imported from `effect/unstable/workflow` but not referenced by the template's own content",
+			"symbol": "Workflow",
+			"specifier": "effect/unstable/workflow"
+		},
+		{
+			"modelId": "DurableWorkflowSourceFile",
+			"kind": "unused-import",
+			"detail": "`WorkflowEngine` is imported from `effect/unstable/workflow` but not referenced by the template's own content",
+			"symbol": "WorkflowEngine",
+			"specifier": "effect/unstable/workflow"
+		},
+		{
+			"modelId": "DurableWorkflowSourceFile",
+			"kind": "unused-import",
+			"detail": "`WorkflowProxy` is imported from `effect/unstable/workflow` but not referenced by the template's own content",
+			"symbol": "WorkflowProxy",
+			"specifier": "effect/unstable/workflow"
+		},
+		{
+			"modelId": "DurableWorkflowSourceFile",
+			"kind": "unused-import",
+			"detail": "`WorkflowProxyServer` is imported from `effect/unstable/workflow` but not referenced by the template's own content",
+			"symbol": "WorkflowProxyServer",
+			"specifier": "effect/unstable/workflow"
+		},
+		{
+			"modelId": "EffectNodeMainSourceFile",
+			"kind": "unused-import",
+			"detail": "`Config` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Config",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectNodeMainSourceFile",
+			"kind": "unused-import",
+			"detail": "`Context` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Context",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectNodeMainSourceFile",
+			"kind": "unused-import",
+			"detail": "`Deferred` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Deferred",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectNodeMainSourceFile",
+			"kind": "unused-import",
+			"detail": "`Fiber` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Fiber",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectNodeMainSourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectNodeMainSourceFile",
+			"kind": "unused-import",
+			"detail": "`ManagedRuntime` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "ManagedRuntime",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectNodeMainSourceFile",
+			"kind": "unused-import",
+			"detail": "`Metric` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Metric",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectNodeMainSourceFile",
+			"kind": "unused-import",
+			"detail": "`Option` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Option",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectNodeMainSourceFile",
+			"kind": "unused-import",
+			"detail": "`PubSub` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "PubSub",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectNodeMainSourceFile",
+			"kind": "unused-import",
+			"detail": "`Queue` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Queue",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectNodeMainSourceFile",
+			"kind": "unused-import",
+			"detail": "`Ref` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Ref",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectNodeMainSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schedule` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schedule",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectNodeMainSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectNodeMainSourceFile",
+			"kind": "unused-import",
+			"detail": "`Stream` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Stream",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectSqlSourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectSqlSourceFile",
+			"kind": "unused-import",
+			"detail": "`Migrator` is imported from `effect/unstable/sql` but not referenced by the template's own content",
+			"symbol": "Migrator",
+			"specifier": "effect/unstable/sql"
+		},
+		{
+			"modelId": "EffectSqlSourceFile",
+			"kind": "unused-import",
+			"detail": "`Option` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Option",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectSqlSourceFile",
+			"kind": "unused-import",
+			"detail": "`PgClient` is imported from `@effect/sql-pg` but not referenced by the template's own content",
+			"symbol": "PgClient",
+			"specifier": "@effect/sql-pg"
+		},
+		{
+			"modelId": "EffectSqlSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schedule` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schedule",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectSqlSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectSqlSourceFile",
+			"kind": "unused-import",
+			"detail": "`SqlClient` is imported from `effect/unstable/sql` but not referenced by the template's own content",
+			"symbol": "SqlClient",
+			"specifier": "effect/unstable/sql"
+		},
+		{
+			"modelId": "EffectSqlSourceFile",
+			"kind": "unused-import",
+			"detail": "`SqlError` is imported from `effect/unstable/sql` but not referenced by the template's own content",
+			"symbol": "SqlError",
+			"specifier": "effect/unstable/sql"
+		},
+		{
+			"modelId": "EffectSqlSourceFile",
+			"kind": "unused-import",
+			"detail": "`SqlModel` is imported from `effect/unstable/sql` but not referenced by the template's own content",
+			"symbol": "SqlModel",
+			"specifier": "effect/unstable/sql"
+		},
+		{
+			"modelId": "EffectSqlSourceFile",
+			"kind": "unused-import",
+			"detail": "`SqlResolver` is imported from `effect/unstable/sql` but not referenced by the template's own content",
+			"symbol": "SqlResolver",
+			"specifier": "effect/unstable/sql"
+		},
+		{
+			"modelId": "EffectSqlSourceFile",
+			"kind": "unused-import",
+			"detail": "`SqlSchema` is imported from `effect/unstable/sql` but not referenced by the template's own content",
+			"symbol": "SqlSchema",
+			"specifier": "effect/unstable/sql"
+		},
+		{
+			"modelId": "EffectSqlSourceFile",
+			"kind": "unused-import",
+			"detail": "`Statement` is imported from `effect/unstable/sql` but not referenced by the template's own content",
+			"symbol": "Statement",
+			"specifier": "effect/unstable/sql"
+		},
+		{
+			"modelId": "EffectSqlSourceFile",
+			"kind": "unused-import",
+			"detail": "`Stream` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Stream",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectTransactionSourceFile",
+			"kind": "unused-import",
+			"detail": "`Effect` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Effect",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectTransactionSourceFile",
+			"kind": "unused-import",
+			"detail": "`TxDeferred` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "TxDeferred",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectTransactionSourceFile",
+			"kind": "unused-import",
+			"detail": "`TxPubSub` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "TxPubSub",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectTransactionSourceFile",
+			"kind": "unused-import",
+			"detail": "`TxQueue` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "TxQueue",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectTransactionSourceFile",
+			"kind": "unused-import",
+			"detail": "`TxRef` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "TxRef",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectTransactionSourceFile",
+			"kind": "unused-import",
+			"detail": "`TxSemaphore` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "TxSemaphore",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectTransactionSourceFile",
+			"kind": "unused-import",
+			"detail": "`TxSubscriptionRef` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "TxSubscriptionRef",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "unused-import",
+			"detail": "`assert` is imported from `@effect/vitest` but not referenced by the template's own content",
+			"symbol": "assert",
+			"specifier": "@effect/vitest"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Clock` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Clock",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Console` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Console",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Context` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Context",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Deferred` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Deferred",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "unused-import",
+			"detail": "`describe` is imported from `@effect/vitest` but not referenced by the template's own content",
+			"symbol": "describe",
+			"specifier": "@effect/vitest"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Duration` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Duration",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Exit` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Exit",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Fiber` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Fiber",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "unused-import",
+			"detail": "`layer` is imported from `@effect/vitest` but not referenced by the template's own content",
+			"symbol": "layer",
+			"specifier": "@effect/vitest"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Option` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Option",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "unused-import",
+			"detail": "`PubSub` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "PubSub",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Queue` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Queue",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Random` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Random",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Ref` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Ref",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Result` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Result",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schedule` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schedule",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Stream` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Stream",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "unused-import",
+			"detail": "`TestClock` is imported from `effect/testing` but not referenced by the template's own content",
+			"symbol": "TestClock",
+			"specifier": "effect/testing"
+		},
+		{
+			"modelId": "EffectVitestSourceFile",
+			"kind": "unused-import",
+			"detail": "`TestConsole` is imported from `effect/testing` but not referenced by the template's own content",
+			"symbol": "TestConsole",
+			"specifier": "effect/testing"
+		},
+		{
+			"modelId": "EventLogPersistenceServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`Context` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Context",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EventLogPersistenceServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`Effect` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Effect",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EventLogPersistenceServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`EventLogServer` is imported from `effect/unstable/eventlog` but not referenced by the template's own content",
+			"symbol": "EventLogServer",
+			"specifier": "effect/unstable/eventlog"
+		},
+		{
+			"modelId": "EventLogPersistenceServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`KeyValueStore` is imported from `effect/unstable/persistence` but not referenced by the template's own content",
+			"symbol": "KeyValueStore",
+			"specifier": "effect/unstable/persistence"
+		},
+		{
+			"modelId": "EventLogPersistenceServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`PersistedQueue` is imported from `effect/unstable/persistence` but not referenced by the template's own content",
+			"symbol": "PersistedQueue",
+			"specifier": "effect/unstable/persistence"
+		},
+		{
+			"modelId": "EventLogPersistenceServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`RpcServer` is imported from `effect/unstable/rpc` but not referenced by the template's own content",
+			"symbol": "RpcServer",
+			"specifier": "effect/unstable/rpc"
+		},
+		{
+			"modelId": "EventLogPersistenceServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schedule` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schedule",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EventLogPersistenceServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "EventLogPersistenceServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`Stream` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Stream",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "HttpApiClientSourceFile",
+			"kind": "unused-import",
+			"detail": "`Effect` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Effect",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "HttpApiClientSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpApiClient` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "HttpApiClient",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "HttpApiClientSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpApiMiddleware` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "HttpApiMiddleware",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "HttpApiClientSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpClient` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "HttpClient",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "HttpApiClientSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpClientRequest` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "HttpClientRequest",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "HttpApiClientSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "HttpApiContractSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpApiEndpoint` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "HttpApiEndpoint",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "HttpApiContractSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpApiGroup` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "HttpApiGroup",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "HttpApiContractSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpApiMiddleware` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "HttpApiMiddleware",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "HttpApiContractSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpApiSchema` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "HttpApiSchema",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "HttpApiContractSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpApiSecurity` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "HttpApiSecurity",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "HttpApiContractSourceFile",
+			"kind": "unused-import",
+			"detail": "`OpenApi` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "OpenApi",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "HttpApiContractSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "HttpApiServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`Effect` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Effect",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "HttpApiServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpApiBuilder` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "HttpApiBuilder",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "HttpApiServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpApiMiddleware` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "HttpApiMiddleware",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "HttpApiServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpApiSwagger` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "HttpApiSwagger",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "HttpApiServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpRouter` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "HttpRouter",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "HttpApiServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpServer` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "HttpServer",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "HttpApiServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpServerRequest` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "HttpServerRequest",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "HttpApiServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpServerResponse` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "HttpServerResponse",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "HttpApiServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`OpenApi` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "OpenApi",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "HttpApiServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "ManagedRuntimeApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Context` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Context",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "ManagedRuntimeApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Effect` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Effect",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "ManagedRuntimeApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`Context` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Context",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`Deferred` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Deferred",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`Latch` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Latch",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`ManagedRuntime` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "ManagedRuntime",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`Metric` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Metric",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`NodeServices` is imported from `@effect/platform-node` but not referenced by the template's own content",
+			"symbol": "NodeServices",
+			"specifier": "@effect/platform-node"
+		},
+		{
+			"modelId": "NodeApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`Schedule` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schedule",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeApplicationAssemblySourceFile",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`ChildProcess` is imported from `effect/unstable/process` but not referenced by the template's own content",
+			"symbol": "ChildProcess",
+			"specifier": "effect/unstable/process"
+		},
+		{
+			"modelId": "NodeChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`ChildProcessSpawner` is imported from `effect/unstable/process` but not referenced by the template's own content",
+			"symbol": "ChildProcessSpawner",
+			"specifier": "effect/unstable/process"
+		},
+		{
+			"modelId": "NodeChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`Context` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Context",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`NodeServices` is imported from `@effect/platform-node` but not referenced by the template's own content",
+			"symbol": "NodeServices",
+			"specifier": "@effect/platform-node"
+		},
+		{
+			"modelId": "NodeChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`Sink` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Sink",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`Stream` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Stream",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Argument` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "Argument",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "NodeCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`ChildProcessSpawner` is imported from `effect/unstable/process` but not referenced by the template's own content",
+			"symbol": "ChildProcessSpawner",
+			"specifier": "effect/unstable/process"
+		},
+		{
+			"modelId": "NodeCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`CliError` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "CliError",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "NodeCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`CliOutput` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "CliOutput",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "NodeCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Command` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "Command",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "NodeCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Config` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Config",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Context` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Context",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`FileSystem` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "FileSystem",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Flag` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "Flag",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "NodeCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`GlobalFlag` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "GlobalFlag",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "NodeCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`NodeServices` is imported from `@effect/platform-node` but not referenced by the template's own content",
+			"symbol": "NodeServices",
+			"specifier": "@effect/platform-node"
+		},
+		{
+			"modelId": "NodeCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Path` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Path",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Prompt` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "Prompt",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "NodeCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Redacted` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Redacted",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Stdio` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Stdio",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeCliApplicationSourceFile",
+			"kind": "unused-import",
+			"detail": "`Terminal` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Terminal",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeCliChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`Argument` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "Argument",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "NodeCliChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`ChildProcess` is imported from `effect/unstable/process` but not referenced by the template's own content",
+			"symbol": "ChildProcess",
+			"specifier": "effect/unstable/process"
+		},
+		{
+			"modelId": "NodeCliChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`ChildProcessSpawner` is imported from `effect/unstable/process` but not referenced by the template's own content",
+			"symbol": "ChildProcessSpawner",
+			"specifier": "effect/unstable/process"
+		},
+		{
+			"modelId": "NodeCliChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`Command` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "Command",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "NodeCliChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`Config` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Config",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeCliChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`Context` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Context",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeCliChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`Flag` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "Flag",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "NodeCliChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeCliChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`NodeServices` is imported from `@effect/platform-node` but not referenced by the template's own content",
+			"symbol": "NodeServices",
+			"specifier": "@effect/platform-node"
+		},
+		{
+			"modelId": "NodeCliChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`Prompt` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "Prompt",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "NodeCliChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`Redacted` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Redacted",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeCliChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeCliChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`Sink` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Sink",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "NodeCliChildProcessSourceFile",
+			"kind": "unused-import",
+			"detail": "`Stream` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Stream",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "OfflineFirstBrowserSourceFile",
+			"kind": "unused-import",
+			"detail": "`Context` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Context",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "OfflineFirstBrowserSourceFile",
+			"kind": "unused-import",
+			"detail": "`Effect` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Effect",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "OfflineFirstBrowserSourceFile",
+			"kind": "unused-import",
+			"detail": "`Event` is imported from `effect/unstable/eventlog` but not referenced by the template's own content",
+			"symbol": "Event",
+			"specifier": "effect/unstable/eventlog"
+		},
+		{
+			"modelId": "OfflineFirstBrowserSourceFile",
+			"kind": "unused-import",
+			"detail": "`EventGroup` is imported from `effect/unstable/eventlog` but not referenced by the template's own content",
+			"symbol": "EventGroup",
+			"specifier": "effect/unstable/eventlog"
+		},
+		{
+			"modelId": "OfflineFirstBrowserSourceFile",
+			"kind": "unused-import",
+			"detail": "`EventJournal` is imported from `effect/unstable/eventlog` but not referenced by the template's own content",
+			"symbol": "EventJournal",
+			"specifier": "effect/unstable/eventlog"
+		},
+		{
+			"modelId": "OfflineFirstBrowserSourceFile",
+			"kind": "unused-import",
+			"detail": "`EventLog` is imported from `effect/unstable/eventlog` but not referenced by the template's own content",
+			"symbol": "EventLog",
+			"specifier": "effect/unstable/eventlog"
+		},
+		{
+			"modelId": "OfflineFirstBrowserSourceFile",
+			"kind": "unused-import",
+			"detail": "`EventLogRemote` is imported from `effect/unstable/eventlog` but not referenced by the template's own content",
+			"symbol": "EventLogRemote",
+			"specifier": "effect/unstable/eventlog"
+		},
+		{
+			"modelId": "OfflineFirstBrowserSourceFile",
+			"kind": "unused-import",
+			"detail": "`KeyValueStore` is imported from `effect/unstable/persistence` but not referenced by the template's own content",
+			"symbol": "KeyValueStore",
+			"specifier": "effect/unstable/persistence"
+		},
+		{
+			"modelId": "OfflineFirstBrowserSourceFile",
+			"kind": "unused-import",
+			"detail": "`PersistedQueue` is imported from `effect/unstable/persistence` but not referenced by the template's own content",
+			"symbol": "PersistedQueue",
+			"specifier": "effect/unstable/persistence"
+		},
+		{
+			"modelId": "OfflineFirstBrowserSourceFile",
+			"kind": "unused-import",
+			"detail": "`Reactivity` is imported from `effect/unstable/reactivity` but not referenced by the template's own content",
+			"symbol": "Reactivity",
+			"specifier": "effect/unstable/reactivity"
+		},
+		{
+			"modelId": "OfflineFirstBrowserSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schedule` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schedule",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "OfflineFirstBrowserSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "OfflineFirstBrowserSourceFile",
+			"kind": "unused-import",
+			"detail": "`Stream` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Stream",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "OpenApiGeneratedClientAdapterSourceFile",
+			"kind": "unused-import",
+			"detail": "`Context` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Context",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "OpenApiGeneratedClientAdapterSourceFile",
+			"kind": "unused-import",
+			"detail": "`Effect` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Effect",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "OpenApiGeneratedClientAdapterSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpClient` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "HttpClient",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "OpenApiGeneratedClientAdapterSourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "OpenApiGeneratedClientAdapterSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schedule` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schedule",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "OpenApiGeneratedHttpApiServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`Effect` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Effect",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "OpenApiGeneratedHttpApiServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpApiBuilder` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "HttpApiBuilder",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "OpenApiGeneratedHttpApiServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpApiSwagger` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "HttpApiSwagger",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "OpenApiGeneratedHttpApiServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpRouter` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "HttpRouter",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "OpenApiGeneratedHttpApiServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "OpenApiGeneratedIntegrationTestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Effect` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Effect",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "OpenApiGeneratedIntegrationTestSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpClient` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "HttpClient",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "OpenApiGeneratedIntegrationTestSourceFile",
+			"kind": "unused-import",
+			"detail": "`it` is imported from `@effect/vitest` but not referenced by the template's own content",
+			"symbol": "it",
+			"specifier": "@effect/vitest"
+		},
+		{
+			"modelId": "OpenApiGeneratedIntegrationTestSourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "OpenApiGeneratorBuildSourceFile",
+			"kind": "unused-import",
+			"detail": "`FileSystem` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "FileSystem",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "OpenApiGeneratorBuildSourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "OpenApiGeneratorBuildSourceFile",
+			"kind": "unused-import",
+			"detail": "`OpenApi` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "OpenApi",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "OpenApiGeneratorBuildSourceFile",
+			"kind": "unused-import",
+			"detail": "`OpenApiGenerator` is imported from `@effect/openapi-generator/OpenApiGenerator` but not referenced by the template's own content",
+			"symbol": "OpenApiGenerator",
+			"specifier": "@effect/openapi-generator/OpenApiGenerator"
+		},
+		{
+			"modelId": "OpenTelemetryBridgeSourceFile",
+			"kind": "unused-import",
+			"detail": "`Effect` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Effect",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "OpenTelemetryBridgeSourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "OpenTelemetryBridgeSourceFile",
+			"kind": "unused-import",
+			"detail": "`NodeSdk` is imported from `@effect/opentelemetry` but not referenced by the template's own content",
+			"symbol": "NodeSdk",
+			"specifier": "@effect/opentelemetry"
+		},
+		{
+			"modelId": "OpenTelemetryBridgeSourceFile",
+			"kind": "unused-import",
+			"detail": "`OtelMetrics` is imported from `@effect/opentelemetry` but not referenced by the template's own content",
+			"symbol": "OtelMetrics",
+			"specifier": "@effect/opentelemetry"
+		},
+		{
+			"modelId": "OpenTelemetryBridgeSourceFile",
+			"kind": "unused-import",
+			"detail": "`WebSdk` is imported from `@effect/opentelemetry` but not referenced by the template's own content",
+			"symbol": "WebSdk",
+			"specifier": "@effect/opentelemetry"
+		},
+		{
+			"modelId": "OtlpProductionObservabilitySourceFile",
+			"kind": "unused-import",
+			"detail": "`Effect` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Effect",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "OtlpProductionObservabilitySourceFile",
+			"kind": "unused-import",
+			"detail": "`FetchHttpClient` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "FetchHttpClient",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "OtlpProductionObservabilitySourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpMiddleware` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "HttpMiddleware",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "OtlpProductionObservabilitySourceFile",
+			"kind": "unused-import",
+			"detail": "`Otlp` is imported from `effect/unstable/observability` but not referenced by the template's own content",
+			"symbol": "Otlp",
+			"specifier": "effect/unstable/observability"
+		},
+		{
+			"modelId": "OtlpProductionObservabilitySourceFile",
+			"kind": "unused-import",
+			"detail": "`OtlpExporter` is imported from `effect/unstable/observability` but not referenced by the template's own content",
+			"symbol": "OtlpExporter",
+			"specifier": "effect/unstable/observability"
+		},
+		{
+			"modelId": "OtlpProductionObservabilitySourceFile",
+			"kind": "unused-import",
+			"detail": "`OtlpLogger` is imported from `effect/unstable/observability` but not referenced by the template's own content",
+			"symbol": "OtlpLogger",
+			"specifier": "effect/unstable/observability"
+		},
+		{
+			"modelId": "OtlpProductionObservabilitySourceFile",
+			"kind": "unused-import",
+			"detail": "`OtlpMetrics` is imported from `effect/unstable/observability` but not referenced by the template's own content",
+			"symbol": "OtlpMetrics",
+			"specifier": "effect/unstable/observability"
+		},
+		{
+			"modelId": "OtlpProductionObservabilitySourceFile",
+			"kind": "unused-import",
+			"detail": "`OtlpResource` is imported from `effect/unstable/observability` but not referenced by the template's own content",
+			"symbol": "OtlpResource",
+			"specifier": "effect/unstable/observability"
+		},
+		{
+			"modelId": "OtlpProductionObservabilitySourceFile",
+			"kind": "unused-import",
+			"detail": "`OtlpSerialization` is imported from `effect/unstable/observability` but not referenced by the template's own content",
+			"symbol": "OtlpSerialization",
+			"specifier": "effect/unstable/observability"
+		},
+		{
+			"modelId": "OtlpProductionObservabilitySourceFile",
+			"kind": "unused-import",
+			"detail": "`OtlpTracer` is imported from `effect/unstable/observability` but not referenced by the template's own content",
+			"symbol": "OtlpTracer",
+			"specifier": "effect/unstable/observability"
+		},
+		{
+			"modelId": "OtlpProductionObservabilitySourceFile",
+			"kind": "unused-import",
+			"detail": "`PrometheusMetrics` is imported from `effect/unstable/observability` but not referenced by the template's own content",
+			"symbol": "PrometheusMetrics",
+			"specifier": "effect/unstable/observability"
+		},
+		{
+			"modelId": "RpcServiceBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`Effect` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Effect",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "RpcServiceBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpClient` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "HttpClient",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "RpcServiceBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpRouter` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "HttpRouter",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "RpcServiceBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "RpcServiceBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`RpcClient` is imported from `effect/unstable/rpc` but not referenced by the template's own content",
+			"symbol": "RpcClient",
+			"specifier": "effect/unstable/rpc"
+		},
+		{
+			"modelId": "RpcServiceBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`RpcGroup` is imported from `effect/unstable/rpc` but not referenced by the template's own content",
+			"symbol": "RpcGroup",
+			"specifier": "effect/unstable/rpc"
+		},
+		{
+			"modelId": "RpcServiceBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`RpcMiddleware` is imported from `effect/unstable/rpc` but not referenced by the template's own content",
+			"symbol": "RpcMiddleware",
+			"specifier": "effect/unstable/rpc"
+		},
+		{
+			"modelId": "RpcServiceBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`RpcSerialization` is imported from `effect/unstable/rpc` but not referenced by the template's own content",
+			"symbol": "RpcSerialization",
+			"specifier": "effect/unstable/rpc"
+		},
+		{
+			"modelId": "RpcServiceBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`RpcServer` is imported from `effect/unstable/rpc` but not referenced by the template's own content",
+			"symbol": "RpcServer",
+			"specifier": "effect/unstable/rpc"
+		},
+		{
+			"modelId": "RpcServiceBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`Schedule` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schedule",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "RpcServiceBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "RpcServiceBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`Socket` is imported from `effect/unstable/socket` but not referenced by the template's own content",
+			"symbol": "Socket",
+			"specifier": "effect/unstable/socket"
+		},
+		{
+			"modelId": "RpcServiceBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`SocketServer` is imported from `effect/unstable/socket` but not referenced by the template's own content",
+			"symbol": "SocketServer",
+			"specifier": "effect/unstable/socket"
+		},
+		{
+			"modelId": "RpcServiceBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`Stream` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Stream",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "SecurityClientSourceFile",
+			"kind": "unused-import",
+			"detail": "`Config` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Config",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "SecurityClientSourceFile",
+			"kind": "unused-import",
+			"detail": "`Context` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Context",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "SecurityClientSourceFile",
+			"kind": "unused-import",
+			"detail": "`Cookies` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "Cookies",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "SecurityClientSourceFile",
+			"kind": "unused-import",
+			"detail": "`Effect` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Effect",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "SecurityClientSourceFile",
+			"kind": "unused-import",
+			"detail": "`Headers` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "Headers",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "SecurityClientSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpApiMiddleware` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "HttpApiMiddleware",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "SecurityClientSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpClient` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "HttpClient",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "SecurityClientSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpClientRequest` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "HttpClientRequest",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "SecurityClientSourceFile",
+			"kind": "unused-import",
+			"detail": "`Redacted` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Redacted",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "SecurityClientSourceFile",
+			"kind": "unused-import",
+			"detail": "`Ref` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Ref",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "SecurityCliSourceFile",
+			"kind": "unused-import",
+			"detail": "`ChildProcess` is imported from `effect/unstable/process` but not referenced by the template's own content",
+			"symbol": "ChildProcess",
+			"specifier": "effect/unstable/process"
+		},
+		{
+			"modelId": "SecurityCliSourceFile",
+			"kind": "unused-import",
+			"detail": "`Effect` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Effect",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "SecurityCliSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpClientRequest` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "HttpClientRequest",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "SecurityCliSourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "SecurityCliSourceFile",
+			"kind": "unused-import",
+			"detail": "`Prompt` is imported from `effect/unstable/cli` but not referenced by the template's own content",
+			"symbol": "Prompt",
+			"specifier": "effect/unstable/cli"
+		},
+		{
+			"modelId": "SecurityCliSourceFile",
+			"kind": "unused-import",
+			"detail": "`Redacted` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Redacted",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "SecurityCliSourceFile",
+			"kind": "unused-import",
+			"detail": "`Stream` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Stream",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "SecurityServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`Config` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Config",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "SecurityServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`Context` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Context",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "SecurityServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`Cookies` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "Cookies",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "SecurityServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`Effect` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Effect",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "SecurityServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`Headers` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "Headers",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "SecurityServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpApiBuilder` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "HttpApiBuilder",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "SecurityServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpApiMiddleware` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "HttpApiMiddleware",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "SecurityServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpApiSecurity` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "HttpApiSecurity",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "SecurityServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpClient` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "HttpClient",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "SecurityServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpClientRequest` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "HttpClientRequest",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "SecurityServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpMiddleware` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "HttpMiddleware",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "SecurityServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`HttpServerResponse` is imported from `effect/unstable/http` but not referenced by the template's own content",
+			"symbol": "HttpServerResponse",
+			"specifier": "effect/unstable/http"
+		},
+		{
+			"modelId": "SecurityServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`OpenApi` is imported from `effect/unstable/httpapi` but not referenced by the template's own content",
+			"symbol": "OpenApi",
+			"specifier": "effect/unstable/httpapi"
+		},
+		{
+			"modelId": "SecurityServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`Redacted` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Redacted",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "SecurityServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`Ref` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Ref",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "SecurityServerSourceFile",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "SocketStreamingBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`Layer` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Layer",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "SocketStreamingBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`PubSub` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "PubSub",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "SocketStreamingBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`Queue` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Queue",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "SocketStreamingBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`Schedule` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schedule",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "SocketStreamingBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`Schema` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Schema",
+			"specifier": "effect"
+		},
+		{
+			"modelId": "SocketStreamingBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`Socket` is imported from `effect/unstable/socket` but not referenced by the template's own content",
+			"symbol": "Socket",
+			"specifier": "effect/unstable/socket"
+		},
+		{
+			"modelId": "SocketStreamingBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`SocketServer` is imported from `effect/unstable/socket` but not referenced by the template's own content",
+			"symbol": "SocketServer",
+			"specifier": "effect/unstable/socket"
+		},
+		{
+			"modelId": "SocketStreamingBoundarySourceFile",
+			"kind": "unused-import",
+			"detail": "`Stream` is imported from `effect` but not referenced by the template's own content",
+			"symbol": "Stream",
+			"specifier": "effect"
+		}
+	]
+}

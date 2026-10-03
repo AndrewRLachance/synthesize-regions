@@ -1,4 +1,4 @@
-import { defineTemplate } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import {
 	effectDurationInput,
 	effectSourceInput,
@@ -71,7 +71,7 @@ export const RpcHandlersLayerTemplate = defineTemplate({
 	typeParameters: typeParameters(['E', 'Handler Layer construction error.'], ['R', 'Handler implementation requirements.']),
 	inputs: { group: groupInput('RPC contract group.'), handlers: valueInput('Handler object or Effect constructing the handler object.') },
 	output: expressionOutput('RPC handler Layer.', layerType('unknown', '{{E}}', '{{R}}')),
-	source: `${marker('expression', 'group', 'RpcGroup.make(Rpc.make("Ping"))')}.toLayer(${marker('expression', 'handlers', '{}')})`
+	source: `${marker('expression', 'group', 'RpcGroup.make(Rpc.make("Ping"))')}.toLayer(${marker('expression', 'handlers', '{ Ping: () => Effect.void }')})`
 })
 
 export const RpcJsonHttpServerBoundaryLayerTemplate = defineTemplate({
@@ -84,7 +84,7 @@ export const RpcJsonHttpServerBoundaryLayerTemplate = defineTemplate({
 		options: valueInput('Server tracing/concurrency options merged into layerHttp.')
 	},
 	output: expressionOutput('JSON HTTP RPC server boundary Layer.', layerType('never', '{{E}}', `${rpcHttpRouterRequirement} | {{R}}`)),
-	source: `(() => {\n\tconst group = ${marker('expression', 'group', 'RpcGroup.make(Rpc.make("Ping"))')}\n\treturn Layer.provide(Layer.provide(RpcServer.layerHttp({ ...${marker('expression', 'options', '{}')}, group, path: ${marker('expression', 'path', '"/rpc"')}, protocol: "http" }), group.toLayer(${marker('expression', 'handlers', '{}')})), RpcSerialization.layerJson)\n})()`
+	source: `(() => {\n\tconst group = ${marker('expression', 'group', 'RpcGroup.make(Rpc.make("Ping"))')}\n\treturn Layer.provide(Layer.provide(RpcServer.layerHttp({ ...${marker('expression', 'options', '{}')}, group, path: ${marker('expression', 'path', '"/rpc"')}, protocol: "http" }), group.toLayer(${marker('expression', 'handlers', '{ Ping: () => Effect.void }')})), RpcSerialization.layerJson)\n})()`
 })
 
 export const RpcJsonWebsocketServerBoundaryLayerTemplate = defineTemplate({
@@ -97,7 +97,7 @@ export const RpcJsonWebsocketServerBoundaryLayerTemplate = defineTemplate({
 		options: valueInput('Server tracing/concurrency options merged into layerHttp.')
 	},
 	output: expressionOutput('JSON WebSocket RPC server boundary Layer.', layerType('never', '{{E}}', `${rpcHttpRouterRequirement} | {{R}}`)),
-	source: `(() => {\n\tconst group = ${marker('expression', 'group', 'RpcGroup.make(Rpc.make("Ping"))')}\n\treturn Layer.provide(Layer.provide(RpcServer.layerHttp({ ...${marker('expression', 'options', '{}')}, group, path: ${marker('expression', 'path', '"/rpc"')}, protocol: "websocket" }), group.toLayer(${marker('expression', 'handlers', '{}')})), RpcSerialization.layerJson)\n})()`
+	source: `(() => {\n\tconst group = ${marker('expression', 'group', 'RpcGroup.make(Rpc.make("Ping"))')}\n\treturn Layer.provide(Layer.provide(RpcServer.layerHttp({ ...${marker('expression', 'options', '{}')}, group, path: ${marker('expression', 'path', '"/rpc"')}, protocol: "websocket" }), group.toLayer(${marker('expression', 'handlers', '{ Ping: () => Effect.void }')})), RpcSerialization.layerJson)\n})()`
 })
 
 export const RpcJsonHttpClientServiceLayerTemplate = defineTemplate({
@@ -110,7 +110,7 @@ export const RpcJsonHttpClientServiceLayerTemplate = defineTemplate({
 		options: valueInput('RpcClient.make options.')
 	},
 	output: expressionOutput('Scoped HTTP RPC client service Layer.', layerType('{{I}}', 'never', `${rpcHttpClientRequirement} | {{RClient}}`)),
-	source: `Layer.provide(Layer.provide(Layer.scoped(${marker('expression', 'clientTag', 'RemoteClient')}, RpcClient.make(${marker('expression', 'group', 'RpcGroup.make(Rpc.make("Ping"))')}, ${marker('expression', 'options', '{}')})), RpcClient.layerProtocolHttp({ url: ${marker('expression', 'url', '"http://localhost:3000/rpc"')} })), RpcSerialization.layerJson)`
+	source: `Layer.provide(Layer.provide(Layer.effect(${marker('expression', 'clientTag', 'RemoteClient')}, RpcClient.make(${marker('expression', 'group', 'RpcGroup.make(Rpc.make("Ping"))')}, ${marker('expression', 'options', '{}')})), RpcClient.layerProtocolHttp({ url: ${marker('expression', 'url', '"http://localhost:3000/rpc"')} })), RpcSerialization.layerJson)`
 })
 
 export const RpcJsonRpcHttpClientServiceLayerTemplate = defineTemplate({
@@ -123,7 +123,7 @@ export const RpcJsonRpcHttpClientServiceLayerTemplate = defineTemplate({
 		serializationOptions: valueInput('JSON-RPC serialization options.')
 	},
 	output: expressionOutput('Scoped JSON-RPC HTTP client service Layer.', layerType('{{I}}', 'never', `${rpcHttpClientRequirement} | {{RClient}}`)),
-	source: `Layer.provide(Layer.provide(Layer.scoped(${marker('expression', 'clientTag', 'RemoteClient')}, RpcClient.make(${marker('expression', 'group', 'RpcGroup.make(Rpc.make("Ping"))')})), RpcClient.layerProtocolHttp({ url: ${marker('expression', 'url', '"http://localhost:3000/rpc"')} })), RpcSerialization.layerJsonRpc(${marker('expression', 'serializationOptions', '{}')}))`
+	source: `Layer.provide(Layer.provide(Layer.effect(${marker('expression', 'clientTag', 'RemoteClient')}, RpcClient.make(${marker('expression', 'group', 'RpcGroup.make(Rpc.make("Ping"))')})), RpcClient.layerProtocolHttp({ url: ${marker('expression', 'url', '"http://localhost:3000/rpc"')} })), RpcSerialization.layerJsonRpc(${marker('expression', 'serializationOptions', '{}')}))`
 })
 
 export const RpcAuthMiddlewareLayerTemplate = defineTemplate({
@@ -135,7 +135,7 @@ export const RpcAuthMiddlewareLayerTemplate = defineTemplate({
 		authenticate: callbackInput('Authentication function receiving request headers.', effectReturningCallbackType('headers: unknown', '{{User}}', '{{E}}', '{{R}}'))
 	},
 	output: expressionOutput('Authentication middleware Layer.', layerType(rpcMiddlewareServiceType('{{I}}', '{{E}}', '{{R}}').ts, 'never', 'never')),
-	source: `Layer.succeed(${marker('expression', 'middleware', 'AuthMiddleware')}, (effect, options) => Effect.flatMap((${marker('expression', 'authenticate', '() => Effect.fail(new Error("unauthorized"))')})(options.headers), principal => Effect.provideService(effect, ${marker('expression', 'principalTag', 'CurrentUser')}, principal)))`
+	source: `Layer.succeed(${marker('expression', 'middleware', 'AuthMiddleware')}, (effect, options) => Effect.flatMap((${marker('expression', 'authenticate', '(_headers: unknown) => Effect.fail(new Error("unauthorized"))')})(options.headers), principal => Effect.provideService(effect, ${marker('expression', 'principalTag', 'CurrentUser')}, principal)))`
 })
 
 export const RpcRequestContextMiddlewareLayerTemplate = defineTemplate({
@@ -183,7 +183,7 @@ export const RpcAuthenticatedJsonHttpServerBoundaryLayerTemplate = defineTemplat
 		path: effectValueInput('HTTP RPC path.', { ts: 'string' })
 	},
 	output: expressionOutput('Authenticated JSON HTTP RPC boundary Layer.', layerType('never', '{{EMiddleware}} | {{EHandlers}}', `${rpcHttpRouterRequirement} | {{RMiddleware}} | {{RHandlers}}`)),
-	source: `(() => {\n\tconst group = ${marker('expression', 'group', 'RpcGroup.make(Rpc.make("Ping"))')}.middleware(${marker('expression', 'middleware', 'AuthMiddleware')})\n\tconst server = RpcServer.layerHttp({ group, path: ${marker('expression', 'path', '"/rpc"')}, protocol: "http" })\n\treturn Layer.provide(Layer.provide(Layer.provide(server, group.toLayer(${marker('expression', 'handlers', '{}')})), ${marker('expression', 'middlewareLayer', 'Layer.empty')}), RpcSerialization.layerJson)\n})()`
+	source: `(() => {\n\tconst group = ${marker('expression', 'group', 'RpcGroup.make(Rpc.make("Ping"))')}.middleware(${marker('expression', 'middleware', 'AuthMiddleware')})\n\tconst server = RpcServer.layerHttp({ group, path: ${marker('expression', 'path', '"/rpc"')}, protocol: "http" })\n\treturn Layer.provide(Layer.provide(Layer.provide(server, group.toLayer(${marker('expression', 'handlers', '{ Ping: () => Effect.void }')})), ${marker('expression', 'middlewareLayer', 'Layer.empty')}), RpcSerialization.layerJson)\n})()`
 })
 
 export const effectV4RpcServiceBoundaryGraphTemplateInputs = [

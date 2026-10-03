@@ -252,8 +252,8 @@ describe('Effect v4 sample catalog', () => {
 		['EffectZip', { left: raw('left'), right: raw('right') }, 'Effect.zip(left, right)'],
 		['EffectRace', { left: raw('left'), right: raw('right') }, 'Effect.race(left, right)'],
 		['EffectCatchAll', { source: raw('source'), handler: raw('error => recover(error)') }, 'Effect.catch(source, error => recover(error))'],
-		['EffectOrElse', { source: raw('source'), fallback: raw('() => fallback') }, 'Effect.orElse(source, () => fallback)'],
-		['EffectEither', { source: raw('source') }, 'Effect.either(source)'],
+		['EffectOrElse', { source: raw('source'), fallback: raw('() => fallback') }, 'Effect.catchCause(source, () => fallback)'],
+		['EffectEither', { source: raw('source') }, 'Effect.result(source)'],
 		['EffectAcquireRelease', { acquire: raw('acquire'), release: raw('(resource, exit) => release(resource, exit)') }, 'Effect.acquireRelease(acquire, (resource, exit) => release(resource, exit))'],
 		['EffectScoped', { source: raw('source') }, 'Effect.scoped(source)'],
 		['EffectProvideService', { source: raw('source'), tag: raw('Service'), service: raw('implementation') }, 'Effect.provideService(source, Service, implementation)'],
@@ -413,7 +413,7 @@ describe('Effect v4 sample catalog', () => {
 			'Effect.map(Effect.succeed(1), (value) => {\n  return value + 1\n})',
 			[effectA]
 		)
-		expectCode('EffectEither', { source: raw('existingEffect') }, 'Effect.either(existingEffect)')
+		expectCode('EffectEither', { source: raw('existingEffect') }, 'Effect.result(existingEffect)')
 	})
 
 	it.each([

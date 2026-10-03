@@ -31,7 +31,7 @@ export const EffectServiceDeclarationTemplate = defineTemplate({
 	modelId: 'EffectServiceDeclaration', version: '2.0.0', description: 'Declares an exported Context.Service with an effectful make constructor.',
 	inputs: { name: identifierInput('Service class name.'), key: stringInput('Stable service key.'), service: effectSourceInput('Effect that constructs the service.') },
 	output: statementOutput('Exported Context.Service declaration.'),
-	source: `export class ${marker('identifier', 'name', 'Service')} extends Context.Service<any, never>()(${marker('string', 'key', '"Service"')}, { make: ${marker('expression', 'service', 'Effect.succeed({})')} }) {}`
+	source: `export class ${marker('identifier', 'name', 'Service')} extends Context.Service<any, any>()(${marker('string', 'key', '"Service"')}, { make: ${marker('expression', 'service', 'Effect.succeed({})')} }) {}`
 })
 
 export const LayerSucceedTemplate = defineTemplate({

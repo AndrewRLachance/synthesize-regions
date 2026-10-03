@@ -41,7 +41,7 @@ export const rpcHandlerType = (tag = 'string'): TypeDescriptor =>
 	nominalType('effect/unstable/rpc/RpcHandler', { rpcHandlerTag: tag })
 
 export const rpcHandlersType = (rpcs = 'unknown'): TypeDescriptor =>
-	nominalType('effect/unstable/rpc/RpcHandlers', { rpcHandlersRpcs: rpcs })
+	nominalType('effect/unstable/rpc/Rpc.Handler', { rpcHandlersRpcs: rpcs })
 
 export const rpcHandlerContextType = (rpcs = 'unknown'): TypeDescriptor =>
 	nominalType('effect/Context', { rpcHandlerContextRpcs: rpcs })
@@ -70,4 +70,4 @@ export const rpcMiddlewareServiceType = (
 })
 
 export const rpcMiddlewareClientRequirementType = (middleware = 'unknown'): TypeDescriptor =>
-	nominalType('effect/unstable/rpc/RpcMiddleware.ForClient', { rpcMiddleware: middleware })
+	nominalType('effect/unstable/rpc/RpcMiddleware.ForClient', { rpcRequiredMiddleware: middleware })

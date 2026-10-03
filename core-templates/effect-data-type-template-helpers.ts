@@ -42,6 +42,14 @@ export const dateTimeNamedZoneType = (): TypeDescriptorWithTs => nominalType('ef
 export const dateTimeOffsetZoneType = (): TypeDescriptorWithTs => nominalType('effect/DateTime.TimeZone.Offset')
 export const configProviderType = (): TypeDescriptorWithTs => nominalType('effect/ConfigProvider')
 
+/**
+ * `URL` is not part of the ES2022 library the descriptor validator compiles
+ * against, so it cannot be named directly. Every `URL` instance carries these
+ * six string members, which is enough for a consumer to treat the value as a
+ * URL without depending on the DOM or Node type libraries.
+ */
+export const urlType = '{ readonly href: string; readonly protocol: string; readonly host: string; readonly pathname: string; readonly search: string; readonly hash: string }'
+
 export const equivalenceType = (value = 'unknown'): TypeDescriptorWithTs => ({
 	ts: `(self: ${value}, that: ${value}) => boolean`
 })

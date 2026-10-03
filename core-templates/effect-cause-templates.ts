@@ -1,4 +1,4 @@
-import { defineTemplate } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import { effectValueInput } from './effect-ts.js'
 import {
 	type AnyEffectFamilyTemplateDefinitionInput,
@@ -54,7 +54,7 @@ const reasonGuard = (modelId: string, method: 'isFailReason' | 'isDieReason' | '
 	modelId, version: '1.0.0', description: `Checks a Cause reason with Cause.${method}.`,
 	inputs: { reason: valueInput('Cause reason to inspect.') },
 	output: expressionOutput('Reason guard result.', { ts: 'boolean' }),
-	source: `Cause.${method}(${marker('expression', 'reason', '{}')})`
+	source: `Cause.${method}(${marker('expression', 'reason', '(undefined as never)')})`
 })
 
 export const CauseIsFailReasonTemplate = reasonGuard('CauseIsFailReason', 'isFailReason')
@@ -69,11 +69,33 @@ export const CausePrettyTemplate = defineTemplate({
 	source: `Cause.pretty(${marker('expression', 'cause', 'Cause.empty')})`
 })
 
-const causeHas = (modelId: string, method: 'hasFails' | 'hasDies' | 'hasInterrupts' | 'hasInterruptsOnly') => defineTemplate({
-	modelId, version: '1.0.0', description: `Checks a Cause with Cause.${method}.`,
-	typeParameters: typeParameters(['E', 'Expected error type.']),
+/**
+ * Canonical Cause predicate definitions.
+ *
+ * These IDs were previously defined twice: once here and once in
+ * `effect-error-management-v4-templates.ts`. This pack is the single
+ * authoritative owner because it also provides `CauseHasInterruptsOnly`, which
+ * the duplicate definitions could not offer.
+ *
+ * The `Cause.empty` fallback is deliberate: it is typed `Cause<never>`, which is
+ * assignable to `Cause<E>` for every `E`, whereas `Cause.fail(undefined)` is
+ * only assignable when `undefined` extends `E`.
+ */
+const causeHasDescriptions = {
+	hasFails: 'Tests whether a Cause contains at least one typed Fail reason.',
+	hasDies: 'Tests whether a Cause contains at least one defect Die reason.',
+	hasInterrupts: 'Tests whether a Cause contains at least one Interrupt reason.',
+	hasInterruptsOnly: 'Tests whether a Cause contains Interrupt reasons and no Fail or Die reasons.'
+} as const
+
+const causeHas = (
+	modelId: string,
+	method: keyof typeof causeHasDescriptions
+) => defineTemplate({
+	modelId, version: '1.0.0', description: causeHasDescriptions[method],
+	typeParameters: typeParameters(['E', 'Cause typed failure type.']),
 	inputs: { cause: causeInput('Cause to inspect.', '{{E}}') },
-	output: expressionOutput('Cause predicate result.', { ts: 'boolean' }),
+	output: expressionOutput(`Boolean result of Cause.${method}.`, { ts: 'boolean', schema: { type: 'boolean' } }),
 	source: `Cause.${method}(${marker('expression', 'cause', 'Cause.empty')})`
 })
 

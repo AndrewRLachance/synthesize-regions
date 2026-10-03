@@ -1,4 +1,5 @@
-import { defineTemplate, fragmentCollectionPort } from '../src/templates.js'
+import { fragmentCollectionPort } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import {
 	effectDurationInput,
 	effectSourceInput,

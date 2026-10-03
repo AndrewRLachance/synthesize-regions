@@ -47,13 +47,26 @@ export const effectType = (
 	success = 'unknown',
 	error = 'unknown',
 	requirements = 'unknown'
-): TypeDescriptor => ({
+): TypeDescriptor & { readonly ts: string } => ({
 	nominal: EFFECT_NOMINAL_TYPE,
 	ts: effectStructuralType(success, error, requirements)
 })
 
 export const anyEffectType = effectType()
 export const runnableEffectType = effectType('unknown', 'unknown', 'never')
+
+/**
+ * `Result` descriptor for `Effect.result`.
+ *
+ * Defined here rather than imported from `effect-data-type-template-helpers.js`
+ * because that module reaches `effect-template-helpers.js`, which imports this
+ * one: importing it back would be a circular dependency. The shape matches the
+ * canonical `resultType` exactly.
+ */
+export const resultType = (success = 'unknown', failure = 'unknown'): TypeDescriptor => ({
+	nominal: 'effect/Result',
+	ts: `{ readonly pipe: () => unknown; readonly __resultSuccess?: () => ${success}; readonly __resultFailure?: () => ${failure} }`
+})
 
 const typeParameter = (description: string): TemplateTypeParameterDefinition => ({
 	description,
@@ -437,23 +450,20 @@ export const EffectOrElseTemplate = defineTemplate({
 			ts: `() => ${effectStructuralType('{{B}}', '{{E2}}', '{{R2}}')}`
 		})
 	},
-	output: expressionOutput('Effect produced by Effect.orElse.', effectType('{{A}} | {{B}}', '{{E2}}', '{{R}} | {{R2}}')),
-	source: `Effect.orElse(${marker('expression', 'source', 'Effect.void')}, ${marker('expression', 'fallback', '() => Effect.void')})`
+	output: expressionOutput('Effect produced by Effect.catchCause.', effectType('{{A}} | {{B}}', '{{E2}}', '{{R}} | {{R2}}')),
+	source: `Effect.catchCause(${marker('expression', 'source', 'Effect.void')}, ${marker('expression', 'fallback', '() => Effect.void')})`
 })
 
 export const EffectEitherTemplate = defineTemplate({
 	modelId: 'EffectEither',
 	version: '2.0.0',
-	description: 'Exposes an Effect success or expected error as Either in the success channel.',
+	description: 'Exposes an Effect success or expected error as a Result in the success channel.',
 	typeParameters: typeParameters(
 		['A', 'Source success type.'], ['E', 'Source expected error type.'], ['R', 'Required service type.']
 	),
 	inputs: { source: effectSourceInput('Source Effect.', effectType('{{A}}', '{{E}}', '{{R}}')) },
-	output: expressionOutput('Effect produced by Effect.either.', effectType(
-		'{ readonly _tag: "Left"; readonly left: {{E}} } | { readonly _tag: "Right"; readonly right: {{A}} }',
-		'never', '{{R}}'
-	)),
-	source: `Effect.either(${marker('expression', 'source', 'Effect.void')})`
+	output: expressionOutput('Effect produced by Effect.result.', resultType('{{A}}', '{{E}}')),
+	source: `Effect.result(${marker('expression', 'source', 'Effect.void')})`
 })
 
 // Resources and requirements -------------------------------------------------
@@ -614,7 +624,7 @@ export const EffectRunPromiseExitTemplate = runnerTemplate(
 	'EffectRunPromiseExit',
 	'runPromiseExit',
 	'Runs an Effect and returns a Promise of its Exit.',
-	{ nominal: 'effect/ExitPromise', ts: 'Promise<unknown>' }
+	{ nominal: 'effect/Effect.runPromiseExit', ts: 'Promise<unknown>' }
 )
 export const EffectRunForkTemplate = runnerTemplate(
 	'EffectRunFork',

@@ -1,4 +1,4 @@
-import { defineTemplate } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import {
 	effectDurationInput,
 	effectSourceInput,
@@ -25,6 +25,7 @@ import {
 import { streamInput } from './effect-stream-sink-template-helpers.js'
 import {
 	socketErrorType,
+	socketFallback,
 	socketInput,
 	socketScopeRequirement,
 	socketServerErrorType,
@@ -50,7 +51,7 @@ export const SocketTextStreamTemplate = defineTemplate({
 		encoding: effectValueInput('Optional text encoding.', { ts: 'string | undefined' })
 	},
 	output: expressionOutput('Decoded Socket text Stream.', streamType('string', socketError, 'never')),
-	source: `Stream.decodeText(Socket.toStream(${marker('expression', 'socket', 'Socket.Socket.of({})')}), { encoding: ${marker('expression', 'encoding', 'undefined')} })`
+	source: `Stream.decodeText(Socket.toStream(${marker('expression', 'socket', socketFallback)}), { encoding: ${marker('expression', 'encoding', 'undefined')} })`
 })
 
 export const SocketLineStreamTemplate = defineTemplate({
@@ -60,14 +61,14 @@ export const SocketLineStreamTemplate = defineTemplate({
 		encoding: effectValueInput('Optional text encoding.', { ts: 'string | undefined' })
 	},
 	output: expressionOutput('Line-framed Socket Stream.', streamType('string', socketError, 'never')),
-	source: `Stream.splitLines(Stream.decodeText(Socket.toStream(${marker('expression', 'socket', 'Socket.Socket.of({})')}), { encoding: ${marker('expression', 'encoding', 'undefined')} }))`
+	source: `Stream.splitLines(Stream.decodeText(Socket.toStream(${marker('expression', 'socket', socketFallback)}), { encoding: ${marker('expression', 'encoding', 'undefined')} }))`
 })
 
 export const SocketJsonLineStreamTemplate = defineTemplate({
 	modelId: 'SocketJsonLineStream', version: VERSION, description: 'Parses a newline-delimited JSON Socket stream into unknown values.',
 	inputs: { socket: socketInput('Socket carrying newline-delimited JSON.') },
 	output: expressionOutput('Parsed NDJSON Socket Stream.', streamType('unknown', `${socketError} | unknown`, 'never')),
-	source: `Stream.mapEffect(Stream.splitLines(Stream.decodeText(Socket.toStream(${marker('expression', 'socket', 'Socket.Socket.of({})')}))), line => Effect.try(() => JSON.parse(line)))`
+	source: `Stream.mapEffect(Stream.splitLines(Stream.decodeText(Socket.toStream(${marker('expression', 'socket', socketFallback)}))), line => Effect.try(() => JSON.parse(line)))`
 })
 
 export const SocketSchemaJsonLineStreamTemplate = defineTemplate({
@@ -78,7 +79,7 @@ export const SocketSchemaJsonLineStreamTemplate = defineTemplate({
 		schema: schemaInput('Schema used to decode parsed JSON values.', '{{A}}', '{{I}}', '{{RDecode}}')
 	},
 	output: expressionOutput('Schema-decoded NDJSON Socket Stream.', streamType('{{A}}', `${socketError} | unknown`, '{{RDecode}}')),
-	source: `Stream.mapEffect(Stream.splitLines(Stream.decodeText(Socket.toStream(${marker('expression', 'socket', 'Socket.Socket.of({})')}))), line => Effect.flatMap(Effect.try(() => JSON.parse(line)), Schema.decodeUnknown(${marker('expression', 'schema', 'Schema.Unknown')})))`
+	source: `Stream.mapEffect(Stream.splitLines(Stream.decodeText(Socket.toStream(${marker('expression', 'socket', socketFallback)}))), line => Effect.flatMap(Effect.try(() => JSON.parse(line)), Schema.decodeUnknownEffect(${marker('expression', 'schema', 'Schema.Unknown')})))`
 })
 
 export const SocketWriteValueTemplate = defineTemplate({
@@ -90,7 +91,7 @@ export const SocketWriteValueTemplate = defineTemplate({
 		encode: callbackInput('Pure frame encoder.', { ts: '(value: {{A}}) => string | Uint8Array' })
 	},
 	output: expressionOutput('Scoped Socket write Effect.', effectType('void', socketError, 'never')),
-	source: `Effect.scoped(Effect.flatMap(${marker('expression', 'socket', 'Socket.Socket.of({})')}.writer, writer => writer.write((${marker('expression', 'encode', 'value => String(value)')})(${marker('expression', 'value', 'undefined')}))))`
+	source: `Effect.scoped(Effect.flatMap(${marker('expression', 'socket', socketFallback)}.writer, writer => writer.write((${marker('expression', 'encode', 'value => String(value)')})(${marker('expression', 'value', 'undefined')}))))`
 })
 
 export const SocketWriteJsonTemplate = defineTemplate({
@@ -102,7 +103,7 @@ export const SocketWriteJsonTemplate = defineTemplate({
 		value: valueInput('Application value to encode.', { ts: '{{A}}' })
 	},
 	output: expressionOutput('Schema-encoded JSON Socket write.', effectType('void', `${socketError} | unknown`, '{{REncode}}')),
-	source: `Effect.scoped(Effect.flatMap(${marker('expression', 'socket', 'Socket.Socket.of({})')}.writer, writer => Effect.flatMap(Schema.encode(${marker('expression', 'schema', 'Schema.Unknown')})(${marker('expression', 'value', 'undefined')}), encoded => Effect.flatMap(Effect.try(() => JSON.stringify(encoded)), writer.write))))`
+	source: `Effect.scoped(Effect.flatMap(${marker('expression', 'socket', socketFallback)}.writer, writer => Effect.flatMap(Schema.encodeEffect(${marker('expression', 'schema', 'Schema.Unknown')})(${marker('expression', 'value', 'undefined')}), encoded => Effect.flatMap(Effect.try(() => JSON.stringify(encoded)), writer.write))))`
 })
 
 export const SocketWriteJsonLineTemplate = defineTemplate({
@@ -114,7 +115,7 @@ export const SocketWriteJsonLineTemplate = defineTemplate({
 		value: valueInput('Application value to encode.', { ts: '{{A}}' })
 	},
 	output: expressionOutput('Schema-encoded NDJSON Socket write.', effectType('void', `${socketError} | unknown`, '{{REncode}}')),
-	source: `Effect.scoped(Effect.flatMap(${marker('expression', 'socket', 'Socket.Socket.of({})')}.writer, writer => Effect.flatMap(Schema.encode(${marker('expression', 'schema', 'Schema.Unknown')})(${marker('expression', 'value', 'undefined')}), encoded => Effect.flatMap(Effect.try(() => JSON.stringify(encoded) + "\\n"), writer.write))))`
+	source: `Effect.scoped(Effect.flatMap(${marker('expression', 'socket', socketFallback)}.writer, writer => Effect.flatMap(Schema.encodeEffect(${marker('expression', 'schema', 'Schema.Unknown')})(${marker('expression', 'value', 'undefined')}), encoded => Effect.flatMap(Effect.try(() => JSON.stringify(encoded) + "\\n"), writer.write))))`
 })
 
 export const SocketStreamToWriterTemplate = defineTemplate({
@@ -126,7 +127,7 @@ export const SocketStreamToWriterTemplate = defineTemplate({
 		encode: callbackInput('Pure frame encoder.', { ts: '(value: {{A}}) => string | Uint8Array' })
 	},
 	output: expressionOutput('Socket streaming write Effect.', effectType('void', `{{E}} | ${socketError}`, '{{R}}')),
-	source: `Effect.scoped(Effect.flatMap(${marker('expression', 'socket', 'Socket.Socket.of({})')}.writer, writer => Stream.runForEach(${marker('expression', 'stream', 'Stream.empty')}, value => writer.write((${marker('expression', 'encode', 'value => String(value)')})(value)))))`
+	source: `Effect.scoped(Effect.flatMap(${marker('expression', 'socket', socketFallback)}.writer, writer => Stream.runForEach(${marker('expression', 'stream', 'Stream.empty')}, value => writer.write((${marker('expression', 'encode', 'value => String(value)')})(value)))))`
 })
 
 export const SocketBoundedQueueIngressTemplate = defineTemplate({
@@ -136,7 +137,7 @@ export const SocketBoundedQueueIngressTemplate = defineTemplate({
 		queue: queueInput('Queue receiving incoming byte chunks.', 'Uint8Array')
 	},
 	output: expressionOutput('Socket-to-Queue pump Effect.', effectType('void', socketError, 'never')),
-	source: `Stream.runForEach(Socket.toStream(${marker('expression', 'socket', 'Socket.Socket.of({})')}), chunk => Queue.offer(${marker('expression', 'queue', 'queue')}, chunk))`
+	source: `Stream.runForEach(Socket.toStream(${marker('expression', 'socket', socketFallback)}), chunk => Queue.offer(${marker('expression', 'queue', 'queue')}, chunk))`
 })
 
 export const SocketPubSubIngressTemplate = defineTemplate({
@@ -146,7 +147,7 @@ export const SocketPubSubIngressTemplate = defineTemplate({
 		pubsub: pubSubInput('PubSub receiving incoming byte chunks.', 'Uint8Array')
 	},
 	output: expressionOutput('Socket-to-PubSub pump Effect.', effectType('void', socketError, 'never')),
-	source: `Stream.runForEach(Socket.toStream(${marker('expression', 'socket', 'Socket.Socket.of({})')}), chunk => Effect.asVoid(PubSub.publish(${marker('expression', 'pubsub', 'pubsub')}, chunk)))`
+	source: `Stream.runForEach(Socket.toStream(${marker('expression', 'socket', socketFallback)}), chunk => Effect.asVoid(PubSub.publish(${marker('expression', 'pubsub', 'pubsub')}, chunk)))`
 })
 
 export const SocketReconnectConsumerTemplate = defineTemplate({
@@ -158,7 +159,7 @@ export const SocketReconnectConsumerTemplate = defineTemplate({
 		retry: scheduleInput('Reconnect retry Schedule.', `${socketError} | {{E}}`, '{{RSchedule}}')
 	},
 	output: expressionOutput('Reconnect-loop Effect.', effectType('void', `${socketError} | {{E}}`, '{{R}} | {{RSchedule}}')),
-	source: `Effect.retry(Stream.runForEach(Socket.toStream(${marker('expression', 'socket', 'Socket.Socket.of({})')}), ${marker('expression', 'consume', '() => Effect.void')}), ${marker('expression', 'retry', 'Schedule.exponential(100)')})`
+	source: `Effect.retry(Stream.runForEach(Socket.toStream(${marker('expression', 'socket', socketFallback)}), ${marker('expression', 'consume', '() => Effect.void')}), ${marker('expression', 'retry', 'Schedule.exponential(100)')})`
 })
 
 export const SocketObservedReconnectConsumerTemplate = defineTemplate({
@@ -171,7 +172,7 @@ export const SocketObservedReconnectConsumerTemplate = defineTemplate({
 		spanName: effectValueInput('Tracing span name.', { ts: 'string' })
 	},
 	output: expressionOutput('Observed reconnect-loop Effect.', effectType('void', `${socketError} | {{E}}`, '{{R}} | {{RSchedule}}')),
-	source: `Effect.withSpan(Effect.annotateLogs(Effect.retry(Stream.runForEach(Socket.toStream(${marker('expression', 'socket', 'Socket.Socket.of({})')}), ${marker('expression', 'consume', '() => Effect.void')}), ${marker('expression', 'retry', 'Schedule.exponential(100)')}), "component", "socket"), ${marker('expression', 'spanName', '"socket.consume"')})`
+	source: `Effect.withSpan(Effect.annotateLogs(Effect.retry(Stream.runForEach(Socket.toStream(${marker('expression', 'socket', socketFallback)}), ${marker('expression', 'consume', '() => Effect.void')}), ${marker('expression', 'retry', 'Schedule.exponential(100)')}), "component", "socket"), ${marker('expression', 'spanName', '"socket.consume"')})`
 })
 
 export const SocketHeartbeatSessionTemplate = defineTemplate({
@@ -184,7 +185,7 @@ export const SocketHeartbeatSessionTemplate = defineTemplate({
 		interval: effectDurationInput('Delay between heartbeat frames.')
 	},
 	output: expressionOutput('Heartbeat + receive session Effect.', effectType('ReadonlyArray<unknown>', `${socketError} | {{E}}`, '{{R}}')),
-	source: `Effect.scoped(Effect.gen(function*() { const socket = ${marker('expression', 'socket', 'Socket.Socket.of({})')}; const writer = yield* socket.writer; const receive = Stream.runForEach(Socket.toStream(socket), ${marker('expression', 'consume', '() => Effect.void')}); const heartbeat = Effect.forever(Effect.zipRight(Effect.sleep(${marker('expression', 'interval', '10000')}), writer.write(${marker('expression', 'heartbeat', '"ping"')}))); return yield* Effect.all([receive, heartbeat], { concurrency: "unbounded" }); }))`
+	source: `Effect.scoped(Effect.gen(function*() { const socket = ${marker('expression', 'socket', socketFallback)}; const writer = yield* socket.writer; const receive = Stream.runForEach(Socket.toStream(socket), ${marker('expression', 'consume', '() => Effect.void')}); const heartbeat = Effect.forever(Effect.andThen(Effect.sleep(${marker('expression', 'interval', '10000')}), writer.write(${marker('expression', 'heartbeat', '"ping"')}))); return yield* Effect.all([receive, heartbeat], { concurrency: "unbounded" }); }))`
 })
 
 export const SocketBidirectionalQueueBridgeTemplate = defineTemplate({
@@ -197,7 +198,7 @@ export const SocketBidirectionalQueueBridgeTemplate = defineTemplate({
 		encode: callbackInput('Pure outbound frame encoder.', { ts: '(value: {{Out}}) => string | Uint8Array' })
 	},
 	output: expressionOutput('Bidirectional Queue bridge Effect.', effectType('ReadonlyArray<unknown>', socketError, 'never')),
-	source: `Effect.scoped(Effect.gen(function*() { const socket = ${marker('expression', 'socket', 'Socket.Socket.of({})')}; const writer = yield* socket.writer; const receive = Stream.runForEach(Socket.toStream(socket), chunk => Queue.offer(${marker('expression', 'inbound', 'inbound')}, chunk)); const send = Stream.runForEach(Stream.fromQueue(${marker('expression', 'outbound', 'outbound')}), value => writer.write((${marker('expression', 'encode', 'value => String(value)')})(value))); return yield* Effect.all([receive, send], { concurrency: "unbounded" }); }))`
+	source: `Effect.scoped(Effect.gen(function*() { const socket = ${marker('expression', 'socket', socketFallback)}; const writer = yield* socket.writer; const receive = Stream.runForEach(Socket.toStream(socket), chunk => Queue.offer(${marker('expression', 'inbound', 'inbound')}, chunk)); const send = Stream.runForEach(Stream.fromQueue(${marker('expression', 'outbound', 'outbound')}), value => writer.write((${marker('expression', 'encode', 'value => String(value)')})(value))); return yield* Effect.all([receive, send], { concurrency: "unbounded" }); }))`
 })
 
 export const SocketSchemaRequestResponseSessionTemplate = defineTemplate({
@@ -213,7 +214,7 @@ export const SocketSchemaRequestResponseSessionTemplate = defineTemplate({
 		handler: callbackInput('Request handler.', effectReturningCallbackType('request: {{Req}}', '{{Res}}', '{{E}}', '{{RHandler}}'))
 	},
 	output: expressionOutput('Schema request/response Socket session.', effectType('void', `${socketError} | unknown | {{E}}`, '{{RDecode}} | {{REncode}} | {{RHandler}}')),
-	source: `Effect.scoped(Effect.gen(function*() { const socket = ${marker('expression', 'socket', 'Socket.Socket.of({})')}; const writer = yield* socket.writer; const requests = Stream.mapEffect(Stream.splitLines(Stream.decodeText(Socket.toStream(socket))), line => Effect.flatMap(Effect.try(() => JSON.parse(line)), Schema.decodeUnknown(${marker('expression', 'requestSchema', 'Schema.Unknown')}))); return yield* Stream.runForEach(requests, request => Effect.flatMap((${marker('expression', 'handler', 'request => Effect.succeed(request)')})(request), response => Effect.flatMap(Schema.encode(${marker('expression', 'responseSchema', 'Schema.Unknown')})(response), encoded => Effect.flatMap(Effect.try(() => JSON.stringify(encoded) + "\\n"), writer.write)))); }))`
+	source: `Effect.scoped(Effect.gen(function*() { const socket = ${marker('expression', 'socket', socketFallback)}; const writer = yield* socket.writer; const requests = Stream.mapEffect(Stream.splitLines(Stream.decodeText(Socket.toStream(socket))), line => Effect.flatMap(Effect.try(() => JSON.parse(line)), Schema.decodeUnknownEffect(${marker('expression', 'requestSchema', 'Schema.Unknown')}))); return yield* Stream.runForEach(requests, request => Effect.flatMap((${marker('expression', 'handler', 'request => Effect.succeed(request)')})(request), response => Effect.flatMap(Schema.encodeEffect(${marker('expression', 'responseSchema', 'Schema.Unknown')})(response), encoded => Effect.flatMap(Effect.try(() => JSON.stringify(encoded) + "\\n"), writer.write)))); }))`
 })
 
 export const SocketServerStreamingHandlerTemplate = defineTemplate({
@@ -232,7 +233,7 @@ export const SocketServerJsonLineBoundaryTemplate = defineTemplate({
 		handler: callbackInput('Per-message handler.', effectReturningCallbackType('message: {{A}}', 'unknown', '{{E}}', '{{RHandler}}'))
 	},
 	output: expressionOutput('NDJSON SocketServer Effect.', effectType('never', socketServerErrorType, `${socketServerRequirement} | {{RDecode}} | {{RHandler}}`)),
-	source: `Effect.flatMap(SocketServer.SocketServer, server => server.run(socket => Stream.runForEach(Stream.mapEffect(Stream.splitLines(Stream.decodeText(Socket.toStream(socket))), line => Effect.flatMap(Effect.try(() => JSON.parse(line)), Schema.decodeUnknown(${marker('expression', 'schema', 'Schema.Unknown')}))), ${marker('expression', 'handler', '() => Effect.void')})))`
+	source: `Effect.flatMap(SocketServer.SocketServer, server => server.run(socket => Stream.runForEach(Stream.mapEffect(Stream.splitLines(Stream.decodeText(Socket.toStream(socket))), line => Effect.flatMap(Effect.try(() => JSON.parse(line)), Schema.decodeUnknownEffect(${marker('expression', 'schema', 'Schema.Unknown')}))), ${marker('expression', 'handler', '() => Effect.void')})))`
 })
 
 export const WebSocketReconnectWorkerLayerTemplate = defineTemplate({
@@ -245,7 +246,7 @@ export const WebSocketReconnectWorkerLayerTemplate = defineTemplate({
 		retry: scheduleInput('Reconnect retry Schedule.', `${socketError} | {{E}}`, '{{RSchedule}}')
 	},
 	output: expressionOutput('Scoped reconnecting WebSocket worker Layer.', layerType('never', 'never', `${webSocketConstructorRequirement} | {{R}} | {{RSchedule}}`)),
-	source: `Layer.scopedDiscard(Effect.gen(function*() { const socket = yield* Socket.makeWebSocket(${marker('expression', 'url', '"ws://localhost:8080"')}, ${marker('expression', 'options', '{}')}); const worker = Effect.retry(Stream.runForEach(Socket.toStream(socket), ${marker('expression', 'consume', '() => Effect.void')}), ${marker('expression', 'retry', 'Schedule.exponential(100)')}); yield* Effect.forkScoped(worker); }))`
+	source: `Layer.effectDiscard(Effect.gen(function*() { const socket = yield* Socket.makeWebSocket(${marker('expression', 'url', '"ws://localhost:8080"')}, ${marker('expression', 'options', '{}')}); const worker = Effect.retry(Stream.runForEach(Socket.toStream(socket), ${marker('expression', 'consume', '() => Effect.void')}), ${marker('expression', 'retry', 'Schedule.exponential(100)')}); yield* Effect.forkScoped(worker); }))`
 })
 
 export const WebSocketSchemaEventConsumerLayerTemplate = defineTemplate({
@@ -259,7 +260,7 @@ export const WebSocketSchemaEventConsumerLayerTemplate = defineTemplate({
 		retry: scheduleInput('Reconnect retry Schedule.', 'unknown', '{{RSchedule}}')
 	},
 	output: expressionOutput('Scoped schema-decoded WebSocket consumer Layer.', layerType('never', 'never', `${webSocketConstructorRequirement} | {{RDecode}} | {{RHandler}} | {{RSchedule}}`)),
-	source: `Layer.scopedDiscard(Effect.gen(function*() { const socket = yield* Socket.makeWebSocket(${marker('expression', 'url', '"ws://localhost:8080"')}, ${marker('expression', 'options', '{}')}); const consume = Stream.runForEach(Stream.mapEffect(Stream.splitLines(Stream.decodeText(Socket.toStream(socket))), line => Effect.flatMap(Effect.try(() => JSON.parse(line)), Schema.decodeUnknown(${marker('expression', 'schema', 'Schema.Unknown')}))), ${marker('expression', 'handler', '() => Effect.void')}); yield* Effect.forkScoped(Effect.retry(consume, ${marker('expression', 'retry', 'Schedule.exponential(100)')})); }))`
+	source: `Layer.effectDiscard(Effect.gen(function*() { const socket = yield* Socket.makeWebSocket(${marker('expression', 'url', '"ws://localhost:8080"')}, ${marker('expression', 'options', '{}')}); const consume = Stream.runForEach(Stream.mapEffect(Stream.splitLines(Stream.decodeText(Socket.toStream(socket))), line => Effect.flatMap(Effect.try(() => JSON.parse(line)), Schema.decodeUnknownEffect(${marker('expression', 'schema', 'Schema.Unknown')}))), ${marker('expression', 'handler', '() => Effect.void')}); yield* Effect.forkScoped(Effect.retry(consume, ${marker('expression', 'retry', 'Schedule.exponential(100)')})); }))`
 })
 
 export const SocketStreamingBoundarySourceFileTemplate = defineTemplate({

@@ -39,7 +39,7 @@ export const sqlRepositoryType = (
 	update = 'unknown',
 	id = 'unknown',
 	requirements = 'never'
-): TypeDescriptor => nominalType('effect/unstable/sql/Repository', {
+): TypeDescriptor => nominalType('effect/unstable/sql/SqlModel.makeRepository', {
 	repositoryRow: row,
 	repositoryInsert: insert,
 	repositoryUpdate: update,
@@ -72,4 +72,4 @@ export const sqlRequestResolverType = (
 })
 
 export const sqlMigrationLoaderType = (requirements = 'never'): TypeDescriptor =>
-	nominalType('effect/unstable/sql/Migrator/Loader', { migrationRequirements: requirements })
+	nominalType('effect/unstable/sql/Migrator.Loader', { migrationRequirements: requirements })

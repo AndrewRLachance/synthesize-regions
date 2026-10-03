@@ -30,8 +30,8 @@ export const activityType = (success = 'unknown', error = 'unknown', requirement
 export const durableClockType = (): TypeDescriptor => nominalType('effect/unstable/workflow/DurableClock')
 export const durableDeferredType = (success = 'unknown', error = 'unknown'): TypeDescriptor =>
 	nominalType('effect/unstable/workflow/DurableDeferred', {
-	deferredSuccess: success,
-	deferredError: error
+	durableDeferredSuccess: success,
+	durableDeferredError: error
 })
 export const durableDeferredTokenType = (): TypeDescriptor => nominalType('effect/unstable/workflow/DurableDeferred.Token')
 export const durableQueueType = (payload = 'unknown', success = 'unknown', error = 'unknown'): TypeDescriptor =>

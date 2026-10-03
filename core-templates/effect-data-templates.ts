@@ -1,4 +1,4 @@
-import { defineTemplate } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import {
 	type AnyEffectFamilyTemplateDefinitionInput,
 	expressionOutput,

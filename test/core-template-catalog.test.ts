@@ -9,7 +9,7 @@ const expectedFamilies = [
 	['coordination', 'effect-coordination-templates', 14],
 	['effect-es-toolkit', 'effect-es-toolkit-templates', 14],
 	['resource', 'effect-resource-templates', 4],
-	['schema', 'effect-schema-templates', 104],
+	['schema', 'effect-schema-templates', 103],
 	['stream', 'effect-stream-v4-templates', 43],
 	['testing', 'effect-v4-testing-foundational-templates', 16],
 	['workflow', 'effect-workflow-templates', 10],
@@ -29,23 +29,23 @@ describe('curated core-template catalog', () => {
 			.toEqual(expectedFamilies.map(entry => [...entry]))
 	})
 
-	it('registers 480 unique models with no cross-family collision', () => {
+	it('registers 479 unique models with no cross-family collision', () => {
 		const registry = createCoreTemplateRegistry()
 		const modelIds = registry.list().map(definition => definition.modelId)
-		expect(registry.list()).toHaveLength(480)
-		expect(new Set(modelIds).size).toBe(480)
-		expect(registry.summaries()).toHaveLength(480)
+		expect(registry.list()).toHaveLength(479)
+		expect(new Set(modelIds).size).toBe(479)
+		expect(registry.summaries()).toHaveLength(479)
 	})
 
 	it('pins the catalog and manifest digests', () => {
 		const registry = createCoreTemplateRegistry()
-		expect(registry.contractDigest).toBe('c7_11db4eca73202f5b3ee964ec6aef4e4458823847ad45d7c1faff6cc0851ae38c')
-		expect(registry.manifestDigest).toBe('m4_58d0d630f662fa196c3353d788abf5f88e8156612f158772b00eb5ccc6aa97b3')
+		expect(registry.contractDigest).toBe('c7_3d3fccd38307a6ab55faabd64982abce146c0b8b9344855ec39001ee2ac0e260')
+		expect(registry.manifestDigest).toBe('m4_fb79dd43260d1a11c89cad8a12a791046474c809c0bdfe0476857491ab97a0da')
 	})
 
 	it('exports manifest-only entries sorted by modelId', () => {
 		const manifests = coreTemplateManifests()
-		expect(manifests).toHaveLength(480)
+		expect(manifests).toHaveLength(479)
 		expect(manifests.map(manifest => manifest.modelId))
 			.toEqual([...manifests.map(manifest => manifest.modelId)].sort())
 		for (const manifest of manifests) {

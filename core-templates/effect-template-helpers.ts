@@ -56,14 +56,24 @@ export const statementOutput = (description: string) => ({
 
 export type TypeDescriptorWithTs = TypeDescriptor & { readonly ts: string }
 
+/**
+ * Canonical structural shape shared by every nominal phantom descriptor.
+ *
+ * `nominalType` is the descriptor form; this is the bare `ts` string used when a
+ * descriptor is nested inside another one, e.g. an Effect yielding a Fiber.
+ * Packs must import this instead of redefining the template.
+ */
+export const structuralTypeWithPhantoms = (phantoms: Readonly<Record<string, string>> = {}): string =>
+	`{ readonly pipe: () => unknown${Object.entries(phantoms)
+		.map(([name, type]) => `; readonly __${name}?: () => ${type}`)
+		.join('')} }`
+
 export const nominalType = (
 	nominal: string,
 	phantoms: Readonly<Record<string, string>> = {}
 ): TypeDescriptorWithTs => ({
 	nominal,
-	ts: `{ readonly pipe: () => unknown${Object.entries(phantoms)
-		.map(([name, type]) => `; readonly __${name}?: () => ${type}`)
-		.join('')} }`
+	ts: structuralTypeWithPhantoms(phantoms)
 })
 
 export const typedExpressionInput = (description: string, type: TypeDescriptor) => unionPort({
@@ -137,7 +147,7 @@ export const schemaPropertySignatureType = (
 	decodingServices = 'never',
 	encodingServices = decodingServices
 ) =>
-	nominalType('effect/SchemaPropertySignature', {
+	nominalType('effect/SchemaAST.PropertySignature', {
 		schemaPropertyDecoded: decoded,
 		schemaPropertyEncoded: encoded,
 		schemaPropertyRequirements: `${decodingServices} | ${encodingServices}`,
@@ -153,7 +163,7 @@ export const effectReturningCallbackType = (
 ): TypeDescriptorWithTs => ({ ts: `(${parameters}) => ${effectStructuralType(success, error, requirements)}` })
 
 export const tagType = (identifier = 'unknown', service = 'unknown') =>
-	nominalType('effect/ContextTag', { tagIdentifier: identifier, tagService: service })
+	nominalType('effect/Context.Key', { tagIdentifier: identifier, tagService: service })
 
 export const layerType = (provided = 'unknown', error = 'unknown', requirements = 'unknown') =>
 	nominalType('effect/Layer', { layerProvided: provided, layerError: error, layerRequirements: requirements })

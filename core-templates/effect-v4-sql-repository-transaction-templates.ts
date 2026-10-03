@@ -1,4 +1,4 @@
-import { defineTemplate } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import {
 	effectSourceInput,
 	effectType,
@@ -91,7 +91,7 @@ export const SqlBatchedRepositoryServiceLayerTemplate = defineTemplate({
 		})
 	},
 	output: expressionOutput('Batched SQL repository service Layer.', layerType('{{I}}', 'never', sqlClientRequirement)),
-	source: `Layer.scoped(${marker('expression', 'tag', 'Repository')}, Effect.map(SqlModel.makeResolvers(${marker('expression', 'model', 'Model')}, { tableName: ${marker('string', 'table', '"items"')}, spanPrefix: ${marker('string', 'spanPrefix', '"ItemsRepo"')}, idColumn: ${marker('string', 'idColumn', '"id"')}, softDeleteColumn: ${marker('expression', 'softDeleteColumn', 'undefined')} }), ${marker('expression', 'makeService', 'resolvers => resolvers')}))`
+	source: `Layer.effect(${marker('expression', 'tag', 'Repository')}, Effect.map(SqlModel.makeResolvers(${marker('expression', 'model', 'Model')}, { tableName: ${marker('string', 'table', '"items"')}, spanPrefix: ${marker('string', 'spanPrefix', '"ItemsRepo"')}, idColumn: ${marker('string', 'idColumn', '"id"')}, softDeleteColumn: ${marker('expression', 'softDeleteColumn', 'undefined')} }), ${marker('expression', 'makeService', 'resolvers => resolvers')}))`
 })
 
 export const SqlTransactionPairTemplate = defineTemplate({

@@ -1,4 +1,5 @@
-import { defineTemplate, fragmentCollectionPort } from '../src/templates.js'
+import { fragmentCollectionPort } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import {
 	effectDurationInput,
 	effectSourceInput,
@@ -190,7 +191,7 @@ export const RpcGroupOfHandlersTemplate = defineTemplate({
 	modelId: 'RpcGroupOfHandlers', version: VERSION, description: 'Checks and returns a handler object against an RpcGroup handler shape.',
 	inputs: { group: groupInput('RPC group.'), handlers: valueInput('Handler object keyed by RPC tags.') },
 	output: expressionOutput('Typed RPC handlers.', rpcHandlersType()),
-	source: `${marker('expression', 'group', 'RpcGroup.make(Rpc.make("Ping"))')}.of(${marker('expression', 'handlers', '{}')})`
+	source: `${marker('expression', 'group', 'RpcGroup.make(Rpc.make("Ping"))')}.of(${marker('expression', 'handlers', '{ Ping: () => Effect.void }')})`
 })
 
 export const RpcGroupToHandlersTemplate = defineTemplate({
@@ -198,7 +199,7 @@ export const RpcGroupToHandlersTemplate = defineTemplate({
 	typeParameters: typeParameters(['E', 'Handler construction error.'], ['R', 'Handler construction requirements.']),
 	inputs: { group: groupInput('RPC group.'), handlers: valueInput('Handler object or handler-construction Effect.') },
 	output: expressionOutput('Effect producing the RPC handler Context.', effectType(rpcHandlerContextType().ts, '{{E}}', '{{R}}')),
-	source: `${marker('expression', 'group', 'RpcGroup.make(Rpc.make("Ping"))')}.toHandlers(${marker('expression', 'handlers', '{}')})`
+	source: `${marker('expression', 'group', 'RpcGroup.make(Rpc.make("Ping"))')}.toHandlers(${marker('expression', 'handlers', '{ Ping: () => Effect.void }')})`
 })
 
 export const RpcGroupToLayerTemplate = defineTemplate({
@@ -206,7 +207,7 @@ export const RpcGroupToLayerTemplate = defineTemplate({
 	typeParameters: typeParameters(['E', 'Handler construction error.'], ['R', 'Handler requirements.']),
 	inputs: { group: groupInput('RPC group.'), handlers: valueInput('Handler object or handler-construction Effect.') },
 	output: expressionOutput('RPC handlers Layer.', layerType(rpcHandlerType().ts, '{{E}}', '{{R}}')),
-	source: `${marker('expression', 'group', 'RpcGroup.make(Rpc.make("Ping"))')}.toLayer(${marker('expression', 'handlers', '{}')})`
+	source: `${marker('expression', 'group', 'RpcGroup.make(Rpc.make("Ping"))')}.toLayer(${marker('expression', 'handlers', '{ Ping: () => Effect.void }')})`
 })
 
 export const RpcGroupToLayerHandlerTemplate = defineTemplate({

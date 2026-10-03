@@ -1,4 +1,4 @@
-import { defineTemplate } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import type { TypeDescriptor } from '../src/templates.js'
 import {
 	effectSourceInput,
@@ -20,7 +20,7 @@ import {
  * These templates model the stable Latch and Semaphore contracts from core.
  *
  * Runtime contract:
- *   import { Effect } from 'effect'
+ *   import { Effect, Latch, Semaphore } from 'effect'
  */
 
 const VERSION = '1.0.0' as const
@@ -53,7 +53,7 @@ export const LatchMakeTemplate = defineTemplate({
 	description: 'Creates a Latch, optionally open from the start.',
 	inputs: { open: effectValueInput('Whether the latch starts open.', { ts: 'boolean' }) },
 	output: expressionOutput('Latch creation Effect.', effectType(latchType().ts, 'never', 'never')),
-	source: `Effect.makeLatch(${marker('expression', 'open', 'false')})`
+	source: `Latch.make(${marker('expression', 'open', 'false')})`
 })
 
 export const LatchOpenTemplate = defineTemplate({
@@ -115,7 +115,7 @@ export const SemaphoreMakeTemplate = defineTemplate({
 	description: 'Creates a Semaphore with the requested permit count.',
 	inputs: { permits: permitsInput('Non-negative permit count.') },
 	output: expressionOutput('Semaphore creation Effect.', effectType(semaphoreType().ts, 'never', 'never')),
-	source: `Effect.makeSemaphore(${marker('expression', 'permits', '1')})`
+	source: `Semaphore.make(${marker('expression', 'permits', '1')})`
 })
 
 export const SemaphoreWithPermitsTemplate = defineTemplate({

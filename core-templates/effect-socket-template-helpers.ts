@@ -41,6 +41,16 @@ export const channelType = (
 
 export const nonEmptyReadonlyArrayTs = (value: string): string => `readonly [${value}, ...Array<${value}>]`
 
+/**
+ * Placeholder `Socket` for templates whose `socket` input is consumer-supplied.
+ *
+ * `Socket.of` does not exist in Effect v4. `Socket.make` is the constructor that
+ * takes the scoped reader and scoped writer acquisitions directly, so it is the
+ * correct in-memory placeholder.
+ */
+export const socketFallback =
+	'Socket.make({ reader: Effect.succeed({ pull: Effect.succeed([\'\'] as const), upgrade: (_options: unknown) => Effect.void }), writer: Effect.succeed({ write: (_chunk: unknown) => Effect.void, writeAll: (_chunks: unknown) => Effect.void }) })'
+
 export const socketInput = (description: string) => typedExpressionInput(description, socketType())
 export const socketReaderInput = (description: string, frame = 'Uint8Array | string') =>
 	typedExpressionInput(description, socketReaderType(frame))

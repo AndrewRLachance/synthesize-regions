@@ -1,4 +1,5 @@
-import { defineTemplate, fragmentCollectionPort, fragmentPort, literalPort, rawCodePort, unionPort } from '../src/templates.js'
+import { fragmentCollectionPort, fragmentPort, literalPort, rawCodePort, unionPort } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import type { TypeDescriptor } from '../src/templates.js'
 import { effectDurationInput, effectExpressionPolicy, effectSourceInput, effectType, effectValueInput } from './effect-ts.js'
 import {
@@ -224,7 +225,7 @@ export const DurableDeferredRaceAllTemplate = defineTemplate({
 	typeParameters: typeParameters(['A','Union success type.'],['E','Union error type.'],['R','Effect requirements.']),
 	inputs: { name: effectValueInput('Stable race name.', { ts: 'string' }), success: schemaInput('Race success schema.','{{A}}'), error: schemaInput('Race error schema.','{{E}}'), effects: fragmentCollectionPort({ regionKind: 'expression', accepts: { outputKind: 'expression', type: effectType('{{A}}','{{E}}','{{R}}') }, minItems: 1, separator: ', ', description: 'Effects participating in the durable race.' }) },
 	output: expressionOutput('Durable race Effect.', effectType('{{A}}','{{E}}',`{{R}} | ${workflowEngineRequirement} | ${workflowInstanceRequirement}`)),
-	source: `DurableDeferred.raceAll({ name: ${marker('expression','name','"race"')}, success: ${marker('expression','success','Schema.Unknown')}, error: ${marker('expression','error','Schema.Unknown')}, effects: [${marker('expression','effects','Effect.void')}] })`
+	source: `DurableDeferred.raceAll({ name: ${marker('expression','name','"race"')}, success: ${marker('expression','success','Schema.Void')}, error: ${marker('expression','error','Schema.Never')}, effects: [${marker('expression','effects','Effect.void')}] })`
 })
 
 export const DurableDeferredTokenTemplate = defineTemplate({

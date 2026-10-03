@@ -1,4 +1,4 @@
-import { defineTemplate } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import { effectType, effectValueInput } from './effect-ts.js'
 import {
 	type AnyEffectFamilyTemplateDefinitionInput,
@@ -47,8 +47,8 @@ export const AtomicBalanceTransferTemplate = defineTemplate({
 	},
 	output: expressionOutput('Atomic transfer Effect.', effectType('{ readonly from: number; readonly to: number }', '{{E}}', 'never')),
 	source: `Effect.tx(Effect.gen(function* () {
-	const from = ${marker('expression', 'from', 'from')}
-	const to = ${marker('expression', 'to', 'to')}
+	const from = ${marker('expression', 'from', '(undefined as any)')}
+	const to = ${marker('expression', 'to', '(undefined as any)')}
 	const amount = ${marker('expression', 'amount', '1')}
 	const insufficient = ${marker('expression', 'insufficient', 'undefined')}
 	const fromBalance = yield* TxRef.get(from)
@@ -71,8 +71,8 @@ export const WaitForTransactionalConditionTemplate = defineTemplate({
 	},
 	output: expressionOutput('Effect yielding the first committed state satisfying the condition.', effectType('{{A}}', 'never', 'never')),
 	source: `Effect.tx(Effect.gen(function* () {
-	const ref = ${marker('expression', 'ref', 'ref')}
-	const predicate = ${marker('expression', 'predicate', '() => true')}
+	const ref = ${marker('expression', 'ref', '(undefined as any)')}
+	const predicate = ${marker('expression', 'predicate', '(_value: unknown) => true')}
 	const value = yield* TxRef.get(ref)
 	if (!predicate(value)) return yield* Effect.txRetry
 	return value
@@ -92,7 +92,7 @@ export const TransactionalCompareAndSetTemplate = defineTemplate({
 	},
 	output: expressionOutput('Whether the replacement was committed.', effectType('boolean', 'never', 'never')),
 	source: `Effect.tx(Effect.gen(function* () {
-	const ref = ${marker('expression', 'ref', 'ref')}
+	const ref = ${marker('expression', 'ref', '(undefined as any)')}
 	const expected = ${marker('expression', 'expected', 'undefined')}
 	const next = ${marker('expression', 'next', 'undefined')}
 	const equals = ${marker('expression', 'equals', '(current, expected) => current === expected')}
@@ -117,7 +117,7 @@ export const TransactionalBoundedCounterUpdateTemplate = defineTemplate({
 	},
 	output: expressionOutput('Committed counter value.', effectType('number', '{{E}}', 'never')),
 	source: `Effect.tx(Effect.gen(function* () {
-	const ref = ${marker('expression', 'ref', 'ref')}
+	const ref = ${marker('expression', 'ref', '(undefined as any)')}
 	const delta = ${marker('expression', 'delta', '1')}
 	const minimum = ${marker('expression', 'minimum', '0')}
 	const maximum = ${marker('expression', 'maximum', '100')}
@@ -141,8 +141,8 @@ export const TransactionalTakeAndCountTemplate = defineTemplate({
 	},
 	output: expressionOutput('Taken item after the counter update commits.', effectType('{{A}}', '{{E}}', 'never')),
 	source: `Effect.tx(Effect.gen(function* () {
-	const queue = ${marker('expression', 'queue', 'queue')}
-	const count = ${marker('expression', 'count', 'count')}
+	const queue = ${marker('expression', 'queue', '(undefined as any)')}
+	const count = ${marker('expression', 'count', '(undefined as any)')}
 	const item = yield* TxQueue.take(queue)
 	yield* TxRef.update(count, (value) => value + 1)
 	return item
@@ -171,9 +171,9 @@ export const TransactionalStateTransitionWithEventTemplate = defineTemplate({
 	},
 	output: expressionOutput('Committed next state.', effectType('{{S}}', '{{ETransition}} | {{EEnqueue}}', 'never')),
 	source: `Effect.tx(Effect.gen(function* () {
-	const state = ${marker('expression', 'state', 'state')}
-	const outbox = ${marker('expression', 'outbox', 'outbox')}
-	const canTransition = ${marker('expression', 'canTransition', '() => true')}
+	const state = ${marker('expression', 'state', '(undefined as any)')}
+	const outbox = ${marker('expression', 'outbox', '(undefined as any)')}
+	const canTransition = ${marker('expression', 'canTransition', '(_current: unknown) => true')}
 	const transition = ${marker('expression', 'transition', '(current) => current')}
 	const toEvent = ${marker('expression', 'toEvent', '(_previous, next) => next')}
 	const rejected = ${marker('expression', 'rejected', 'undefined')}
@@ -202,8 +202,8 @@ export const TransactionalOutboxEnqueueTemplate = defineTemplate({
 	},
 	output: expressionOutput('Committed next state.', effectType('{{S}}', '{{E}}', 'never')),
 	source: `Effect.tx(Effect.gen(function* () {
-	const state = ${marker('expression', 'state', 'state')}
-	const outbox = ${marker('expression', 'outbox', 'outbox')}
+	const state = ${marker('expression', 'state', '(undefined as any)')}
+	const outbox = ${marker('expression', 'outbox', '(undefined as any)')}
 	const update = ${marker('expression', 'update', '(current) => current')}
 	const toEvent = ${marker('expression', 'toEvent', '(_previous, next) => next')}
 	const enqueueRejected = ${marker('expression', 'enqueueRejected', 'undefined')}
@@ -231,8 +231,8 @@ export const TransactionalReservationTemplate = defineTemplate({
 	},
 	output: expressionOutput('Accepted reservation.', effectType('{{Reservation}}', '{{EStock}} | {{EEnqueue}}', 'never')),
 	source: `Effect.tx(Effect.gen(function* () {
-	const stock = ${marker('expression', 'stock', 'stock')}
-	const reservations = ${marker('expression', 'reservations', 'reservations')}
+	const stock = ${marker('expression', 'stock', '(undefined as any)')}
+	const reservations = ${marker('expression', 'reservations', '(undefined as any)')}
 	const amount = ${marker('expression', 'amount', '1')}
 	const reservation = ${marker('expression', 'reservation', 'undefined')}
 	const insufficient = ${marker('expression', 'insufficient', 'undefined')}
@@ -259,8 +259,8 @@ export const TransactionalPermitAndQueueReservationTemplate = defineTemplate({
 	},
 	output: expressionOutput('Atomic permit-and-enqueue Effect.', effectType('void', '{{E}}', 'never')),
 	source: `Effect.tx(Effect.gen(function* () {
-	const semaphore = ${marker('expression', 'semaphore', 'semaphore')}
-	const queue = ${marker('expression', 'queue', 'queue')}
+	const semaphore = ${marker('expression', 'semaphore', '(undefined as any)')}
+	const queue = ${marker('expression', 'queue', '(undefined as any)')}
 	const value = ${marker('expression', 'value', 'undefined')}
 	const enqueueRejected = ${marker('expression', 'enqueueRejected', 'undefined')}
 	yield* TxSemaphore.acquire(semaphore)
@@ -281,7 +281,7 @@ export const TransactionalDeferredCompleteOnceTemplate = defineTemplate({
 	},
 	output: expressionOutput('Successful one-time completion Effect.', effectType('void', '{{EAlready}}', 'never')),
 	source: `Effect.tx(Effect.gen(function* () {
-	const deferred = ${marker('expression', 'deferred', 'deferred')}
+	const deferred = ${marker('expression', 'deferred', '(undefined as any)')}
 	const value = ${marker('expression', 'value', 'undefined')}
 	const alreadyCompleted = ${marker('expression', 'alreadyCompleted', 'undefined')}
 	const completed = yield* TxDeferred.succeed(deferred, value)
@@ -303,8 +303,8 @@ export const TransactionalObservableUpdateWithAuditTemplate = defineTemplate({
 	},
 	output: expressionOutput('Committed observable next state.', effectType('{{S}}', '{{E}}', 'never')),
 	source: `Effect.tx(Effect.gen(function* () {
-	const state = ${marker('expression', 'state', 'state')}
-	const audit = ${marker('expression', 'audit', 'audit')}
+	const state = ${marker('expression', 'state', '(undefined as any)')}
+	const audit = ${marker('expression', 'audit', '(undefined as any)')}
 	const update = ${marker('expression', 'update', '(current) => current')}
 	const toAudit = ${marker('expression', 'toAudit', '(_previous, next) => next')}
 	const enqueueRejected = ${marker('expression', 'enqueueRejected', 'undefined')}

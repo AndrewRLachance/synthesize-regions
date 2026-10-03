@@ -1,4 +1,4 @@
-import { defineTemplate } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import {
 	effectSourceInput,
 	effectStructuralType,
@@ -184,7 +184,7 @@ export const SqlUpdateByIdTemplate = defineTemplate({
 		row: effectValueInput('Record containing update values.', { ts: '{{Update}}' }), id: effectValueInput('Identifier value.', { ts: '{{Id}}' })
 	},
 	output: expressionOutput('UPDATE Effect.', effectType('ReadonlyArray<Record<string, unknown>>', sqlErrorType, sqlClientRequirement)),
-	source: `Effect.gen(function* () {\n\tconst sql = yield* SqlClient.SqlClient\n\tconst idColumn = ${marker('string', 'idColumn', '"id"')}\n\treturn yield* sql\`update \${sql(${marker('string', 'table', '"items"')})} set \${sql.update(${marker('expression', 'row', '{}')}, [idColumn])} where \${sql(idColumn)} = \${${marker('expression', 'id', '1')}}\`\n})`
+	source: `Effect.gen(function* () {\n\tconst sql = yield* SqlClient.SqlClient\n\tconst idColumn = ${marker('string', 'idColumn', '"id"')}\n\treturn yield* sql\`update \${sql(${marker('string', 'table', '"items"')})} set \${sql.update(${marker('expression', 'row', '{ id: undefined }')}, [idColumn])} where \${sql(idColumn)} = \${${marker('expression', 'id', '1')}}\`\n})`
 })
 
 export const SqlUpdateByIdReturningTemplate = defineTemplate({
@@ -195,7 +195,7 @@ export const SqlUpdateByIdReturningTemplate = defineTemplate({
 		row: effectValueInput('Record containing update values.', { ts: '{{Update}}' }), id: effectValueInput('Identifier value.', { ts: '{{Id}}' })
 	},
 	output: expressionOutput('UPDATE RETURNING Effect.', effectType('ReadonlyArray<{{Row}}>', sqlErrorType, sqlClientRequirement)),
-	source: `Effect.gen(function* () {\n\tconst sql = yield* SqlClient.SqlClient\n\tconst idColumn = ${marker('string', 'idColumn', '"id"')}\n\treturn yield* sql\`update \${sql(${marker('string', 'table', '"items"')})} set \${sql.update(${marker('expression', 'row', '{}')}, [idColumn]).returning("*")} where \${sql(idColumn)} = \${${marker('expression', 'id', '1')}}\`\n})`
+	source: `Effect.gen(function* () {\n\tconst sql = yield* SqlClient.SqlClient\n\tconst idColumn = ${marker('string', 'idColumn', '"id"')}\n\treturn yield* sql\`update \${sql(${marker('string', 'table', '"items"')})} set \${sql.update(${marker('expression', 'row', '{ id: undefined }')}, [idColumn]).returning("*")} where \${sql(idColumn)} = \${${marker('expression', 'id', '1')}}\`\n})`
 })
 
 export const SqlDeleteByIdTemplate = defineTemplate({

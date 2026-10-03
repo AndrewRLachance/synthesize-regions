@@ -223,7 +223,7 @@ export const FixedWindowRateLimiterLayerTemplate = defineTemplate({
 		window: effectDurationInput('Fixed rate-limit window duration.')
 	},
 	output: expressionOutput('Fixed-window rate-limiter Layer.', layerType('{{I}}', 'never', 'never')),
-	source: `Layer.effect(${marker('expression', 'service', 'RateLimiter')}, Effect.gen(function* () {
+	source: `Layer.effect(${marker('expression', 'service', '(undefined as any)')}, Effect.gen(function* () {
 	const limit = ${marker('expression', 'limit', '100')}
 	const windowMillis = Math.max(1, Duration.toMillis(${marker('expression', 'window', '"1 second"')}))
 	const startedAt = yield* Clock.currentTimeMillis
@@ -265,7 +265,7 @@ export const TokenBucketRateLimiterLayerTemplate = defineTemplate({
 		refillEvery: effectDurationInput('Token refill interval.')
 	},
 	output: expressionOutput('Token-bucket rate-limiter Layer.', layerType('{{I}}', 'never', 'never')),
-	source: `Layer.effect(${marker('expression', 'service', 'RateLimiter')}, Effect.gen(function* () {
+	source: `Layer.effect(${marker('expression', 'service', '(undefined as any)')}, Effect.gen(function* () {
 	const capacity = ${marker('expression', 'capacity', '20')}
 	const refillTokens = ${marker('expression', 'refillTokens', '5')}
 	const refillMillis = Math.max(1, Duration.toMillis(${marker('expression', 'refillEvery', '"1 second"')}))
@@ -361,7 +361,7 @@ export const SupervisedWorkerLayerTemplate = defineTemplate({
 		onFailure: callbackInput('Infallible observer invoked for every typed worker failure.', effectReturningCallbackType('error: {{E}}', 'void', 'never', '{{RReport}}'))
 	},
 	output: expressionOutput('Scoped supervised-worker Layer.', layerType('never', 'never', '{{R}} | {{RRetry}} | {{RReport}}')),
-	source: `Layer.scopedDiscard(Effect.gen(function* () {
+	source: `Layer.effectDiscard(Effect.gen(function* () {
 	const worker = ${marker('expression', 'worker', 'Effect.never')}
 	const retrySchedule = ${marker('expression', 'retrySchedule', 'Schedule.exponential("100 millis")')}
 	const cooldown = ${marker('expression', 'cooldown', '"5 seconds"')}
@@ -395,7 +395,7 @@ export const SupervisedWorkerPoolLayerTemplate = defineTemplate({
 		onFailure: callbackInput('Infallible observer invoked for every typed worker failure.', effectReturningCallbackType('error: {{E}}', 'void', 'never', '{{RReport}}'))
 	},
 	output: expressionOutput('Scoped supervised worker-pool Layer.', layerType('never', 'never', '{{R}} | {{RRetry}} | {{RReport}}')),
-	source: `Layer.scopedDiscard(Effect.gen(function* () {
+	source: `Layer.effectDiscard(Effect.gen(function* () {
 	const workerCount = ${marker('expression', 'workers', '4')}
 	const worker = ${marker('expression', 'worker', 'Effect.never')}
 	const retrySchedule = ${marker('expression', 'retrySchedule', 'Schedule.exponential("100 millis")')}
@@ -437,7 +437,7 @@ export const SupervisedPollingWorkerLayerTemplate = defineTemplate({
 		onFailure: callbackInput('Infallible typed-failure observer.', effectReturningCallbackType('error: {{E}}', 'void', 'never', '{{RReport}}'))
 	},
 	output: expressionOutput('Scoped supervised polling-worker Layer.', layerType('never', 'never', '{{R}} | {{RRepeat}} | {{RRetry}} | {{RReport}}')),
-	source: `Layer.scopedDiscard(Effect.gen(function* () {
+	source: `Layer.effectDiscard(Effect.gen(function* () {
 	const poll = ${marker('expression', 'poll', 'Effect.void')}
 	const repeatSchedule = ${marker('expression', 'repeatSchedule', 'Schedule.fixed("30 seconds")')}
 	const retrySchedule = ${marker('expression', 'retrySchedule', 'Schedule.exponential("100 millis")')}

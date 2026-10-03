@@ -1,4 +1,5 @@
-import { defineTemplate, fragmentCollectionPort } from '../src/templates.js'
+import { fragmentCollectionPort } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import { effectDurationInput, effectSourceInput, effectType, effectValueInput } from './effect-ts.js'
 import {
 	type AnyEffectFamilyTemplateDefinitionInput,
@@ -13,6 +14,7 @@ import {
 	typedExpressionInput,
 	valueInput
 } from './effect-template-helpers.js'
+import { resultType } from './effect-data-type-template-helpers.js'
 
 /**
  * Effect v4 Schedule / Cron graph templates.
@@ -34,9 +36,6 @@ const cronType = () => nominalType('effect/Cron')
 const cronInput = (description: string) => typedExpressionInput(description, cronType())
 
 const cronParseError = '{ readonly _tag?: string; readonly message?: string }'
-const resultType = (success: string, failure: string): { ts: string } => ({
-	ts: `{ readonly _tag: "Success"; readonly success: ${success} } | { readonly _tag: "Failure"; readonly failure: ${failure} }`
-})
 
 export const ScheduleForeverTemplate = defineTemplate({
 	modelId: 'ScheduleForever',
@@ -326,7 +325,7 @@ export const CronParseTemplate = defineTemplate({
 		expression: stringInput('Cron expression.'),
 		timeZone: valueInput('Optional time-zone input.')
 	},
-	output: expressionOutput('Cron parse Result.', resultType('{ readonly pipe: () => unknown }', cronParseError)),
+	output: expressionOutput('Cron parse Result.', resultType(cronType().ts, cronParseError)),
 	source: `Cron.parse(${marker('string', 'expression', '"0 0 * * * *"')}, ${marker('expression', 'timeZone', 'undefined')})`
 })
 
@@ -505,7 +504,7 @@ export const EffectRepeatOrElseTemplate = defineTemplate({
 		)
 	},
 	output: expressionOutput('Repeated Effect with fallback.', effectType('{{Out}} | {{B}}', '{{E2}}', '{{R}} | {{R2}} | {{R3}}')),
-	source: `Effect.repeatOrElse(${marker('expression', 'source', 'Effect.void')}, ${marker('expression', 'schedule', 'Schedule.recurs(1)')}, ${marker('expression', 'orElse', '() => Effect.void')})`
+	source: `Effect.repeatOrElse(${marker('expression', 'source', 'Effect.void')}, ${marker('expression', 'schedule', 'Schedule.recurs(1)')}, ${marker('expression', 'orElse', '() => Effect.succeed(0)')})`
 })
 
 export const EffectRetryScheduleTemplate = defineTemplate({

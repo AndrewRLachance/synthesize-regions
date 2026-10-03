@@ -1,0 +1,68 @@
+{
+	"effectVersion": "4.0.0-rc.117",
+	"generatedBy": "core-templates/.semantic-compile/synthesize-and-compile.mts",
+	"scope": "module-resolved semantic compile of fallback-substituted fixture programs",
+	"summary": {
+		"fixturesCompiled": 15,
+		"clean": 11,
+		"cleanWithAmbientNoise": 2,
+		"genuineFailures": 2,
+		"withDiagnostics": 4,
+		"totalDiagnostics": 5,
+		"tscExitCode": 2,
+		"errorCodes": {
+			"TS7031": 2,
+			"TS2322": 1,
+			"TS2554": 1,
+			"TS18046": 1
+		}
+	},
+	"ambientNoise": [
+		"AiTokenizerCount",
+		"AiToolkitToLayer"
+	],
+	"genuineFailures": [
+		"AiErrorRecovery",
+		"AiModelMake"
+	],
+	"diagnostics": {
+		"AiErrorRecovery": [
+			{
+				"line": 3,
+				"column": 66,
+				"code": "TS2322",
+				"message": "Type '{ _tag: \"UnknownError\"; }' is not assignable to type 'RateLimitError | QuotaExhaustedError | AuthenticationError | ContentPolicyError | InvalidRequestError | ... 12 more ... | InvalidUserInputError'."
+			}
+		],
+		"AiModelMake": [
+			{
+				"line": 3,
+				"column": 22,
+				"code": "TS2554",
+				"message": "Expected 3 arguments, but got 1."
+			}
+		],
+		"AiTokenizerCount": [
+			{
+				"line": 4,
+				"column": 57,
+				"code": "TS18046",
+				"message": "'tokenizer' is of type 'unknown'."
+			}
+		],
+		"AiToolkitToLayer": [
+			{
+				"line": 4,
+				"column": 60,
+				"code": "TS7031",
+				"message": "Binding element 'query' implicitly has an 'any' type."
+			},
+			{
+				"line": 4,
+				"column": 109,
+				"code": "TS7031",
+				"message": "Binding element 'productId' implicitly has an 'any' type."
+			}
+		]
+	}
+}

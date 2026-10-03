@@ -1,4 +1,4 @@
-import { defineTemplate } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import {
 	effectCollectionInput,
 	effectDurationInput,
@@ -13,7 +13,6 @@ import {
 	effectReturningCallbackType,
 	expressionOutput,
 	marker,
-	nominalType,
 	scheduleType,
 	statementOutput,
 	stringInput,
@@ -21,6 +20,17 @@ import {
 	typedExpressionInput,
 	valueInput
 } from './effect-template-helpers.js'
+import {
+	causeType,
+	exitType,
+	optionType,
+	resultType
+} from './effect-data-type-template-helpers.js'
+import {
+	CauseHasDiesTemplate,
+	CauseHasFailsTemplate,
+	CauseHasInterruptsTemplate
+} from './effect-cause-templates.js'
 
 /**
  * Effect v4 error-management templates.
@@ -33,34 +43,19 @@ import {
  *   import { Cause, Data, Effect, Filter, Schedule } from 'effect'
  */
 
-const nominalStructuralType = (phantoms: Readonly<Record<string, string>> = {}): string =>
-	`{ readonly pipe: () => unknown${Object.entries(phantoms)
-		.map(([name, type]) => `; readonly __${name}?: () => ${type}`)
-		.join('')} }`
+/*
+ * Nested descriptors need the bare structural string of a canonical descriptor
+ * (an Effect that yields an Option/Result/Exit/Cause). They are derived from the
+ * canonical `effect-data-type-template-helpers.js` descriptors so the phantom
+ * spellings can never drift apart.
+ */
+const optionTs = (value = 'unknown') => optionType(value).ts
 
-const optionTs = (value = 'unknown') =>
-	nominalStructuralType({ optionValue: value })
+const resultTs = (success = 'unknown', error = 'unknown') => resultType(success, error).ts
 
-const resultTs = (success = 'unknown', error = 'unknown') =>
-	nominalStructuralType({ resultSuccess: success, resultError: error })
+const exitTs = (success = 'unknown', error = 'unknown') => exitType(success, error).ts
 
-const exitTs = (success = 'unknown', error = 'unknown') =>
-	nominalStructuralType({ exitSuccess: success, exitError: error })
-
-const causeTs = (error = 'unknown') =>
-	nominalStructuralType({ causeError: error })
-
-const optionType = (value = 'unknown') =>
-	nominalType('effect/Option', { optionValue: value })
-
-const resultType = (success = 'unknown', error = 'unknown') =>
-	nominalType('effect/Result', { resultSuccess: success, resultError: error })
-
-const exitType = (success = 'unknown', error = 'unknown') =>
-	nominalType('effect/Exit', { exitSuccess: success, exitError: error })
-
-const causeType = (error = 'unknown') =>
-	nominalType('effect/Cause', { causeError: error })
+const causeTs = (error = 'unknown') => causeType(error).ts
 
 const timeoutError = '{ readonly _tag: "TimeoutError" }'
 
@@ -94,7 +89,7 @@ export const EffectGenYieldErrorTemplate = defineTemplate({
 		error: valueInput('Yieldable Data.Error or Data.TaggedError instance.', { ts: '{{E}}' })
 	},
 	output: statementOutput('Terminal yield of a yieldable expected error.'),
-	source: `return yield* ${marker('expression', 'error', 'new Error("failure")')};`
+	source: `return yield* ${marker('expression', 'error', 'Effect.fail(new Error("failure"))')};`
 })
 
 export const EffectResultTemplate = defineTemplate({
@@ -187,7 +182,7 @@ export const EffectCatchTagTemplate = defineTemplate({
 		'Effect with the selected tagged error recovered.',
 		effectType('{{A}} | {{B}}', '{{EOut}} | {{E2}}', '{{R}} | {{R2}}')
 	),
-	source: `Effect.catchTag(${marker('expression', 'source', 'Effect.void')}, ${marker('string', 'tag', '"Error"')}, ${marker('expression', 'handler', '() => Effect.void')})`
+	source: `Effect.catchTag(${marker('expression', 'source', 'Effect.fail({ _tag: "Error" as const })')}, ${marker('string', 'tag', '"Error"')}, ${marker('expression', 'handler', '() => Effect.void')})`
 })
 
 export const EffectCatchTagsTemplate = defineTemplate({
@@ -297,7 +292,7 @@ export const EffectCatchReasonTemplate = defineTemplate({
 		'Effect with the selected nested reason recovered.',
 		effectType('{{A}} | {{B}}', '{{EOut}} | {{E2}}', '{{R}} | {{R2}}')
 	),
-	source: `Effect.catchReason(${marker('expression', 'source', 'Effect.void')}, ${marker('string', 'errorTag', '"ApiError"')}, ${marker('string', 'reasonTag', '"Reason"')}, ${marker('expression', 'handler', '() => Effect.void')})`
+	source: `Effect.catchReason(${marker('expression', 'source', 'Effect.fail({ _tag: "ApiError" as const, reason: { _tag: "Reason" as const } })')}, ${marker('string', 'errorTag', '"ApiError"')}, ${marker('string', 'reasonTag', '"Reason"')}, ${marker('expression', 'handler', '() => Effect.void')})`
 })
 
 // Error-channel transformations ----------------------------------------------
@@ -429,7 +424,7 @@ export const EffectTapErrorTagTemplate = defineTemplate({
 		'Effect preserving the source result after tagged-error observation.',
 		effectType('{{A}}', '{{E}} | {{E2}}', '{{R}} | {{R2}}')
 	),
-	source: `Effect.tapErrorTag(${marker('expression', 'source', 'Effect.void')}, ${marker('string', 'tag', '"Error"')}, ${marker('expression', 'tap', '() => Effect.void')})`
+	source: `Effect.tapErrorTag(${marker('expression', 'source', 'Effect.fail({ _tag: "Error" as const })')}, ${marker('string', 'tag', '"Error"')}, ${marker('expression', 'tap', '() => Effect.void')})`
 })
 
 export const EffectTapCauseTemplate = defineTemplate({
@@ -965,39 +960,19 @@ export const EffectFailCauseTemplate = defineTemplate({
 
 // Cause inspection ------------------------------------------------------------
 
-const causePredicateTemplate = (
-	modelId: 'CauseHasFails' | 'CauseHasDies' | 'CauseHasInterrupts',
-	method: 'hasFails' | 'hasDies' | 'hasInterrupts',
-	description: string
-) => defineTemplate({
-	modelId,
-	version: '1.0.0',
-	description,
-	typeParameters: typeParameters(['E', 'Cause typed failure type.']),
-	inputs: {
-		cause: typedExpressionInput('Cause to inspect.', causeType('{{E}}'))
-	},
-	output: expressionOutput(`Boolean result of Cause.${method}.`, { ts: 'boolean', schema: { type: 'boolean' } }),
-	source: `Cause.${method}(${marker('expression', 'cause', 'Cause.fail(undefined)')})`
-})
-
-export const CauseHasFailsTemplate = causePredicateTemplate(
-	'CauseHasFails',
-	'hasFails',
-	'Tests whether a Cause contains at least one typed Fail reason.'
-)
-
-export const CauseHasDiesTemplate = causePredicateTemplate(
-	'CauseHasDies',
-	'hasDies',
-	'Tests whether a Cause contains at least one defect Die reason.'
-)
-
-export const CauseHasInterruptsTemplate = causePredicateTemplate(
-	'CauseHasInterrupts',
-	'hasInterrupts',
-	'Tests whether a Cause contains at least one Interrupt reason.'
-)
+/**
+ * Cause predicates are owned canonically by `effect-cause-templates.ts`, which
+ * also supplies `CauseHasInterruptsOnly`. These re-exports keep the historical
+ * import surface stable while guaranteeing a single authoritative definition
+ * per `modelId`; both modules therefore yield identical `manifestDigest`s.
+ *
+ * See `effect-v4-template-replacements.json` for the recorded lineage.
+ */
+export {
+	CauseHasDiesTemplate,
+	CauseHasFailsTemplate,
+	CauseHasInterruptsTemplate
+} from './effect-cause-templates.js'
 
 export const effectErrorGraphTemplateInputs = [
 	EffectFailSyncTemplate,

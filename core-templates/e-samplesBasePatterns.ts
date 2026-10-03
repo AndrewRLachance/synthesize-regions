@@ -1,4 +1,5 @@
-import { defineTemplate, fragmentCollectionPort, fragmentPort, literalPort } from '../src/templates.js'
+import { fragmentCollectionPort, fragmentPort, literalPort } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import type {
 	FragmentCollectionInputPort,
 	FragmentInputPort,
@@ -404,7 +405,7 @@ export const ObjectFromTwoPropertiesTemplate = defineTemplate({
 		second: objectPropertyFragment('Second object property fragment.')
 	},
 	output: out('expression', { type: recordType, schema: { type: 'object' } }),
-	source: `({ ${'/** @TYPE objectProperty id=first **/placeholder: undefined/** @END **/'}, ${'/** @TYPE objectProperty id=second **/placeholder: undefined/** @END **/'} })`
+	source: `({ ${'/** @TYPE objectProperty id=first **/first: undefined/** @END **/'}, ${'/** @TYPE objectProperty id=second **/second: undefined/** @END **/'} })`
 })
 
 export const ObjectFromThreePropertiesTemplate = defineTemplate({
@@ -417,7 +418,7 @@ export const ObjectFromThreePropertiesTemplate = defineTemplate({
 		third: objectPropertyFragment('Third object property fragment.')
 	},
 	output: out('expression', { type: recordType, schema: { type: 'object' } }),
-	source: `({ ${'/** @TYPE objectProperty id=first **/placeholder: undefined/** @END **/'}, ${'/** @TYPE objectProperty id=second **/placeholder: undefined/** @END **/'}, ${'/** @TYPE objectProperty id=third **/placeholder: undefined/** @END **/'} })`
+	source: `({ ${'/** @TYPE objectProperty id=first **/first: undefined/** @END **/'}, ${'/** @TYPE objectProperty id=second **/second: undefined/** @END **/'}, ${'/** @TYPE objectProperty id=third **/third: undefined/** @END **/'} })`
 })
 
 export const MergeObjectsTemplate = defineTemplate({
@@ -480,7 +481,7 @@ export const ArrayMapRawTemplate = defineTemplate({
 		mapper: expressionRaw('Arrow/function expression, e.g. x => x.id.')
 	},
 	output: out('expression', { type: unknownArrayType, schema: { type: 'array' } }),
-	source: `${'/** @TYPE expression id=array **/undefined/** @END **/'}.map(${'/** @TYPE expression id=mapper **/x => x/** @END **/'})`
+	source: `${'/** @TYPE expression id=array **/undefined/** @END **/'}.map(${'/** @TYPE expression id=mapper **/(x: unknown) => x/** @END **/'})`
 })
 
 export const ArrayFilterRawTemplate = defineTemplate({
@@ -492,7 +493,7 @@ export const ArrayFilterRawTemplate = defineTemplate({
 		predicate: expressionRaw('Predicate expression, e.g. x => x.active.')
 	},
 	output: out('expression', { type: unknownArrayType, schema: { type: 'array' } }),
-	source: `${'/** @TYPE expression id=array **/undefined/** @END **/'}.filter(${'/** @TYPE expression id=predicate **/x => Boolean(x)/** @END **/'})`
+	source: `${'/** @TYPE expression id=array **/undefined/** @END **/'}.filter(${'/** @TYPE expression id=predicate **/(x: unknown) => Boolean(x)/** @END **/'})`
 })
 
 export const ArrayFindRawTemplate = defineTemplate({
@@ -504,7 +505,7 @@ export const ArrayFindRawTemplate = defineTemplate({
 		predicate: expressionRaw('Predicate expression, e.g. x => x.id === targetId.')
 	},
 	output: out('expression', { type: unknownType, schema: true }),
-	source: `${'/** @TYPE expression id=array **/undefined/** @END **/'}.find(${'/** @TYPE expression id=predicate **/x => Boolean(x)/** @END **/'})`
+	source: `${'/** @TYPE expression id=array **/undefined/** @END **/'}.find(${'/** @TYPE expression id=predicate **/(x: unknown) => Boolean(x)/** @END **/'})`
 })
 
 export const ArraySomeRawTemplate = defineTemplate({
@@ -516,7 +517,7 @@ export const ArraySomeRawTemplate = defineTemplate({
 		predicate: expressionRaw('Predicate expression, e.g. x => x.active.')
 	},
 	output: out('expression', { type: booleanType, schema: { type: 'boolean' } }),
-	source: `${'/** @TYPE expression id=array **/undefined/** @END **/'}.some(${'/** @TYPE expression id=predicate **/x => Boolean(x)/** @END **/'})`
+	source: `${'/** @TYPE expression id=array **/undefined/** @END **/'}.some(${'/** @TYPE expression id=predicate **/(x: unknown) => Boolean(x)/** @END **/'})`
 })
 
 export const ArrayEveryRawTemplate = defineTemplate({
@@ -528,7 +529,7 @@ export const ArrayEveryRawTemplate = defineTemplate({
 		predicate: expressionRaw('Predicate expression, e.g. x => x.active.')
 	},
 	output: out('expression', { type: booleanType, schema: { type: 'boolean' } }),
-	source: `${'/** @TYPE expression id=array **/undefined/** @END **/'}.every(${'/** @TYPE expression id=predicate **/x => Boolean(x)/** @END **/'})`
+	source: `${'/** @TYPE expression id=array **/undefined/** @END **/'}.every(${'/** @TYPE expression id=predicate **/(x: unknown) => Boolean(x)/** @END **/'})`
 })
 
 export const ArrayReduceRawTemplate = defineTemplate({
@@ -541,7 +542,7 @@ export const ArrayReduceRawTemplate = defineTemplate({
 		initialValue: expressionFragment('Initial accumulator value.')
 	},
 	output: out('expression', { type: unknownType, schema: true }),
-	source: `${'/** @TYPE expression id=array **/undefined/** @END **/'}.reduce(${'/** @TYPE expression id=reducer **/(acc, x) => acc/** @END **/'}, ${'/** @TYPE expression id=initialValue **/undefined/** @END **/'})`
+	source: `${'/** @TYPE expression id=array **/undefined/** @END **/'}.reduce(${'/** @TYPE expression id=reducer **/(acc: unknown, x: unknown) => acc/** @END **/'}, ${'/** @TYPE expression id=initialValue **/undefined/** @END **/'})`
 })
 
 export const ArrayMapSuffixRawTemplate = defineTemplate({
@@ -552,7 +553,7 @@ export const ArrayMapSuffixRawTemplate = defineTemplate({
 		mapper: expressionRaw('Arrow/function expression, e.g. x => x.id.')
 	},
 	output: out('expressionSuffix'),
-	source: `.map(${'/** @TYPE expression id=mapper **/x => x/** @END **/'})`
+	source: `.map(${'/** @TYPE expression id=mapper **/(x: unknown) => x/** @END **/'})`
 })
 
 export const ArrayFilterSuffixRawTemplate = defineTemplate({
@@ -563,7 +564,7 @@ export const ArrayFilterSuffixRawTemplate = defineTemplate({
 		predicate: expressionRaw('Predicate expression, e.g. x => x.active.')
 	},
 	output: out('expressionSuffix'),
-	source: `.filter(${'/** @TYPE expression id=predicate **/x => Boolean(x)/** @END **/'})`
+	source: `.filter(${'/** @TYPE expression id=predicate **/(x: unknown) => Boolean(x)/** @END **/'})`
 })
 
 // -----------------------------------------------------------------------------
@@ -900,7 +901,7 @@ export const TypeofEqualsTemplate = defineTemplate({
 		})
 	},
 	output: out('expression', { type: booleanType, schema: { type: 'boolean' } }),
-	source: `(typeof ${'/** @TYPE expression id=value **/undefined/** @END **/'} === ${'/** @TYPE string id=typeName **/""/** @END **/'})`
+	source: `(typeof ${'/** @TYPE expression id=value **/undefined/** @END **/'} === ${'/** @TYPE string id=typeName **/"string"/** @END **/'})`
 })
 
 // -----------------------------------------------------------------------------

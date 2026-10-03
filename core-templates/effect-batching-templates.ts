@@ -45,7 +45,7 @@ const requestEntryType = (
 	requirements = 'never',
 	shape = '{}'
 ): TypeDescriptor => ({
-	nominal: 'effect/RequestEntry',
+	nominal: 'effect/Request.Entry',
 	ts: `{ readonly request: ${requestType(success, error, requirements, shape).ts}; readonly __requestEntry?: () => ${shape} }`
 })
 
@@ -145,7 +145,7 @@ export const RequestTaggedConstructorDeclarationTemplate = defineTemplate({
 		tag: stringInput('Request _tag value.')
 	},
 	output: statementOutput('Exported tagged Request constructor declaration.'),
-	source: `export const ${marker('identifier', 'name', 'GetValue')} = Request.tagged<${marker('type', 'requestType', 'unknown')}>(${marker('string', 'tag', '"GetValue"')})`
+	source: `export const ${marker('identifier', 'name', 'GetValue')} = Request.tagged<${marker('type', 'requestType', 'Request.Request<string, never, never> & { readonly _tag: "GetValue" }')}>(${marker('string', 'tag', '"GetValue"')})`
 })
 
 export const RequestResolverFromEffectTemplate = defineTemplate({
@@ -317,20 +317,20 @@ export const RequestResolverAsCacheWithTTLTemplate = requestResolverAsCacheTempl
 export const EffectForEachBatchedTemplate = defineTemplate({
 	modelId: 'EffectForEachBatched',
 	version: '1.0.0',
-	description: 'Traverses an iterable with request batching enabled so compatible Effect.request operations can be grouped.',
+	description: 'Traverses an iterable; in Effect v4 resolver-backed request batching applies automatically to Request-based operations during traversal.',
 	typeParameters: typeParameters(['A', 'Input element type.'], ['B', 'Result element type.'], ['E', 'Error type.'], ['R', 'Requirements.']),
 	inputs: {
 		iterable: effectValueInput('Iterable input.', { ts: 'Iterable<{{A}}>' }),
 		body: callbackInput('Effect-producing element callback.', effectReturningCallbackType('value: {{A}}, index: number', '{{B}}', '{{E}}', '{{R}}'))
 	},
 	output: expressionOutput('Batched traversal Effect.', effectType('ReadonlyArray<{{B}}>', '{{E}}', '{{R}}')),
-	source: `Effect.forEach(${marker('expression', 'iterable', '[]')}, ${marker('expression', 'body', 'value => Effect.succeed(value)')}, { batching: true })`
+	source: `Effect.forEach(${marker('expression', 'iterable', '[]')}, ${marker('expression', 'body', 'value => Effect.succeed(value)')})`
 })
 
 export const EffectForEachBatchedConcurrentTemplate = defineTemplate({
 	modelId: 'EffectForEachBatchedConcurrent',
 	version: '1.0.0',
-	description: 'Traverses an iterable with request batching enabled and explicit traversal concurrency.',
+	description: 'Traverses an iterable with explicit traversal concurrency; resolver-backed request batching applies automatically.',
 	typeParameters: typeParameters(['A', 'Input element type.'], ['B', 'Result element type.'], ['E', 'Error type.'], ['R', 'Requirements.']),
 	inputs: {
 		iterable: effectValueInput('Iterable input.', { ts: 'Iterable<{{A}}>' }),
@@ -338,7 +338,7 @@ export const EffectForEachBatchedConcurrentTemplate = defineTemplate({
 		concurrency: effectConcurrencyInput('Traversal concurrency.')
 	},
 	output: expressionOutput('Batched concurrent traversal Effect.', effectType('ReadonlyArray<{{B}}>', '{{E}}', '{{R}}')),
-	source: `Effect.forEach(${marker('expression', 'iterable', '[]')}, ${marker('expression', 'body', 'value => Effect.succeed(value)')}, { batching: true, concurrency: ${marker('expression', 'concurrency', '1')} })`
+	source: `Effect.forEach(${marker('expression', 'iterable', '[]')}, ${marker('expression', 'body', 'value => Effect.succeed(value)')}, { concurrency: ${marker('expression', 'concurrency', '1')} })`
 })
 
 export const effectBatchingGraphTemplateInputs = [

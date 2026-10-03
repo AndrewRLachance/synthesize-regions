@@ -1,4 +1,5 @@
-import { defineTemplate, fragmentCollectionPort } from '../src/templates.js'
+import { fragmentCollectionPort } from '../src/templates.js'
+import { defineTemplate } from './sample-definition.js'
 import {
 	effectConcurrencyInput,
 	effectSourceInput,
@@ -172,7 +173,7 @@ export const ApplicationHealthSnapshotTemplate = defineTemplate({
 		effectType(applicationHealthSnapshotType('{{L}}', '{{ELive}}', '{{Rdy}}', '{{EReady}}').ts, 'never', 'never')
 	),
 	source: `Effect.gen(function* () {
-	const health = ${marker('expression', 'health', 'health')}
+	const health = ${marker('expression', 'health', '(undefined as any)')}
 	const liveness = yield* Effect.result(health.liveness)
 	const readiness = yield* Effect.result(health.readiness)
 	return { liveness, readiness }
